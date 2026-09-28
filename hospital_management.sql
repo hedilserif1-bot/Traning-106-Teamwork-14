@@ -32,7 +32,7 @@ CREATE TABLE doctors (
     hire_date DATE NOT NULL,
     consultation_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (consultation_fee >= 0.00),
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'on_leave')),
-    FOREIGN KEY (department_id) REFERENCES departments(id)
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- أمر إنشاء الفهارس المناسبة على جدول الاطباء لتسهيل البحث 
@@ -75,7 +75,7 @@ CREATE TABLE rooms (
     daily_price DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (daily_price >= 0.00),
     status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'maintenance', 'inactive')),
     
-    FOREIGN KEY (department_id) REFERENCES departments(id)
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- أمر إنشاء فهارس على الجداول لتسهيل البحث 
@@ -94,8 +94,8 @@ CREATE TABLE appointments (
     reason VARCHAR(255) NOT NULL CHECK (TRIM(reason) <> ''),
     status VARCHAR(20) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'no_show')),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id),
-    FOREIGN KEY (doctor_id) REFERENCES doctors(id)
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- إضافة فهرس على الجدول لتسهيل عملية البحث 
