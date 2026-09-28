@@ -95,8 +95,8 @@ CREATE TABLE products (
     description TEXT,
     price DECIMAL(12,2) NOT NULL,
     cost_price DECIMAL(12,2) NOT NULL,
-    stock_quantity INT UNSIGNED NOT NULL DEFAULT 0,
-    minimum_stock INT UNSIGNED NOT NULL DEFAULT 0,
+    stock_quantity INT NOT NULL DEFAULT 0,
+    minimum_stock INT NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     status ENUM(
