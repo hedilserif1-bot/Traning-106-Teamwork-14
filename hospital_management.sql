@@ -70,10 +70,11 @@ CREATE TABLE rooms (
     id INT PRIMARY KEY AUTO_INCREMENT,
     department_id INT NOT NULL,
     room_number VARCHAR(50) NOT NULL UNIQUE CHECK (TRIM(room_number) <> ''),
-    room_type VARCHAR(50) NOT NULL CHECK (room_type IN ('General', 'Private', 'ICU', 'VIP')),
-    floor_number INT NOT NULL CHECK (TRIM(floor_number) <> ''),
+    room_type VARCHAR(50) NOT NULL CHECK (room_type IN ('normal', 'private', 'icu', 'emergency')),
+    floor_number INT NOT NULL CHECK (floor_number > 0),
     daily_price DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (daily_price >= 0.00),
-    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'maintenance')),
+    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'maintenance', 'inactive')),
+    
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 
