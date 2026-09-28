@@ -40,3 +40,30 @@ CREATE TABLE doctors (
 CREATE INDEX idx_doctors_department ON doctors (department_id);
 CREATE INDEX idx_doctors_specialization ON doctors (specialization);
 
+-- أمر إنشاء جدول ال ( patients ) مع الحماية الكاملة عليه
+
+CREATE TABLE patients (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    full_name VARCHAR(150) NOT NULL CHECK (TRIM(full_name) <> ''),
+    national_id VARCHAR(50) NOT NULL UNIQUE CHECK (TRIM(national_id) <> ''),
+    birth_date DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    gender VARCHAR(20) NOT NULL CHECK (gender IN ('Male', 'Female')),
+    phone VARCHAR(20) NOT NULL UNIQUE CHECK (TRIM(phone) <> ''),
+    email VARCHAR(150) NOT NULL UNIQUE CHECK (TRIM(email) <> ''),
+    blood_type VARCHAR(10) NOT NULL CHECK (blood_type IN ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')),
+    city VARCHAR(100) NOT NULL CHECK (TRIM(city) <> ''),
+    address VARCHAR(255) NOT NULL CHECK (TRIM(address) <> ''),
+    emergency_contact_name VARCHAR(150) NOT NULL CHECK (TRIM(emergency_contact_name) <> ''),
+    emergency_contact_phone VARCHAR(20) NOT NULL CHECK (TRIM(emergency_contact_phone) <> ''),
+    registered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'admitted'))
+);
+
+-- أمر أنشاء فهرس على الجدول لتسهيل البحث 
+
+CREATE INDEX idx_patients_city ON patients (city);
+CREATE INDEX idx_patients_phone ON patients (phone);
+
+
+
+
