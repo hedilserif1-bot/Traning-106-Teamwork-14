@@ -390,7 +390,77 @@ CREATE TABLE returns (
 
 
 
+-- REVIEWS TABLE 
+
+
+CREATE TABLE reviews (
+    id INT
+    AUTO_INCREMENT PRIMARY KEY,   
+    customer_id INT NOT NULL,
+   
+    product_id INT NOT NULL,
+
+    order_item_id INT NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL DEFAULT 'active',
+  
+        FOREIGN KEY (customer_id)
+        REFERENCES customers(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+        FOREIGN KEY (product_id)
+        REFERENCES products(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+        FOREIGN KEY (order_item_id)
+        REFERENCES order_items(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+   
+        CHECK (rating BETWEEN 1 AND 5),
+    UNIQUE KEY uq_customer_order_item_review
+        (customer_id, order_item_id)
+);
 
 
 
+-- SELLER SETTLEMENTS TABLE
+
+
+
+
+CREATE TABLE seller_settlements (
+    id INT
+    AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    gross_sales DECIMAL(12,2) NOT NULL DEFAULT 0,
+    commission_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    refund_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    net_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+
+    paid_at DATETIME,
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+
+        FOREIGN KEY (seller_id)
+        REFERENCES sellers(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+        CHECK (gross_sales >= 0),
+
+        CHECK (commission_amount >= 0),
+ 
+        CHECK (refund_amount >= 0),
+
+        CHECK (net_amount >= 0),
+
+        CHECK (period_end >= period_start),
+    UNIQUE KEY uq_seller_settlement_period
+        (seller_id, period_start, period_end)
+);
 
