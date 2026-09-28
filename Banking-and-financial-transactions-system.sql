@@ -111,7 +111,7 @@ CREATE TABLE transfers(
 /* table transactions */
 
 CREATE TABLE transactions (
-id INT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     account_id INT NOT NULL,
     transfer_id INT,
     transaction_type VARCHAR(20) NOT NULL,
@@ -122,15 +122,23 @@ id INT PRIMARY KEY AUTO_INCREMENT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) DEFAULT 'completed',
     
-    FOREIGN KEY account_id REFERENCES accounts(id),
-    FOREIGN KEY transfer_id REFERENCES (id),
+    FOREIGN KEY (account_id) REFERENCES accounts(id),
+    FOREIGN KEY (transfer_id) REFERENCES transfers(id),
     
     CHECK (amount > 0),
-    CHECK (transaction_type IN ('deposit', 'withdrawal', 'transfer_in', 'transfer_out', 'fee', 'refund', 'loan_payment'))
+    CHECK (transaction_type IN (
+        'deposit',
+        'withdrawal',
+        'transfer_in',
+        'transfer_out',
+        'fee',
+        'refund',
+        'loan_payment'
+    ))
 );
 
 
-/* TABLE cards  */
+/* TABLE cards */
 
 CREATE TABLE cards (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -147,13 +155,18 @@ CREATE TABLE cards (
     CHECK (card_type IN ('debit', 'credit')),
     CHECK (daily_limit >= 0),
 
-    CHECK (status IN ('active', 'blocked', 'expired', 'cancelled'))
+    CHECK (status IN (
+        'active',
+        'blocked',
+        'expired',
+        'cancelled'
+    ))
 );
 
 
-/* TABLE card_transactions  */
+/* TABLE card_transactions */
 
-CREATE TABLE cards (
+CREATE TABLE card_transactions (
     id INT PRIMARY KEY AUTO_INCREMENT,
     card_id INT NOT NULL,
     amount DECIMAL(15,2) NOT NULL,
@@ -165,9 +178,13 @@ CREATE TABLE cards (
     FOREIGN KEY (card_id) REFERENCES cards(id),
     
     CHECK (amount > 0),
-    CHECK (status IN ('pending', 'approved', 'declined', 'refunded'))
-    );
-
+    CHECK (status IN (
+        'pending',
+        'approved',
+        'declined',
+        'refunded'
+    ))
+);
 
 
 /* table loan */
@@ -189,9 +206,15 @@ CREATE TABLE loans (
     CHECK (interest_rate >= 0),
     CHECK (total_amount >= principal_amount),
     CHECK (
-        status IN ('pending','active', 'paid', 'defaulted', 'cancelled'))
+        status IN (
+            'pending',
+            'active',
+            'paid',
+            'defaulted',
+            'cancelled'
+        )
+    )
 );
-
 
 
 /* TABLE loan_installments */
@@ -211,17 +234,23 @@ CREATE TABLE loan_installments (
     CHECK (amount >= 0),
     CHECK (paid_amount >= 0),
     CHECK (paid_amount <= amount),
-    CHECK (status IN ('pending','partially_paid','paid','overdue')),
+    CHECK (
+        status IN (
+            'pending',
+            'partially_paid',
+            'paid',
+            'overdue'
+        )
+    ),
 
     UNIQUE (loan_id, installment_number)
 );
 
 
-
 /* audit_logs */
 
 CREATE TABLE audit_logs (
-    id INT PRIMARY KEY AUTO_INCREMENT ,
+    id INT PRIMARY KEY AUTO_INCREMENT,
     customer_id INT,
     account_id INT,
     action_type VARCHAR(50) NOT NULL,
