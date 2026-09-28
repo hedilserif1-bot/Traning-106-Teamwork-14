@@ -29,7 +29,7 @@ CREATE TABLE doctors (
     phone VARCHAR(20) NOT NULL UNIQUE CHECK (TRIM(phone) <> ''),
     specialization VARCHAR(100) NOT NULL CHECK (TRIM(specialization) <> ''),
     license_number VARCHAR(100) NOT NULL UNIQUE CHECK (TRIM(license_number) <> ''),
-    hire_date DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    hire_date DATE NOT NULL,
     consultation_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (consultation_fee >= 0.00),
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'on_leave')),
     FOREIGN KEY (department_id) REFERENCES departments(id)
@@ -46,7 +46,7 @@ CREATE TABLE patients (
     id INT PRIMARY KEY AUTO_INCREMENT,
     full_name VARCHAR(150) NOT NULL CHECK (TRIM(full_name) <> ''),
     national_id VARCHAR(50) NOT NULL UNIQUE CHECK (TRIM(national_id) <> ''),
-    birth_date DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    birth_date DATE NOT NULL,
     gender VARCHAR(20) NOT NULL CHECK (gender IN ('Male', 'Female')),
     phone VARCHAR(20) NOT NULL UNIQUE CHECK (TRIM(phone) <> ''),
     email VARCHAR(150) NOT NULL UNIQUE CHECK (TRIM(email) <> ''),
@@ -83,9 +83,26 @@ CREATE TABLE rooms (
 CREATE INDEX idx_rooms_department ON rooms (department_id);
 CREATE INDEX idx_rooms_status ON rooms (status);
 
+-- أمر إنشاء جدول ال ( appointments ) مع الحماية الكاملة عليه
 
+CREATE TABLE appointments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    appointment_date DATE NOT NULL,
+    appointment_time TIME NOT NULL,
+    reason VARCHAR(255) NOT NULL CHECK (TRIM(reason) <> ''),
+    status VARCHAR(20) NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'no_show')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (patient_id) REFERENCES patients(id),
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id)
+);
 
+-- إضافة فهرس على الجدول لتسهيل عملية البحث 
 
+CREATE INDEX idx_appointments_patient ON appointments (patient_id);
+CREATE INDEX idx_appointments_doctor ON appointments (doctor_id);
+CREATE INDEX idx_appointments_date ON appointments (appointment_date);
 
 
 
