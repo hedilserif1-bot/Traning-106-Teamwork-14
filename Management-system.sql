@@ -1,8 +1,17 @@
---Management-system.sql
+-- ============================================
+-- Logistics Management System Database
+-- ============================================
 
----data base---
+-- إنشاء قاعدة البيانات
 CREATE DATABASE logistics_management;
--- 1 table customers العملاء--
+
+USE logistics_management;
+
+
+-- ============================================
+-- 1. Table: customers - العملاء
+-- ============================================
+
 CREATE TABLE customers (
     id INT PRIMARY KEY AUTO_INCREMENT,
     full_name VARCHAR(100) NOT NULL,
@@ -14,7 +23,12 @@ CREATE TABLE customers (
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) DEFAULT 'active'
 );
--- 2 table branches   الفروع---
+
+
+-- ============================================
+-- 2. Table: branches - الفروع
+-- ============================================
+
 CREATE TABLE branches (
     id INT PRIMARY KEY AUTO_INCREMENT,
     branch_name VARCHAR(100) NOT NULL,
@@ -26,7 +40,11 @@ CREATE TABLE branches (
     status VARCHAR(20) DEFAULT 'active'
 );
 
--- 3 table employess الموظفين---
+
+-- ============================================
+-- 3. Table: employees - الموظفين
+-- ============================================
+
 CREATE TABLE employees (
     id INT PRIMARY KEY AUTO_INCREMENT,
     branch_id INT NOT NULL,
@@ -41,7 +59,12 @@ CREATE TABLE employees (
     FOREIGN KEY (branch_id)
         REFERENCES branches(id)
 );
---- 4 ذ ة1table driver السائقين---
+
+
+-- ============================================
+-- 4. Table: drivers - السائقين
+-- ============================================
+
 CREATE TABLE drivers (
     id INT PRIMARY KEY AUTO_INCREMENT,
     branch_id INT NOT NULL,
@@ -56,7 +79,11 @@ CREATE TABLE drivers (
     FOREIGN KEY (branch_id)
         REFERENCES branches(id)
 );
---- 5 table vehicles المركبات---
+
+
+-- ============================================
+-- 5. Table: vehicles - المركبات
+-- ============================================
 
 CREATE TABLE vehicles (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -71,7 +98,12 @@ CREATE TABLE vehicles (
     FOREIGN KEY (branch_id)
         REFERENCES branches(id)
 );
----6 table shipments الشحنات---
+
+
+-- ============================================
+-- 6. Table: shipments - الشحنات
+-- ============================================
+
 CREATE TABLE shipments (
     id INT PRIMARY KEY AUTO_INCREMENT,
 
@@ -97,7 +129,6 @@ CREATE TABLE shipments (
     delivered_at DATETIME,
 
     payment_status VARCHAR(20) DEFAULT 'pending',
-
     shipment_status VARCHAR(30) DEFAULT 'created',
 
     FOREIGN KEY (customer_id)
@@ -113,7 +144,10 @@ CREATE TABLE shipments (
 );
 
 
-----7 table deliveries عملية التوصيل----
+-- ============================================
+-- 7. Table: deliveries - عمليات التوصيل
+-- ============================================
+
 CREATE TABLE deliveries (
     id INT PRIMARY KEY AUTO_INCREMENT,
 
@@ -138,7 +172,12 @@ CREATE TABLE deliveries (
     FOREIGN KEY (vehicle_id)
         REFERENCES vehicles(id)
 );
------8 table shipment_tracking  تتبع الشحنة---
+
+
+-- ============================================
+-- 8. Table: shipment_tracking - تتبع الشحنة
+-- ============================================
+
 CREATE TABLE shipment_tracking (
     id INT PRIMARY KEY AUTO_INCREMENT,
 
@@ -157,7 +196,11 @@ CREATE TABLE shipment_tracking (
         REFERENCES branches(id)
 );
 
----9table payments عمليات الدفع----
+
+-- ============================================
+-- 9. Table: payments - عمليات الدفع
+-- ============================================
+
 CREATE TABLE payments (
     id INT PRIMARY KEY AUTO_INCREMENT,
 
@@ -178,32 +221,79 @@ CREATE TABLE payments (
 );
 
 
---- على جدول ال customers تعديلات---
---1--
+-- ============================================
+-- تعديلات على جدول customers
+-- ============================================
+
+-- نوع العميل
 ALTER TABLE customers
 ADD CONSTRAINT chk_customer_type
-CHECK (customer_type IN ('individual', 'business'));
---2--
+CHECK (
+    customer_type IN (
+        'individual',
+        'business'
+    )
+);
+
+-- حالة العميل
 ALTER TABLE customers
 ADD CONSTRAINT chk_customer_status
-CHECK (status IN ('active', 'inactive', 'blocked'));
+CHECK (
+    status IN (
+        'active',
+        'inactive',
+        'blocked'
+    )
+);
 
----تعديلات على جدول ال الفروع  branches---
+
+-- ============================================
+-- تعديلات على جدول branches
+-- ============================================
+
 ALTER TABLE branches
 ADD CONSTRAINT chk_branch_status
-CHECK (status IN ('active', 'inactive'));
+CHECK (
+    status IN (
+        'active',
+        'inactive'
+    )
+);
 
------ تعديلات على جدول الموظفين ----
+
+-- ============================================
+-- تعديلات على جدول employees
+-- ============================================
+
 ALTER TABLE employees
 ADD CONSTRAINT chk_employee_status
-CHECK (status IN ('active', 'inactive'));
+CHECK (
+    status IN (
+        'active',
+        'inactive'
+    )
+);
 
----- تعديلات على جدول السائقين---
+
+-- ============================================
+-- تعديلات على جدول drivers
+-- ============================================
+
 ALTER TABLE drivers
 ADD CONSTRAINT chk_driver_status
-CHECK (status IN ('active', 'inactive'));
+CHECK (
+    status IN (
+        'active',
+        'inactive'
+    )
+);
 
------ تعديلات على جدول المركبات -- حالة المركبة ---
+
+-- ============================================
+-- تعديلات على جدول vehicles
+-- حالة المركبة
+-- ============================================
+
 ALTER TABLE vehicles
 ADD CONSTRAINT chk_vehicle_status
 CHECK (
@@ -214,7 +304,13 @@ CHECK (
         'inactive'
     )
 );
----- تعديلات على جدول الشحنات ---حالة الدفع
+
+
+-- ============================================
+-- تعديلات على جدول shipments
+-- ============================================
+
+-- حالة الدفع
 ALTER TABLE shipments
 ADD CONSTRAINT chk_shipment_payment_status
 CHECK (
@@ -224,7 +320,9 @@ CHECK (
         'refunded'
     )
 );
------
+
+
+-- حالة الشحنة
 ALTER TABLE shipments
 ADD CONSTRAINT chk_shipment_status
 CHECK (
@@ -238,8 +336,13 @@ CHECK (
         'returned'
     )
 );
----- تعديلات على جدول الدفع 
----طريقة الدفع 1---
+
+
+-- ============================================
+-- تعديلات على جدول payments
+-- ============================================
+
+-- طريقة الدفع
 ALTER TABLE payments
 ADD CONSTRAINT chk_payment_method
 CHECK (
@@ -250,7 +353,9 @@ CHECK (
         'bank_transfer'
     )
 );
-------2 حالة الدفع--
+
+
+-- حالة الدفع
 ALTER TABLE payments
 ADD CONSTRAINT chk_payment_status
 CHECK (
@@ -260,27 +365,3 @@ CHECK (
         'refunded'
     )
 );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
