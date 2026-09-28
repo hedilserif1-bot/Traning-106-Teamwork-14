@@ -1,1 +1,46 @@
 --Multi-Vendor Marketplace System 
+
+WITH RECURSIVE MASTER_REPORT AS(
+SELECT i.id,
+    i.full_name,
+    i.supervisor_id,
+    i.full_name AS path,
+    1 AS level FROM instructors i WHERE i.supervisor_id IS NULL
+    
+    
+    UNION ALL
+    
+    SELECT 
+    i.id,
+    i.full_name,
+    i.supervisor_id,
+    CONCAT(m.path,  ' → ', i.full_name),
+    
+    M.level +1 FROM instructors i JOIN  MASTER_REPORT M ON i.supervisor_id = M.id
+    
+)
+
+SELECT M.id,
+M.full_name,
+M.supervisor_id,
+M.path,
+M.level,
+COUNT(DISTINCT c.id) AS total_courses,
+COUNT(DISTINCT e.student_id) AS total_students,
+COALESCE(SUM(
+CASE WHEN p.payment_status = "paid" THEN p.final_amount ELSE 0 END
+), 0) AS total_income
+
+FROM  MASTER_REPORT M
+LEFT JOIN courses c ON c.instructor_id = M.id
+
+LEFT JOIN enrollments e ON e.course_id = c.id
+
+LEFT JOIN payments p ON p.enrollment_id = e.id
+
+GROUP BY 
+M.id,
+M.full_name,
+M.supervisor_id,
+M.path,
+M.level;
