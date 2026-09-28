@@ -252,5 +252,78 @@ CREATE TABLE orders (
 
 
 
+-- ORDER ITEMS TABLE--
+
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    seller_id INT NOT NULL,
+
+    quantity INT NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    platform_commission DECIMAL(12,2) NOT NULL DEFAULT 0,
+    seller_amount DECIMAL(12,2) NOT NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'active',
+
+   
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+        FOREIGN KEY (product_id)
+        REFERENCES products(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+   
+        FOREIGN KEY (seller_id)
+        REFERENCES sellers(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    
+        CHECK (quantity > 0),
+        CHECK (unit_price >= 0),
+        CHECK (discount_amount >= 0),
+        CHECK (platform_commission >= 0),
+        CHECK (seller_amount >= 0)
+);
 
 
+--PAYMENTS TABLE
+
+
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    payment_reference VARCHAR(150) NOT NULL UNIQUE,
+    amount DECIMAL(12,2) NOT NULL,
+
+    payment_method ENUM(
+        'pix',
+        'card',
+        'bank_transfer',
+        'wallet'
+    ) NOT NULL,
+
+    paid_at DATETIME,
+
+    status ENUM(
+        'pending',
+        'paid',
+        'failed',
+        'refunded',
+        'partially_refunded'
+    ) NOT NULL DEFAULT 'pending',
+
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+  
+        CHECK (amount >= 0)
+);
