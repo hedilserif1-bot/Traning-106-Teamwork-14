@@ -357,6 +357,40 @@ CREATE TABLE shipments (
 
 
 
+-- RETURNS TABLE --
+
+
+
+
+CREATE TABLE returns (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_item_id INT NOT NULL,
+    quantity INT NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+
+    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    approved_at DATETIME NULL,
+    completed_at DATETIME NULL,
+
+    status ENUM(
+        'requested',
+        'approved',
+        'rejected',
+        'completed'
+    ) NOT NULL DEFAULT 'requested',
+
+
+        FOREIGN KEY (order_item_id)
+        REFERENCES order_items(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+        CHECK (quantity > 0)
+);
+
+
+
+
 
 
 
