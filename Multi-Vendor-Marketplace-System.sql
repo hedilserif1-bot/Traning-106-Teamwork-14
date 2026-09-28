@@ -65,6 +65,9 @@ CREATE TABLE sellers (
 );
 
 
+
+
+
 -- CATEGORIES TABLE
 
 CREATE TABLE categories (
@@ -140,6 +143,112 @@ CREATE TABLE product_price_history (
 );
 
 
+
+--CARTS TABLE--
+
+CREATE TABLE carts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    status ENUM('active', 'converted', 'abandoned')
+        NOT NULL DEFAULT 'active',
+        FOREIGN KEY (customer_id)
+        REFERENCES customers(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+
+--CART_ITEMS TABLE--
+
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cart_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (cart_id)
+        REFERENCES carts(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+        FOREIGN KEY (product_id)
+        REFERENCES products(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+        CHECK (quantity > 0),
+    UNIQUE KEY uq_cart_product (cart_id, product_id)
+);
+
+
+--COUPONS TABLE--
+
+
+
+CREATE TABLE coupons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(100) NOT NULL UNIQUE,
+    discount_type ENUM('percentage', 'fixed') NOT NULL,
+    discount_value DECIMAL(12,2) NOT NULL,
+    minimum_order DECIMAL(12,2) NOT NULL DEFAULT 0,
+    maximum_discount DECIMAL(12,2) NULL,
+    usage_limit INT NOT NULL,
+    used_count INT NOT NULL DEFAULT 0,
+    starts_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'active',
+    
+        CHECK (discount_value >= 0),
+        CHECK (minimum_order >= 0),
+        CHECK (used_count <= usage_limit),
+        CHECK (expires_at > starts_at)
+);
+
+
+--ORDERS TABLE--
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_number VARCHAR(100) NOT NULL UNIQUE,
+    customer_id INT NOT NULL,
+    address_id INT NOT NULL,
+    coupon_id INT,
+
+    subtotal DECIMAL(12,2) NOT NULL,
+    discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    shipping_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(12,2) NOT NULL,
+
+    ordered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    status ENUM(
+        'pending',
+        'confirmed',
+        'processing',
+        'shipped',
+        'delivered',
+        'cancelled',
+        'partially_returned',
+        'returned'
+    ) NOT NULL DEFAULT 'pending',
+
+        FOREIGN KEY (customer_id)
+        REFERENCES customers(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+        FOREIGN KEY (customer_id, address_id)
+        REFERENCES customer_addresses(customer_id, id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+        FOREIGN KEY (coupon_id)
+        REFERENCES coupons(id)
+    
+);
 
 
 
