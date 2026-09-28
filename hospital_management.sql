@@ -64,6 +64,28 @@ CREATE TABLE patients (
 CREATE INDEX idx_patients_city ON patients (city);
 CREATE INDEX idx_patients_phone ON patients (phone);
 
+-- أمر إنشاء جدول ( rooms ) مع حماية كل الاعمدة 
+
+CREATE TABLE rooms (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    department_id INT NOT NULL,
+    room_number VARCHAR(50) NOT NULL UNIQUE CHECK (TRIM(room_number) <> ''),
+    room_type VARCHAR(50) NOT NULL CHECK (room_type IN ('General', 'Private', 'ICU', 'VIP')),
+    floor_number INT NOT NULL CHECK (TRIM(floor_number) <> ''),
+    daily_price DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (daily_price >= 0.00),
+    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'maintenance')),
+    FOREIGN KEY (department_id) REFERENCES departments(id)
+);
+
+-- أمر إنشاء فهارس على الجداول لتسهيل البحث 
+
+CREATE INDEX idx_rooms_department ON rooms (department_id);
+CREATE INDEX idx_rooms_status ON rooms (status);
+
+
+
+
+
 
 
 
