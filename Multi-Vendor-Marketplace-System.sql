@@ -800,3 +800,75 @@ VALUES
 (38, 549.90, 599.90),
 (39, 429.90, 479.90),
 (40, 599.90, 649.90);
+
+
+
+
+
+
+
+
+--DATA CARTS TABLE
+
+INSERT INTO carts
+(customer_id, status)
+VALUES
+(1, 'active'),
+(2, 'active'),
+(3, 'converted'),
+(4, 'abandoned'),
+(5, 'active'),
+(6, 'converted'),
+(7, 'active'),
+(8, 'active'),
+(9, 'abandoned'),
+(10, 'converted'),
+(11, 'active'),
+(12, 'active'),
+(13, 'converted'),
+(14, 'abandoned'),
+(15, 'active'),
+(16, 'active'),
+(17, 'converted'),
+(18, 'active'),
+(19, 'abandoned'),
+(20, 'active'),
+(21, 'converted'),
+(22, 'active'),
+(23, 'active'),
+(24, 'abandoned'),
+(25, 'converted'),
+(26, 'active'),
+(27, 'active'),
+(28, 'converted'),
+(29, 'abandoned'),
+(30, 'active'),
+(31, 'active'),
+(32, 'converted'),
+(33, 'active'),
+(34, 'abandoned'),
+(35, 'active'),
+(36, 'converted'),
+(37, 'active'),
+(38, 'active'),
+(39, 'abandoned'),
+(40, 'converted'),
+(41, 'active'),
+(42, 'active'),
+(43, 'converted'),
+(44, 'abandoned'),
+(45, 'active'),
+(46, 'converted'),
+(47, 'active'),
+(48, 'active'),
+(49, 'abandoned'),
+(50, 'converted');
+
+
+
+
+
+
+
+
+
