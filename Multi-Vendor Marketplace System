@@ -1,3 +1,1 @@
-SELECT full_name, email
-FROM students
-WHERE age >= 18;
+--Multi-Vendor Marketplace System 
