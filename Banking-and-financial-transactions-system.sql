@@ -1,2 +1,1 @@
-create tables
-create views
+--Banking-and-financial-transactions-system.sql
