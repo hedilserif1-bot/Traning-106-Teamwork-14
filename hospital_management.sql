@@ -10,7 +10,7 @@ USE hospital_management;
 CREATE TABLE departments (
     id INT PRIMARY KEY AUTO_INCREMENT,
     department_name VARCHAR(100) NOT NULL CHECK (TRIM(department_name) <> ''),
-    floor_number INT NOT NULL CHECK (TRIM(floor_number) <> ''),
+    floor_number INT NOT NULL CHECK (floor_number > 0),
     phone VARCHAR(20) NOT NULL CHECK (TRIM(phone) <> ''),
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'maintenance'))
 );
