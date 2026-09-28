@@ -556,6 +556,97 @@ VALUES
 ('Salim Yasin', 'salim.yasin70@gmail.com', '+902840571070', 'active');
 
 
+
+
+
+
+--DATA CUSTOMER_ADDRESSES TABLE
+
+
+INSERT INTO customer_addresses
+(customer_id, title, city, district, street, postal_code, is_default)
+VALUES
+(1, 'Home', 'Istanbul', 'Kadikoy', 'Bagdat Caddesi No:15', '34710', TRUE),
+(2, 'Apartment', 'Istanbul', 'Besiktas', 'Ihlamurdere Caddesi No:28', '34349', TRUE),
+(3, 'Residence', 'Istanbul', 'Sisli', 'Halaskargazi Caddesi No:42', '34371', TRUE),
+(4, 'Home', 'Ankara', 'Cankaya', 'Tunali Hilmi Caddesi No:18', '06680', TRUE),
+(5, 'Family House', 'Izmir', 'Konak', 'Mithatpasa Caddesi No:55', '35260', TRUE),
+(6, 'Apartment', 'Istanbul', 'Uskudar', 'Selmanipak Caddesi No:12', '34668', TRUE),
+(7, 'Home', 'Bursa', 'Nilufer', 'Gorukle Caddesi No:31', '16285', TRUE),
+(8, 'Residence', 'Antalya', 'Muratpasa', 'Lara Caddesi No:24', '07100', TRUE),
+(9, 'Family House', 'Adana', 'Seyhan', 'Ziyapasa Bulvari No:17', '01140', TRUE),
+(10, 'Apartment', 'Istanbul', 'Maltepe', 'Baglarbasi Caddesi No:9', '34844', TRUE),
+
+(11, 'Home', 'Ankara', 'Kecioren', 'Etlik Caddesi No:36', '06290', TRUE),
+(12, 'Residence', 'Izmir', 'Bornova', 'Kazim Dirik Caddesi No:44', '35100', TRUE),
+(13, 'Apartment', 'Istanbul', 'Bakirkoy', 'Istasyon Caddesi No:21', '34142', TRUE),
+(14, 'Family House', 'Bursa', 'Osmangazi', 'Cekirge Caddesi No:13', '16100', TRUE),
+(15, 'Home', 'Antalya', 'Konyaalti', 'Arapsuyu Caddesi No:48', '07070', TRUE),
+(16, 'Residence', 'Istanbul', 'Fatih', 'Fevzi Pasa Caddesi No:27', '34083', TRUE),
+(17, 'Apartment', 'Ankara', 'Etimesgut', 'Baglica Bulvari No:19', '06790', TRUE),
+(18, 'Home', 'Istanbul', 'Kartal', 'Kordonboyu Caddesi No:33', '34860', TRUE),
+(19, 'Family House', 'Izmir', 'Karsiyaka', 'Cemal Gurbuz Caddesi No:11', '35540', TRUE),
+(20, 'Residence', 'Adana', 'Cukurova', 'Turgut Ozal Bulvari No:29', '01170', TRUE),
+
+(21, 'Apartment', 'Istanbul', 'Atasehir', 'Kayisdagi Caddesi No:16', '34750', TRUE),
+(22, 'Home', 'Istanbul', 'Umraniye', 'Alemdag Caddesi No:51', '34768', TRUE),
+(23, 'Family House', 'Ankara', 'Mamak', 'Dikimevi Caddesi No:25', '06620', TRUE),
+(24, 'Residence', 'Izmir', 'Buca', 'Menderes Caddesi No:37', '35370', TRUE),
+(25, 'Apartment', 'Bursa', 'Yildirim', 'Davutdede Caddesi No:62', '16350', TRUE),
+(26, 'Home', 'Istanbul', 'Pendik', 'Gazi Pasa Caddesi No:14', '34890', TRUE),
+(27, 'Residence', 'Antalya', 'Kepez', 'Sakarya Bulvari No:23', '07060', TRUE),
+(28, 'Family House', 'Istanbul', 'Bakirkoy', 'Yesilkoy Caddesi No:39', '34149', TRUE),
+(29, 'Apartment', 'Ankara', 'Cankaya', 'Mesrutiyet Caddesi No:8', '06420', TRUE),
+(30, 'Home', 'Izmir', 'Konak', 'Kibris Sehitleri Caddesi No:46', '35220', TRUE),
+
+(31, 'Residence', 'Istanbul', 'Kadikoy', 'Moda Caddesi No:32', '34710', TRUE),
+(32, 'Apartment', 'Istanbul', 'Beyoglu', 'Siraselviler Caddesi No:74', '34433', TRUE),
+(33, 'Family House', 'Bursa', 'Nilufer', 'Odunluk Caddesi No:18', '16110', TRUE),
+(34, 'Home', 'Antalya', 'Muratpasa', 'Guzeloba Caddesi No:27', '07230', TRUE),
+(35, 'Residence', 'Adana', 'Seyhan', 'Cemalpasa Caddesi No:41', '01120', TRUE),
+(36, 'Apartment', 'Istanbul', 'Sariyer', 'Buyukdere Caddesi No:63', '34453', TRUE),
+(37, 'Home', 'Ankara', 'Yenimahalle', 'Ivedik Caddesi No:22', '06378', TRUE),
+(38, 'Family House', 'Izmir', 'Bayrakli', 'Mansuroglu Caddesi No:35', '35535', TRUE),
+(39, 'Residence', 'Istanbul', 'Esenyurt', 'Dogan Arasli Bulvari No:17', '34510', TRUE),
+(40, 'Apartment', 'Bursa', 'Osmangazi', 'Altinova Caddesi No:45', '16250', TRUE),
+
+(41, 'Home', 'Istanbul', 'Uskudar', 'Kisikli Caddesi No:29', '34676', TRUE),
+(42, 'Residence', 'Ankara', 'Cankaya', 'Esat Caddesi No:52', '06660', TRUE),
+(43, 'Apartment', 'Izmir', 'Bornova', 'Ergene Caddesi No:16', '35040', TRUE),
+(44, 'Family House', 'Antalya', 'Konyaalti', 'Liman Caddesi No:38', '07130', TRUE),
+(45, 'Home', 'Istanbul', 'Sisli', 'Valikonagi Caddesi No:21', '34365', TRUE),
+(46, 'Residence', 'Adana', 'Seyhan', 'Kurtulus Caddesi No:34', '01130', TRUE),
+(47, 'Apartment', 'Istanbul', 'Avcilar', 'Marmara Caddesi No:12', '34320', TRUE),
+(48, 'Home', 'Bursa', 'Nilufer', 'Fethiye Caddesi No:47', '16140', TRUE),
+(49, 'Family House', 'Ankara', 'Altindag', 'Talatpasa Bulvari No:26', '06140', TRUE),
+(50, 'Residence', 'Izmir', 'Gaziemir', 'Akcay Caddesi No:53', '35410', TRUE),
+
+(51, 'Apartment', 'Istanbul', 'Bakirkoy', 'Atakoy Caddesi No:18', '34158', TRUE),
+(52, 'Home', 'Istanbul', 'Besiktas', 'Nispetiye Caddesi No:105', '34340', TRUE),
+(53, 'Residence', 'Ankara', 'Kecioren', 'Sanatoryum Caddesi No:33', '06280', TRUE),
+(54, 'Family House', 'Izmir', 'Karsiyaka', 'Girne Bulvari No:24', '35560', TRUE),
+(55, 'Apartment', 'Antalya', 'Muratpasa', 'Fener Caddesi No:61', '07160', TRUE),
+(56, 'Home', 'Istanbul', 'Kartal', 'Soganlik Caddesi No:14', '34880', TRUE),
+(57, 'Residence', 'Bursa', 'Yildirim', 'Setbasi Caddesi No:28', '16360', TRUE),
+(58, 'Apartment', 'Adana', 'Cukurova', 'Toros Caddesi No:39', '01170', TRUE),
+(59, 'Family House', 'Istanbul', 'Pendik', 'Kaynarca Caddesi No:25', '34890', TRUE),
+(60, 'Home', 'Ankara', 'Etimesgut', 'Eryaman Caddesi No:44', '06820', TRUE),
+
+(61, 'Residence', 'Istanbul', 'Kadikoy', 'Fenerbahce Caddesi No:17', '34726', TRUE),
+(62, 'Apartment', 'Izmir', 'Konak', 'Cumhuriyet Bulvari No:36', '35220', TRUE),
+(63, 'Home', 'Antalya', 'Kepez', 'Dumlupinar Bulvari No:49', '07090', TRUE),
+(64, 'Family House', 'Istanbul', 'Umraniye', 'Ihlamurkuyu Caddesi No:22', '34771', TRUE),
+(65, 'Residence', 'Bursa', 'Osmangazi', 'Kukurtlu Caddesi No:31', '16080', TRUE),
+(66, 'Apartment', 'Ankara', 'Cankaya', 'Oran Caddesi No:15', '06450', TRUE),
+(67, 'Home', 'Istanbul', 'Beylikduzu', 'Adnan Kahveci Bulvari No:27', '34528', TRUE),
+(68, 'Residence', 'Adana', 'Seyhan', 'Resatbey Caddesi No:42', '01120', TRUE),
+(69, 'Family House', 'Izmir', 'Bornova', 'Evka Caddesi No:19', '35050', TRUE),
+(70, 'Apartment', 'Istanbul', 'Sancaktepe', 'Sarikazi Caddesi No:34', '34885', TRUE);
+
+
+
+
+
 --DATA SELLERS TABLE
 
 
