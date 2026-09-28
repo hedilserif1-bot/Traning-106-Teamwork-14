@@ -62,7 +62,6 @@ CREATE TABLE patients (
 -- أمر أنشاء فهرس على الجدول لتسهيل البحث 
 
 CREATE INDEX idx_patients_city ON patients (city);
-CREATE INDEX idx_patients_phone ON patients (phone);
 
 -- أمر إنشاء جدول ( rooms ) مع حماية كل الاعمدة 
 
@@ -103,6 +102,47 @@ CREATE TABLE appointments (
 CREATE INDEX idx_appointments_patient ON appointments (patient_id);
 CREATE INDEX idx_appointments_doctor ON appointments (doctor_id);
 CREATE INDEX idx_appointments_date ON appointments (appointment_date);
+
+-- أمر إنشاء جدول ال ( medical_visits ) مع الحماية الكاملة عليه
+
+CREATE TABLE medical_visits (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    appointment_id INT NOT NULL DEFAULT 0,
+    visit_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    symptoms VARCHAR(255) NOT NULL CHECK (TRIM(symptoms) <> ''),
+    diagnosis VARCHAR(255) NOT NULL CHECK (TRIM(diagnosis) <> ''),
+    doctor_notes VARCHAR(500) NOT NULL DEFAULT 'لا توجد ملاحظات' CHECK (TRIM(doctor_notes) <> ''),
+    follow_up_date DATE NOT NULL,
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+-- أمر إنشاء الفهارس لتسهيل البحث بالجدول 
+
+CREATE INDEX idx_medical_visits_patient ON medical_visits (patient_id);
+CREATE INDEX idx_medical_visits_doctor ON medical_visits (doctor_id);
+CREATE INDEX idx_medical_visits_date ON medical_visits (visit_date);
+
+-- أمر أنشاء مشغل Trigger يعمل عند عمليات الادخال ليحمي المفتاح الاجنبي
+
+DELIMITER //
+
+CREATE TRIGGER check_appointment_validity
+BEFORE INSERT ON medical_visits
+FOR EACH ROW
+BEGIN
+    IF NEW.appointment_id <> 0 AND NOT EXISTS (SELECT 1 FROM appointments WHERE id = NEW.appointment_id) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Error: Appointment ID does not exist in the system!';
+    END IF;
+END;
+//
+
+DELIMITER ;
+
+
 
 
 
