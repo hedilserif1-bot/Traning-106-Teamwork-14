@@ -464,3 +464,93 @@ CREATE TABLE seller_settlements (
         (seller_id, period_start, period_end)
 );
 
+
+
+
+
+
+
+
+
+--DATA CUSTOMERS TABLE
+
+
+INSERT INTO customers
+(full_name, email, phone, status)
+VALUES
+('Ahmed Taha', 'ahmed.taha01@gmail.com', '+902840571001', 'active'),
+('Sara Ali', 'sara.ali02@gmail.com', '+902840571002', 'active'),
+('Omar Hassan', 'omar.hassan03@gmail.com', '+902840571003', 'inactive'),
+('Lina Khaled', 'lina.khaled04@gmail.com', '+902840571004', 'active'),
+('Youssef Mahmoud', 'youssef.mahmoud05@gmail.com', '+902840571005', 'blocked'),
+('Mariam Saleh', 'mariam.saleh06@gmail.com', '+902840571006', 'active'),
+('Adam Ibrahim', 'adam.ibrahim07@gmail.com', '+902840571007', 'active'),
+('Nour Ahmed', 'nour.ahmed08@gmail.com', '+902840571008', 'inactive'),
+('Karim Adel', 'karim.adel09@gmail.com', '+902840571009', 'active'),
+('Hana Mostafa', 'hana.mostafa10@gmail.com', '+902840571010', 'active'),
+
+('Ali Nasser', 'ali.nasser11@gmail.com', '+902840571011', 'active'),
+('Layla Sami', 'layla.sami12@gmail.com', '+902840571012', 'blocked'),
+('Khaled Amin', 'khaled.amin13@gmail.com', '+902840571013', 'active'),
+('Rana Fadi', 'rana.fadi14@gmail.com', '+902840571014', 'inactive'),
+('Tarek Samir', 'tarek.samir15@gmail.com', '+902840571015', 'active'),
+('Dina Hossam', 'dina.hossam16@gmail.com', '+902840571016', 'active'),
+('Mahmoud Yasin', 'mahmoud.yasin17@gmail.com', '+902840571017', 'active'),
+('Reem Adel', 'reem.adel18@gmail.com', '+902840571018', 'inactive'),
+('Ziad Karim', 'ziad.karim19@gmail.com', '+902840571019', 'active'),
+('Salma Nabil', 'salma.nabil20@gmail.com', '+902840571020', 'blocked'),
+
+('Hasan Omar', 'hasan.omar21@gmail.com', '+902840571021', 'active'),
+('Maya Khalil', 'maya.khalil22@gmail.com', '+902840571022', 'active'),
+('Faris Ahmed', 'faris.ahmed23@gmail.com', '+902840571023', 'inactive'),
+('Jana Ali', 'jana.ali24@gmail.com', '+902840571024', 'active'),
+('Sami Hassan', 'sami.hassan25@gmail.com', '+902840571025', 'active'),
+('Nada Mahmoud', 'nada.mahmoud26@gmail.com', '+902840571026', 'active'),
+('Bilal Saleh', 'bilal.saleh27@gmail.com', '+902840571027', 'blocked'),
+('Huda Ibrahim', 'huda.ibrahim28@gmail.com', '+902840571028', 'active'),
+('Rami Nasser', 'rami.nasser29@gmail.com', '+902840571029', 'inactive'),
+('Amira Khaled', 'amira.khaled30@gmail.com', '+902840571030', 'active'),
+
+('Ibrahim Sami', 'ibrahim.sami31@gmail.com', '+902840571031', 'active'),
+('Dalia Omar', 'dalia.omar32@gmail.com', '+902840571032', 'active'),
+('Mustafa Adel', 'mustafa.adel33@gmail.com', '+902840571033', 'inactive'),
+('Rita Nabil', 'rita.nabil34@gmail.com', '+902840571034', 'active'),
+('Walid Fadi', 'walid.fadi35@gmail.com', '+902840571035', 'blocked'),
+('Aya Samir', 'aya.samir36@gmail.com', '+902840571036', 'active'),
+('Saeed Yasin', 'saeed.yasin37@gmail.com', '+902840571037', 'active'),
+('Lama Karim', 'lama.karim38@gmail.com', '+902840571038', 'inactive'),
+('Fadi Hossam', 'fadi.hossam39@gmail.com', '+902840571039', 'active'),
+('Rania Amin', 'rania.amin40@gmail.com', '+902840571040', 'active'),
+
+('Nader Hassan', 'nader.hassan41@gmail.com', '+902840571041', 'active'),
+('Mona Saleh', 'mona.saleh42@gmail.com', '+902840571042', 'inactive'),
+('Yara Ahmed', 'yara.ahmed43@gmail.com', '+902840571043', 'active'),
+('Sultan Ali', 'sultan.ali44@gmail.com', '+902840571044', 'blocked'),
+('Farah Mahmoud', 'farah.mahmoud45@gmail.com', '+902840571045', 'active'),
+('Ayman Khaled', 'ayman.khaled46@gmail.com', '+902840571046', 'active'),
+('Layan Sami', 'layan.sami47@gmail.com', '+902840571047', 'inactive'),
+('Hani Ibrahim', 'hani.ibrahim48@gmail.com', '+902840571048', 'active'),
+('Sahar Nasser', 'sahar.nasser49@gmail.com', '+902840571049', 'active'),
+('Majed Adel', 'majed.adel50@gmail.com', '+902840571050', 'blocked'),
+
+('Rasha Karim', 'rasha.karim51@gmail.com', '+902840571051', 'active'),
+('Fahad Omar', 'fahad.omar52@gmail.com', '+902840571052', 'active'),
+('Dima Hassan', 'dima.hassan53@gmail.com', '+902840571053', 'inactive'),
+('Bassem Saleh', 'bassem.saleh54@gmail.com', '+902840571054', 'active'),
+('Laila Fadi', 'laila.fadi55@gmail.com', '+902840571055', 'active'),
+('Anas Samir', 'anas.samir56@gmail.com', '+902840571056', 'active'),
+('Hiba Yasin', 'hiba.yasin57@gmail.com', '+902840571057', 'blocked'),
+('Tamer Nabil', 'tamer.nabil58@gmail.com', '+902840571058', 'inactive'),
+('Samar Ahmed', 'samar.ahmed59@gmail.com', '+902840571059', 'active'),
+('Bassam Ali', 'bassam.ali60@gmail.com', '+902840571060', 'active'),
+
+('Rayan Khaled', 'rayan.khaled61@gmail.com', '+902840571061', 'active'),
+('Mira Hassan', 'mira.hassan62@gmail.com', '+902840571062', 'inactive'),
+('Wassim Mahmoud', 'wassim.mahmoud63@gmail.com', '+902840571063', 'active'),
+('Sonia Saleh', 'sonia.saleh64@gmail.com', '+902840571064', 'active'),
+('Nabil Ibrahim', 'nabil.ibrahim65@gmail.com', '+902840571065', 'blocked'),
+('Joud Ali', 'joud.ali66@gmail.com', '+902840571066', 'active'),
+('Hussein Sami', 'hussein.sami67@gmail.com', '+902840571067', 'active'),
+('Mariam Nasser', 'mariam.nasser68@gmail.com', '+902840571068', 'inactive'),
+('Kareem Fadi', 'kareem.fadi69@gmail.com', '+902840571069', 'active'),
+('Salim Yasin', 'salim.yasin70@gmail.com', '+902840571070', 'active');
