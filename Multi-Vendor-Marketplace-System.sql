@@ -554,3 +554,56 @@ VALUES
 ('Mariam Nasser', 'mariam.nasser68@gmail.com', '+902840571068', 'inactive'),
 ('Kareem Fadi', 'kareem.fadi69@gmail.com', '+902840571069', 'active'),
 ('Salim Yasin', 'salim.yasin70@gmail.com', '+902840571070', 'active');
+
+
+--DATA SELLERS TABLE
+
+
+INSERT INTO sellers
+(store_name, owner_name, email, phone, commission_rate, status)
+VALUES
+('Tech World', 'Ahmed Taha', 'techworld01@gmail.com', '+902840580001', 8.50, 'active'),
+('Fashion House', 'Sara Ali', 'fashionhouse02@gmail.com', '+902840580002', 10.00, 'active'),
+('Home Center', 'Omar Hassan', 'homecenter03@gmail.com', '+902840580003', 7.50, 'pending'),
+('Smart Market', 'Lina Khaled', 'smartmarket04@gmail.com', '+902840580004', 12.00, 'active'),
+('Book Planet', 'Youssef Mahmoud', 'bookplanet05@gmail.com', '+902840580005', 6.00, 'suspended'),
+
+('Beauty Store', 'Mariam Saleh', 'beautystore06@gmail.com', '+902840580006', 9.50, 'active'),
+('Sports Zone', 'Adam Ibrahim', 'sportszone07@gmail.com', '+902840580007', 11.00, 'active'),
+('Kids World', 'Nour Ahmed', 'kidsworld08@gmail.com', '+902840580008', 8.00, 'pending'),
+('Electro Shop', 'Karim Adel', 'electroshop09@gmail.com', '+902840580009', 13.50, 'active'),
+('Garden Life', 'Hana Mostafa', 'gardenlife10@gmail.com', '+902840580010', 5.50, 'closed'),
+
+('Mobile Center', 'Ali Nasser', 'mobilecenter11@gmail.com', '+902840580011', 14.00, 'active'),
+('Luxury Store', 'Layla Sami', 'luxurystore12@gmail.com', '+902840580012', 15.00, 'suspended'),
+('Daily Market', 'Khaled Amin', 'dailymarket13@gmail.com', '+902840580013', 7.00, 'active'),
+('Office Plus', 'Rana Fadi', 'officeplus14@gmail.com', '+902840580014', 6.50, 'pending'),
+('Auto Parts', 'Tarek Samir', 'autoparts15@gmail.com', '+902840580015', 9.00, 'active'),
+
+('Pet World', 'Dina Hossam', 'petworld16@gmail.com', '+902840580016', 8.75, 'active'),
+('Music Store', 'Mahmoud Yasin', 'musicstore17@gmail.com', '+902840580017', 10.50, 'suspended'),
+('Coffee Market', 'Reem Adel', 'coffeemarket18@gmail.com', '+902840580018', 5.00, 'active'),
+('Travel Shop', 'Ziad Karim', 'travelshop19@gmail.com', '+902840580019', 12.50, 'pending'),
+('Gift Center', 'Salma Nabil', 'giftcenter20@gmail.com', '+902840580020', 7.25, 'active');
+
+
+--DATA CATEGORIES TABLE
+
+
+INSERT INTO categories (parent_id, category_name, status)
+VALUES
+(NULL, 'Electronics', 'active'),
+(NULL, 'Clothing', 'active'),
+(NULL, 'Home & Kitchen', 'active'),
+(NULL, 'Beauty & Personal Care', 'active'),
+(NULL, 'Sports', 'active'),
+(1, 'Mobile Phones', 'active'),
+(1, 'Laptops', 'active'),
+(1, 'Headphones', 'active'),
+(2, 'Men Clothing', 'active'),
+(2, 'Women Clothing', 'active'),
+(2, 'Shoes', 'active'),
+(3, 'Kitchen Appliances', 'active'),
+(3, 'Furniture', 'active'),
+(4, 'Skin Care', 'active'),
+(5, 'Fitness Equipment', 'active');
