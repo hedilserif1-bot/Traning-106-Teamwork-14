@@ -327,3 +327,36 @@ CREATE TABLE payments (
   
         CHECK (amount >= 0)
 );
+
+
+-- SHIPMENTS TABLE --
+
+
+
+CREATE TABLE shipments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    tracking_number VARCHAR(150) NOT NULL UNIQUE,
+    shipping_company VARCHAR(150) NOT NULL,
+    shipped_at DATETIME NULL,
+    expected_delivery DATETIME NULL,
+    delivered_at DATETIME NULL,
+    status ENUM( 
+     'pending',
+    'shipped',
+    'in_transit',
+    'delivered',
+    'cancelled') NOT NULL,
+
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+
+
+
+
+
+
