@@ -718,9 +718,49 @@ INSERT INTO medical_visits (patient_id, doctor_id, appointment_id, visit_date, s
 (47, 5, 71, '2026-11-03', 'Diabetes follow-up', 'Stable', 'Diet plan reviewed.', '2026-12-03'),
 (57, 14, 72, '2026-11-04', 'Hip joint pain', 'Bursitis', 'Anti-inflammatory drugs given.', '2026-11-18');
 
+-- أمر إدخال البيانات الى جدول ال ( medicines ) 
 
-
-
+INSERT INTO medicines (medicine_name, manufacturer, unit_price, stock_quantity, minimum_stock, expiry_date, status) VALUES
+('Paracetamol 500mg', 'Pfizer', 5.50, 150, 20, '2028-05-12', 'Available'),
+('Amoxicillin 250mg', 'Novartis', 12.00, 5, 15, '2027-03-20', 'Available'),
+('Aspirin 100mg', 'Bayer', 4.25, 0, 10, '2028-01-15', 'Out of Stock'),
+('Ibuprofen 400mg', 'GSK', 8.00, 45, 15, '2025-11-10', 'Expired'),
+('Omeprazole 20mg', 'AstraZeneca', 15.50, 80, 10, '2028-08-30', 'Available'),
+('Metformin 850mg', 'Sanofi', 9.75, 4, 25, '2027-06-15', 'Available'),
+('Atorvastatin 20mg', 'Pfizer', 22.00, 0, 15, '2029-01-10', 'Out of Stock'),
+('Lisinopril 10mg', 'Merck', 11.25, 120, 30, '2027-09-12', 'Available'),
+('Cetirizine 10mg', 'Johnson & Johnson', 6.50, 12, 20, '2026-05-01', 'Expired'),
+('Salbutamol Inhaler', 'Cipla', 18.00, 3, 10, '2026-02-14', 'Expired'),
+('Azithromycin 500mg', 'Pfizer', 25.00, 0, 10, '2027-11-05', 'Discontinued'),
+('Diclofenac Sodium', 'Novartis', 7.50, 6, 20, '2027-04-18', 'Available'),
+('Simvastatin 20mg', 'Bayer', 14.00, 200, 40, '2028-10-10', 'Available'),
+('Amlodipine 5mg', 'Sanofi', 10.50, 2, 15, '2027-12-01', 'Available'),
+('Pantoprazole 40mg', 'Takeda', 16.80, 0, 10, '2026-08-20', 'Out of Stock'),
+('Prednisone 5mg', 'Pfizer', 6.20, 50, 10, '2025-08-15', 'Expired'),
+('Losartan 50mg', 'Merck', 13.50, 8, 25, '2027-07-22', 'Available'),
+('Levothyroxine 50mcg', 'Abbott', 8.90, 90, 20, '2028-03-11', 'Available'),
+('Ciprofloxacin 500mg', 'Bayer', 19.50, 0, 12, '2026-04-30', 'Expired'),
+('Clindamycin 300mg', 'Pfizer', 28.00, 15, 10, '2027-01-30', 'Discontinued'),
+('Hydrochlorothiazide', 'Novartis', 5.00, 110, 30, '2028-06-19', 'Available'),
+('Gabapentin 300mg', 'Pfizer', 24.50, 4, 15, '2027-09-05', 'Available'),
+('Meloxicam 15mg', 'Boehringer', 11.00, 0, 20, '2028-02-28', 'Out of Stock'),
+('Montelukast 10mg', 'MSD', 21.00, 65, 15, '2027-10-15', 'Available'),
+('Sertraline 50mg', 'Pfizer', 17.25, 3, 10, '2026-07-10', 'Expired'),
+('Fluoxetine 20mg', 'Eli Lilly', 15.00, 75, 20, '2028-11-20', 'Available'),
+('Escitalopram 10mg', 'Forest', 19.80, 0, 15, '2027-05-14', 'Discontinued'),
+('Citalopram 20mg', 'Actavis', 12.40, 5, 20, '2027-08-19', 'Available'),
+('Clopidogrel 75mg', 'Sanofi', 31.00, 140, 30, '2028-12-05', 'Available'),
+('Warfarin 5mg', 'Bristol-Myers', 9.20, 2, 10, '2026-06-30', 'Expired'),
+('Spironolactone 25mg', 'Pfizer', 14.50, 40, 15, '2028-01-25', 'Available'),
+('Furosemide 40mg', 'Sanofi', 6.80, 0, 25, '2027-03-10', 'Out of Stock'),
+('Allopurinol 100mg', 'GSK', 8.50, 85, 20, '2028-04-12', 'Available'),
+('Colchicine 0.5mg', 'Takeda', 26.00, 7, 10, '2027-02-18', 'Available'),
+('Insulin Glargine', 'Sanofi', 85.00, 0, 10, '2026-05-20', 'Expired'),
+('Metronidazole 500mg', 'Pfizer', 10.00, 95, 25, '2028-07-08', 'Available'),
+('Doxycycline 100mg', 'Pfizer', 16.50, 4, 15, '2027-09-30', 'Available'),
+('Tramadol 50mg', 'Grunenthal', 13.00, 0, 20, '2027-11-11', 'Discontinued'),
+('Melatonin 5mg', 'Nature Made', 11.50, 130, 30, '2029-05-15', 'Available'),
+('Vitamin D3 1000IU', 'Solgar', 14.20, 6, 25, '2026-03-15', 'Expired');
 
 
 
