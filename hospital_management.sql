@@ -1411,7 +1411,28 @@ GROUP BY doctors.id, doctors.full_name
 ORDER BY completed_appointments DESC 
 LIMIT 1;
 
+-- عرض نسبة no_show لكل طبيب
 
+SELECT 
+    doctors.id, 
+    doctors.full_name, 
+    COUNT(CASE WHEN appointments.status = 'no_show' THEN appointments.id END) AS no_show_count 
+FROM doctors 
+LEFT JOIN appointments ON doctors.id = appointments.doctor_id 
+GROUP BY doctors.id, doctors.full_name 
+ORDER BY doctors.id ASC;
+
+-- عرض المرضى الذين لديهم أكثر من 5 زيارات طبية
+
+SELECT 
+    patients.id, 
+    patients.full_name, 
+    COUNT(medical_visits.id) AS total_visits 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id 
+GROUP BY patients.id, patients.full_name 
+HAVING COUNT(medical_visits.id) > 5 
+ORDER BY patients.id ASC;
 
 
 
