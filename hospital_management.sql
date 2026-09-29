@@ -1434,8 +1434,21 @@ GROUP BY patients.id, patients.full_name
 HAVING COUNT(medical_visits.id) > 5 
 ORDER BY patients.id ASC;
 
+-- عرض آخر زيارة لكل مريض
 
-
-
+SELECT 
+    patients.id AS patient_id, 
+    patients.full_name, 
+    medical_visits.id AS visit_id, 
+    medical_visits.visit_date, 
+    medical_visits.diagnosis 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id 
+JOIN (
+    SELECT patient_id, MAX(id) AS max_visit_id 
+    FROM medical_visits 
+    GROUP BY patient_id
+) latest ON medical_visits.id = latest.max_visit_id 
+ORDER BY patients.id ASC;
 
 
