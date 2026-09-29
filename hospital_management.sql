@@ -1415,13 +1415,30 @@ LEFT JOIN appointments ON doctors.id = appointments.doctor_id
 GROUP BY doctors.id, doctors.full_name 
 ORDER BY doctors.id ASC;
 
+-- حساب عدد المواعيد لكل قسم
 
+SELECT 
+    departments.id, 
+    departments.department_name, 
+    COUNT(appointments.id) AS total_appointments 
+FROM departments 
+LEFT JOIN doctors ON departments.id = doctors.department_id 
+LEFT JOIN appointments ON doctors.id = appointments.doctor_id 
+GROUP BY departments.id, departments.department_name 
+ORDER BY departments.id ASC;
 
+-- عرض الطبيب صاحب أكبر عدد من المواعيد المكتملة
 
-
-
-
-
+SELECT 
+    doctors.id, 
+    doctors.full_name, 
+    COUNT(appointments.id) AS completed_appointments 
+FROM doctors 
+JOIN appointments ON doctors.id = appointments.doctor_id 
+WHERE appointments.status = 'completed' 
+GROUP BY doctors.id, doctors.full_name 
+ORDER BY completed_appointments DESC 
+LIMIT 1;
 
 
 
