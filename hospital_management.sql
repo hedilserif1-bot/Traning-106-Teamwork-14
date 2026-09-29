@@ -1348,6 +1348,54 @@ INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference,
 (40, 350.00, 'pix', 'TXN-9099', '2027-01-07 10:30:00', 'failed'),
 (74, 400.00, 'insurance', 'TXN-9100', '2027-01-08 11:00:00', 'completed');
 
+-- من هنا تبدا تعليمات ال ( Queries ) 
+
+-- تعليمة عرض جميع المرضى 
+
+SELECT * FROM patients;
+
+-- عرض جميع الأطباء مع القسم الخاص بكل طبيب
+
+SELECT doctors.id, doctors.full_name AS doctor_name, departments.department_name AS department_name 
+FROM doctors 
+JOIN departments ON doctors.department_id = departments.id 
+ORDER BY doctors.id ASC;
+
+-- عرض جميع المواعيد مع اسم المريض والطبيب والقسم
+
+SELECT 
+    appointments.id AS appointment_id,
+    patients.full_name AS patient_name,
+    doctors.full_name AS doctor_name,
+    departments.department_name AS department_name
+FROM appointments
+JOIN patients ON appointments.patient_id = patients.id
+JOIN doctors ON appointments.doctor_id = doctors.id
+JOIN departments ON doctors.department_id = departments.id
+ORDER BY appointments.id ASC;
+
+-- عرض مواعيد اليوم
+
+SELECT * FROM appointments WHERE appointment_date = CURDATE() ORDER BY id ASC;
+
+-- عرض المواعيد القادمة خلال 7 أيام
+
+SELECT * FROM appointments WHERE appointment_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) ORDER BY id ASC;
+
+-- عرض المرضى الذين لديهم أكثر من 3 مواعيد
+
+SELECT patients.id, patients.full_name, COUNT(appointments.id) AS total_appointments 
+FROM patients 
+JOIN appointments ON patients.id = appointments.patient_id 
+GROUP BY patients.id, patients.full_name 
+HAVING COUNT(appointments.id) > 3;
+
+
+
+
+
+
+
 
 
 
