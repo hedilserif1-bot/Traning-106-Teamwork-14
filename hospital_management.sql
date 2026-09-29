@@ -1531,4 +1531,46 @@ WHERE medical_visits.follow_up_date IS NOT NULL
   ) 
 ORDER BY patients.id ASC;
 
+-- عرض الأدوية التي وصلت إلى minimum_stock أو أقل
+
+SELECT 
+    id, 
+    medicine_name, 
+    manufacturer, 
+    stock_quantity, 
+    minimum_stock, 
+    status 
+FROM medicines 
+WHERE stock_quantity <= minimum_stock 
+ORDER BY id ASC;
+
+-- عرض الأدوية المنتهية الصلاحية
+
+SELECT 
+    id, 
+    medicine_name, 
+    manufacturer, 
+    stock_quantity, 
+    expiry_date, 
+    status 
+FROM medicines 
+WHERE expiry_date < CURDATE() 
+ORDER BY id ASC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
