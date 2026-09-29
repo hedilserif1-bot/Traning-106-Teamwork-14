@@ -234,13 +234,24 @@ CREATE TABLE prescriptions (
 
 CREATE INDEX idx_prescriptions_visit ON prescriptions (visit_id);
 
+-- أمر إنشاء جدول ( prescription_items ) مع الحماية على الجداول
 
+CREATE TABLE prescription_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    prescription_id INT NOT NULL,
+    medicine_id INT NOT NULL,
+    dosage VARCHAR(100) NOT NULL CHECK (TRIM(dosage) <> ''),
+    frequency VARCHAR(100) NOT NULL CHECK (TRIM(frequency) <> ''),
+    duration_days INT NOT NULL DEFAULT 1 CHECK (duration_days > 0),
+    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    FOREIGN KEY (prescription_id) REFERENCES prescriptions(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (medicine_id) REFERENCES medicines(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
 
+-- أمر إنشاء الفهارس على الجدول 
 
-
-
-
-
+CREATE INDEX idx_prescription_items_prescription ON prescription_items (prescription_id);
+CREATE INDEX idx_prescription_items_medicine ON prescription_items (medicine_id);
 
 
 
