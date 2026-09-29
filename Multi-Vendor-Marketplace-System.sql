@@ -1,6 +1,4 @@
---Multi-Vendor-Marketplace-System.sql
 
---CREATE DATABASE
 
 CREATE DATABASE IF NOT EXISTS marketplace_system
 CHARACTER SET utf8mb4
@@ -9,10 +7,7 @@ COLLATE utf8mb4_unicode_ci;
 USE marketplace_system;
 
 
---- TABLES
 
-
---CUSTOMERS TABLE
 
 CREATE TABLE customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,7 +22,7 @@ CREATE TABLE customers (
 
 
 
---CUSTOMER ADDRESSES--
+
 
 CREATE TABLE customer_addresses (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -48,7 +43,7 @@ CREATE TABLE customer_addresses (
 );
 
 
---SELLERS TABLE--
+
 
 CREATE TABLE sellers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -68,7 +63,7 @@ CREATE TABLE sellers (
 
 
 
--- CATEGORIES TABLE
+
 
 CREATE TABLE categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,7 +79,7 @@ CREATE TABLE categories (
     UNIQUE KEY uq_category_name_parent (parent_id, category_name)
 );
 
---PRODUCTS TABLE--
+
 
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -123,8 +118,6 @@ CREATE TABLE products (
 
 
 
---PRODUCT_PRICE_HISTORY TABLE
-
 
 CREATE TABLE product_price_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -144,7 +137,6 @@ CREATE TABLE product_price_history (
 
 
 
---CARTS TABLE--
 
 CREATE TABLE carts (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -161,7 +153,7 @@ CREATE TABLE carts (
 );
 
 
---CART_ITEMS TABLE--
+
 
 CREATE TABLE cart_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -184,7 +176,6 @@ CREATE TABLE cart_items (
 );
 
 
---COUPONS TABLE--
 
 
 
@@ -209,7 +200,6 @@ CREATE TABLE coupons (
 );
 
 
---ORDERS TABLE--
 
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -252,7 +242,7 @@ CREATE TABLE orders (
 
 
 
--- ORDER ITEMS TABLE--
+
 
 CREATE TABLE order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -294,7 +284,6 @@ CREATE TABLE order_items (
 );
 
 
---PAYMENTS TABLE
 
 
 CREATE TABLE payments (
@@ -329,7 +318,7 @@ CREATE TABLE payments (
 );
 
 
--- SHIPMENTS TABLE --
+
 
 
 
@@ -357,7 +346,6 @@ CREATE TABLE shipments (
 
 
 
--- RETURNS TABLE --
 
 
 
@@ -390,7 +378,7 @@ CREATE TABLE returns (
 
 
 
---REFUNDS TABLE
+
 
 
 CREATE TABLE refunds (
@@ -416,7 +404,6 @@ CREATE TABLE refunds (
 );
 
 
--- REVIEWS TABLE 
 
 
 CREATE TABLE reviews (
@@ -452,8 +439,6 @@ CREATE TABLE reviews (
 );
 
 
-
--- SELLER SETTLEMENTS TABLE
 
 
 
@@ -497,8 +482,6 @@ CREATE TABLE seller_settlements (
 
 
 
-
---DATA CUSTOMERS TABLE
 
 
 INSERT INTO customers
@@ -586,7 +569,7 @@ VALUES
 
 
 
---DATA CUSTOMER_ADDRESSES TABLE
+
 
 
 INSERT INTO customer_addresses
@@ -673,8 +656,6 @@ VALUES
 
 
 
---DATA SELLERS TABLE
-
 
 INSERT INTO sellers
 (store_name, owner_name, email, phone, commission_rate, status)
@@ -704,7 +685,7 @@ VALUES
 ('Gift Center', 'Salma Nabil', 'giftcenter20@gmail.com', '+902840580020', 7.25, 'active');
 
 
---DATA CATEGORIES TABLE
+
 
 
 INSERT INTO categories (parent_id, category_name, status)
@@ -726,7 +707,6 @@ VALUES
 (5, 'Fitness Equipment', 'active');
 
 
---DATA PRODUCTS TABLE
 
 INSERT INTO products
 (seller_id, category_id, sku, product_name, description, price, cost_price, stock_quantity, minimum_stock, status)
@@ -867,7 +847,7 @@ VALUES
 (20, 15, 'SKU-GEN-120', 'Mekanik Klavye', 'RGB mekanik klavye', 1799.90, 950.00, 30, 6, 'active');
 
 
---DATA PRODUCT_PRICE_HISTORY
+
 
 
 INSERT INTO product_price_history
@@ -925,7 +905,6 @@ VALUES
 
 
 
---DATA CARTS TABLE
 
 INSERT INTO carts
 (customer_id, status)
@@ -983,7 +962,6 @@ VALUES
 
 
 
---DATA CART ITEM TABLE
 
 
 INSERT INTO cart_items (cart_id, product_id, quantity) VALUES
@@ -1188,7 +1166,7 @@ INSERT INTO cart_items (cart_id, product_id, quantity) VALUES
 (50, 108, 7),
 (50, 120, 5);
 
---DATA COUPON TABLE
+
 
 INSERT INTO coupons
 (
@@ -1255,7 +1233,7 @@ VALUES
 
 
 
---DATA ORDERS TABLE
+
 
 INSERT INTO orders
 (order_number, customer_id, address_id, coupon_id, subtotal, discount_amount, shipping_cost, total_amount, status)
@@ -1420,7 +1398,7 @@ VALUES
 
 
 
---DATA ORDER ITEM TABLE
+
 
 INSERT INTO order_items
 (order_id, product_id, seller_id, quantity, unit_price, discount_amount, platform_commission, seller_amount, status)
@@ -1875,7 +1853,7 @@ VALUES
 
 
 
------------DATA PAYMENT--------
+
 
 
 INSERT INTO payments
@@ -2061,7 +2039,7 @@ VALUES
 
 
 
---DATA SHIPMENTS TABLE
+
 
 INSERT INTO shipments
 (order_id, tracking_number, shipping_company, shipped_at, expected_delivery, delivered_at, status)
@@ -2208,8 +2186,6 @@ VALUES
 
 
 
---DATA RETURNS TABLE
-
 
 INSERT INTO returns
 (order_item_id, quantity, reason, requested_at, approved_at, completed_at, status)
@@ -2270,7 +2246,7 @@ VALUES
 (375, 2, 'Product arrived broken', '2026-10-17 18:30:00', '2026-10-18 09:50:00', '2026-10-22 16:15:00', 'completed'),
 (383, 3, 'Product was not as described', '2026-10-18 14:10:00', NULL, NULL, 'requested');
 
---DATA REFUNDS TABLE
+
 
 INSERT INTO refunds
 (return_id, payment_id, amount, refunded_at, status)
@@ -2324,8 +2300,6 @@ VALUES
 (40, 40, 240.00, '2026-10-20 15:15:00', 'completed');
 
 
-
---DATA REVIEWS TABLE
 
 
 INSERT INTO reviews
@@ -2463,9 +2437,6 @@ VALUES
 (49, 100, 355, 5, 'Excellent and highly recommended', '2026-08-29 10:00:00', 'active'),
 (50, 107, 358, 3, 'Average experience overall', '2026-08-30 12:25:00', 'active');
 
-
-
---DATA SELLER SETTLEMENT
 
 
 
