@@ -377,13 +377,24 @@ CREATE INDEX idx_invoices_admission ON invoices (admission_id);
 CREATE INDEX idx_invoices_status ON invoices (payment_status);
 CREATE INDEX idx_invoices_issued_at ON invoices (issued_at);
 
+-- أمر إنشاء جدول ( payments ) مع حمايه كل الاعمدة 
 
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    invoice_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (amount >= 0),
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'cash' CHECK (payment_method IN ('cash', 'card', 'pix', 'bank_transfer', 'insurance')),
+    transaction_reference VARCHAR(100) NOT NULL DEFAULT 'N/A' CHECK (TRIM(transaction_reference) <> ''),
+    paid_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'pending', 'failed', 'refunded')),
+    FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
 
+-- أمر إنشاء كل الفهارس المناسبة لتسهيل البحث
 
-
-
-
-
+CREATE INDEX idx_payments_invoice ON payments (invoice_id);
+CREATE INDEX idx_payments_status ON payments (status);
+CREATE INDEX idx_payments_method ON payments (payment_method);
 
 
 
