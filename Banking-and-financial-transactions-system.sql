@@ -1688,3 +1688,308 @@ VALUES
 (20,20,'UPDATE','loans',25,'status=pending','status=active','2024-02-14 13:00:00');
 
 
+
+-- 2. العملاء الذين لديهم أكثر من حساب
+SELECT c.full_name, COUNT(a.id) AS accounts
+FROM customers c
+JOIN accounts a ON c.id = a.customer_id
+GROUP BY c.id
+HAVING COUNT(a.id) > 1;
+
+-- 3. العملاء الذين لديهم أكثر من عملة
+SELECT c.full_name, COUNT(DISTINCT a.currency) AS currencies
+FROM customers c
+JOIN accounts a ON c.id = a.customer_id
+GROUP BY c.id
+HAVING COUNT(DISTINCT a.currency) > 1;
+
+-- 4. إجمالي الرصيد لكل عميل
+SELECT c.full_name, SUM(a.balance) AS total_balance
+FROM customers c
+JOIN accounts a ON c.id = a.customer_id
+GROUP BY c.id;
+
+-- 5. الحسابات التي لم تنفذ أي حركة
+SELECT a.account_number
+FROM accounts a
+LEFT JOIN transactions t ON a.id = t.account_id
+WHERE t.id IS NULL;
+
+-- Transactions
+-- 6. عدد Transactions لكل حساب
+SELECT account_id, COUNT(*) AS transaction_count
+FROM transactions
+GROUP BY account_id;
+
+-- 7. الحسابات التي لديها أكثر من 20 Transaction
+SELECT account_id, COUNT(*) AS transaction_count
+FROM transactions
+GROUP BY account_id
+HAVING COUNT(*) > 20;
+
+-- 8. إجمالي Deposits لكل حساب
+SELECT account_id, SUM(amount) AS total_deposits
+FROM transactions
+WHERE transaction_type = 'deposit'
+GROUP BY account_id;
+
+-- 9. إجمالي Withdrawals لكل حساب
+SELECT account_id, SUM(amount) AS total_withdrawals
+FROM transactions
+WHERE transaction_type = 'withdrawal'
+GROUP BY account_id;
+
+-- 10. الفرق بين Deposits و Withdrawals
+SELECT account_id,
+SUM(CASE WHEN transaction_type = 'deposit' THEN amount ELSE 0 END)
+-
+SUM(CASE WHEN transaction_type = 'withdrawal' THEN amount ELSE 0 END)
+AS difference
+FROM transactions
+GROUP BY account_id;
+
+-- 11. أعلى 10 حسابات من حيث الحركة
+SELECT account_id, SUM(amount) AS total
+FROM transactions
+GROUP BY account_id
+ORDER BY total DESC
+LIMIT 10;
+
+-- 12. التحويلات الفاشلة
+SELECT *
+FROM transfers
+WHERE status = 'failed';
+
+-- 13. التحويلات Pending
+SELECT *
+FROM transfers
+WHERE status = 'pending';
+
+-- 14. متوسط قيمة التحويل
+SELECT AVG(amount) AS average_transfer
+FROM transfers;
+
+-- 15. التحويلات الأعلى من المتوسط
+SELECT *
+FROM transfers
+WHERE amount > (SELECT AVG(amount) FROM transfers);
+
+-- الفروع
+-- 16. عدد الحسابات في كل فرع
+SELECT branch_id, COUNT(*) AS accounts
+FROM accounts
+GROUP BY branch_id;
+
+-- 17. إجمالي أرصدة كل فرع
+SELECT branch_id, SUM(balance) AS total_balance
+FROM accounts
+GROUP BY branch_id;
+
+-- 18. متوسط رصيد كل فرع
+SELECT branch_id, AVG(balance) AS average_balance
+FROM accounts
+GROUP BY branch_id;
+
+-- البطاقات
+-- 19. البطاقات التي ستنتهي خلال 60 يوم
+SELECT *
+FROM cards
+WHERE expiry_date <= CURDATE() + INTERVAL 60 DAY;
+
+-- 20. البطاقات التي لم تستخدم
+SELECT c.*
+FROM cards c
+LEFT JOIN card_transactions ct ON c.id = ct.card_id
+WHERE ct.id IS NULL;
+
+-- 21. إجمالي استخدام كل بطاقة
+SELECT card_id, SUM(amount) AS total_used
+FROM card_transactions
+WHERE status = 'approved'
+GROUP BY card_id;
+
+-- 22. أكثر Merchant
+SELECT merchant_name, COUNT(*) AS purchases
+FROM card_transactions
+GROUP BY merchant_name
+ORDER BY purchases DESC
+LIMIT 1;
+
+-- القروض
+-- 23. القروض النشطة
+SELECT *
+FROM loans
+WHERE status = 'active';
+
+-- 24. إجمالي القروض لكل عميل
+SELECT customer_id, SUM(total_amount) AS total_loans
+FROM loans
+GROUP BY customer_id;
+
+-- 25. الأقساط المتأخرة
+SELECT *
+FROM loan_installments
+WHERE status = 'overdue';
+
+-- 26. عدد الأقساط المتأخرة لكل عميل
+SELECT l.customer_id, COUNT(*) AS overdue
+FROM loans l
+JOIN loan_installments li ON l.id = li.loan_id
+WHERE li.status = 'overdue'
+GROUP BY l.customer_id;
+
+-- 27. المبلغ المتبقي لكل قرض
+SELECT l.loan_number,
+       l.total_amount - SUM(li.paid_amount) AS remaining
+FROM loans l
+JOIN loan_installments li ON l.id = li.loan_id
+GROUP BY l.id;
+
+-- 28. نسبة الدفع لكل قرض
+SELECT l.loan_number,
+       SUM(li.paid_amount) / l.total_amount * 100 AS paid_percent
+FROM loans l
+JOIN loan_installments li ON l.id = li.loan_id
+GROUP BY l.id;
+
+-- 29. أكثر شهر تم فيه منح قروض
+SELECT MONTH(start_date) AS month, COUNT(*) AS loans
+FROM loans
+GROUP BY MONTH(start_date)
+ORDER BY loans DESC
+LIMIT 1;
+
+-- 30. إجمالي الفوائد المتوقعة
+SELECT SUM(total_amount - principal_amount) AS total_interest
+FROM loans;
+
+-- 31. آخر Transaction لكل حساب
+SELECT account_id, MAX(created_at) AS last_transaction
+FROM transactions
+GROUP BY account_id;
+
+-- 32. أول Transaction لكل حساب
+SELECT account_id, MIN(created_at) AS first_transaction
+FROM transactions
+GROUP BY account_id;
+
+-- 33. الحسابات التي لم تتحرك خلال آخر 90 يوم
+SELECT account_id, MAX(created_at) AS last_transaction
+FROM transactions
+GROUP BY account_id
+HAVING MAX(created_at) < CURRENT_DATE - INTERVAL 90 DAY;
+
+-- 34. إجمالي التحويلات لكل شهر
+SELECT MONTH(created_at) AS month,
+       SUM(amount) AS total
+FROM transfers
+GROUP BY MONTH(created_at);
+
+-- 35. العملاء الذين يحولون لأكثر من 5 حسابات مختلفة
+SELECT a.customer_id,
+       COUNT(DISTINCT t.to_account_id) AS accounts
+FROM accounts a
+JOIN transfers t ON a.id = t.from_account_id
+GROUP BY a.customer_id
+HAVING COUNT(DISTINCT t.to_account_id) > 5;
+
+-- 36. أكثر حساب استقبل تحويلات
+SELECT to_account_id, COUNT(*) AS received
+FROM transfers
+WHERE status = 'completed'
+GROUP BY to_account_id
+ORDER BY received DESC
+LIMIT 1;
+
+-- 37. أكثر حساب أرسل تحويلات
+SELECT from_account_id, COUNT(*) AS sent
+FROM transfers
+WHERE status = 'completed'
+GROUP BY from_account_id
+ORDER BY sent DESC
+LIMIT 1;
+
+-- الفروع
+-- 38. الحسابات التي رصيدها أعلى من متوسط فرعها
+SELECT a.account_number, a.branch_id, a.balance
+FROM accounts a
+WHERE a.balance >
+(
+    SELECT AVG(a2.balance)
+    FROM accounts a2
+    WHERE a2.branch_id = a.branch_id
+);
+
+-- البطاقات
+-- 39. العملاء الذين لديهم أكثر من بطاقة
+SELECT a.customer_id, COUNT(c.id) AS cards
+FROM accounts a
+JOIN cards c ON a.id = c.account_id
+GROUP BY a.customer_id
+HAVING COUNT(c.id) > 1;
+
+-- 40. البطاقات التي تجاوزت daily_limit
+SELECT c.id, c.card_number, c.daily_limit,
+       SUM(ct.amount) AS total_used
+FROM cards c
+JOIN card_transactions ct ON c.id = ct.card_id
+WHERE ct.status = 'approved'
+GROUP BY c.id
+HAVING SUM(ct.amount) > c.daily_limit;
+
+-- القروض
+-- 41. العملاء الذين لديهم أكثر من 3 أقساط متأخرة
+SELECT l.customer_id, COUNT(*) AS overdue
+FROM loans l
+JOIN loan_installments li ON l.id = li.loan_id
+WHERE li.status = 'overdue'
+GROUP BY l.customer_id
+HAVING COUNT(*) > 3;
+
+-- 42. العملاء الذين سددوا جميع قروضهم
+SELECT customer_id
+FROM loans
+GROUP BY customer_id
+HAVING SUM(status <> 'paid') = 0;
+
+-- 43. العملاء الذين لديهم قرض بدون أي دفعة
+SELECT l.customer_id
+FROM loans l
+JOIN loan_installments li ON l.id = li.loan_id
+GROUP BY l.id, l.customer_id
+HAVING SUM(li.paid_amount) = 0;
+
+-- 44. إجمالي الفوائد لكل قرض
+SELECT loan_number,
+       total_amount - principal_amount AS interest
+FROM loans;
+
+-- 45. إجمالي الفوائد لجميع القروض
+SELECT SUM(total_amount - principal_amount) AS total_interest
+FROM loans;
+
+-- 46. القروض حسب الحالة
+SELECT status, COUNT(*) AS loan_count
+FROM loans
+GROUP BY status;
+
+-- 47. الأقساط حسب الحالة
+SELECT status, COUNT(*) AS installment_count
+FROM loan_installments
+GROUP BY status;
+
+-- 48. إجمالي المبالغ المدفوعة لكل قرض
+SELECT loan_id, SUM(paid_amount) AS paid
+FROM loan_installments
+GROUP BY loan_id;
+
+-- 49. القروض التي لم يُدفع منها شيء
+SELECT l.loan_number
+FROM loans l
+JOIN loan_installments li ON l.id = li.loan_id
+GROUP BY l.id
+HAVING SUM(li.paid_amount) = 0;
+
+-- 50. إجمالي قيمة القروض
+SELECT SUM(total_amount) AS total_loans
+FROM loans;
