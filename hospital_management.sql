@@ -506,9 +506,39 @@ INSERT INTO patients (full_name, national_id, birth_date, gender, phone, email, 
 ('Khaled Houri', 'ID100059', '1981-01-29', 'Male', '+1-555-2059', 'khaled.houri@gmail.com', 'A-', 'Beirut', 'Mazraa', 'Layla Houri', '+1-555-2959', '2026-05-28 14:00:00', 'active'),
 ('Layla Rabbat', 'ID100060', '1994-07-07', 'Female', '+1-555-2060', 'layla.rabbat@gmail.com', 'B-', 'Beirut', 'Gemmayzeh', 'Sami Rabbat', '+1-555-2960', '2026-05-30 16:20:00', 'active');
 
+-- أمر إدخال البيانات الى جدول ال ( rooms ) 
 
-
-
+INSERT INTO rooms (department_id, room_number, room_type, floor_number, daily_price, status) VALUES
+(1, 1, 'normal', 1, 100.00, 'available'),
+(2, 2, 'private', 1, 250.00, 'occupied'),
+(3, 3, 'icu', 2, 600.00, 'available'),
+(4, 4, 'emergency', 2, 450.00, 'occupied'),
+(5, 5, 'normal', 3, 110.00, 'maintenance'),
+(6, 6, 'private', 3, 260.00, 'available'),
+(7, 7, 'icu', 4, 620.00, 'occupied'),
+(8, 8, 'emergency', 4, 470.00, 'inactive'),
+(1, 9, 'normal', 5, 120.00, 'available'),
+(2, 10, 'private', 5, 270.00, 'occupied'),
+(3, 11, 'icu', 6, 650.00, 'available'),
+(4, 12, 'emergency', 6, 480.00, 'maintenance'),
+(5, 13, 'normal', 7, 130.00, 'available'),
+(6, 14, 'private', 7, 280.00, 'inactive'),
+(7, 15, 'icu', 8, 700.00, 'occupied'),
+(8, 16, 'emergency', 8, 500.00, 'available'),
+(1, 17, 'normal', 9, 105.00, 'maintenance'),
+(2, 18, 'private', 9, 255.00, 'available'),
+(3, 19, 'icu', 10, 630.00, 'occupied'),
+(4, 20, 'emergency', 10, 460.00, 'available'),
+(5, 21, 'normal', 1, 115.00, 'inactive'),
+(6, 22, 'private', 2, 265.00, 'occupied'),
+(7, 23, 'icu', 3, 640.00, 'available'),
+(8, 24, 'emergency', 4, 490.00, 'maintenance'),
+(1, 25, 'normal', 5, 125.00, 'available'),
+(2, 26, 'private', 6, 275.00, 'occupied'),
+(3, 27, 'icu', 7, 680.00, 'available'),
+(4, 28, 'emergency', 8, 510.00, 'inactive'),
+(5, 29, 'normal', 9, 135.00, 'occupied'),
+(6, 30, 'private', 10, 290.00, 'available');
 
 
 
