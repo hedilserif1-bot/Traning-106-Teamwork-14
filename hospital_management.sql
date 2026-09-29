@@ -816,9 +816,34 @@ INSERT INTO medicines (medicine_name, manufacturer, unit_price, stock_quantity, 
 (8, '2026-10-26 09:00:00', 'Rest and avoid strenuous physical activities.'),
 (13, '2026-10-26 11:15:00', 'Take medication regularly at the same time every day.');
 
+-- أمر إدخال البيانات على الجدول ( prescription_items ) 
 
-
-
+INSERT INTO prescription_items (prescription_id, medicine_id, dosage, frequency, duration_days, quantity) VALUES
+(3, 12, '500mg', 'Twice daily', 7, 14),
+(15, 25, '250mg', 'Three times daily', 5, 15),
+(42, 8, '100mg', 'Once daily', 30, 30),
+(10, 33, '400mg', 'Every 8 hours', 10, 30),
+(28, 2, '20mg', 'Once daily', 14, 14),
+(49, 19, '850mg', 'Twice daily', 60, 60),
+(5, 37, '10mg', 'Once daily', 30, 30),
+(33, 14, '500mg', 'Every 12 hours', 7, 14),
+(18, 40, '250mg', 'Twice daily', 10, 20),
+(22, 6, '50mg', 'Once daily', 30, 30),
+(50, 11, '1000mg', 'Single dose', 1, 1),
+(1, 23, '10mg', 'Twice daily', 14, 28),
+(12, 29, '50mg', 'Once daily', 30, 30),
+(39, 4, '400mg', 'Three times daily', 7, 21),
+(25, 15, '20mg', 'Once daily', 30, 30),
+(8, 30, '5mg', 'Once daily', 14, 14),
+(44, 20, '500mg', 'Twice daily', 10, 20),
+(16, 7, '300mg', 'Every 8 hours', 5, 15),
+(29, 35, '15mg', 'Once daily', 30, 30),
+(3, 18, '25mg', 'Twice daily', 14, 28),
+(36, 1, '500mg', 'Once daily', 7, 7),
+(21, 27, '10mg', 'Every 12 hours', 10, 20),
+(47, 9, '20mg', 'Once daily', 30, 30),
+(14, 22, '100mg', 'Three times daily', 7, 21),
+(30, 38, '50mg', 'Once daily', 30, 30);
 
 
 
