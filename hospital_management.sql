@@ -351,13 +351,31 @@ CREATE INDEX idx_patient_insurance_patient ON patient_insurance (patient_id);
 CREATE INDEX idx_patient_insurance_company ON patient_insurance (insurance_company_id);
 CREATE INDEX idx_patient_insurance_status ON patient_insurance (status);
 
+-- أمر إنشاء جدول ال ( invoices ) مع حماية كل اعمدته بالكامل 
 
+CREATE TABLE invoices (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT NOT NULL,
+    visit_id INT NOT NULL,
+    admission_id INT NOT NULL,
+    subtotal DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (subtotal >= 0),
+    insurance_discount DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (insurance_discount >= 0),
+    total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (total_amount >= 0),
+    issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    due_date DATE NOT NULL,
+    payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'partially_paid', 'paid', 'cancelled')),
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (visit_id) REFERENCES medical_visits(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (admission_id) REFERENCES admissions(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
 
+-- أمر إنشاء الفهارس المناسبة على الجدول لتسهيل عملية البحث 
 
-
-
-
-
+CREATE INDEX idx_invoices_patient ON invoices (patient_id);
+CREATE INDEX idx_invoices_visit ON invoices (visit_id);
+CREATE INDEX idx_invoices_admission ON invoices (admission_id);
+CREATE INDEX idx_invoices_status ON invoices (payment_status);
+CREATE INDEX idx_invoices_issued_at ON invoices (issued_at);
 
 
 
