@@ -940,9 +940,34 @@ INSERT INTO prescription_items (prescription_id, medicine_id, dosage, frequency,
 (48, 26, '300mg', 'Twice daily', 7, 14),
 (25, 40, '10mg', 'Once daily', 14, 14);
 
+-- أمر إدخال البيانات في جدول  ( lab_tests ) 
 
-
-
+INSERT INTO lab_tests (test_name, category, price, normal_range, status) VALUES
+('Complete Blood Count (CBC)', 'Hematology', 15.00, '4.5-11.0 10^3/uL', 'Active'),
+('Fast Blood Glucose', 'Biochemistry', 10.00, '70-99 mg/dL', 'Active'),
+('Lipid Profile', 'Biochemistry', 25.00, 'Desirable < 200 mg/dL', 'Active'),
+('Liver Function Test (LFT)', 'Biochemistry', 30.00, 'Various ranges', 'Active'),
+('Kidney Function Test (KFT)', 'Biochemistry', 28.00, 'Various ranges', 'Active'),
+('Thyroid Stimulating Hormone (TSH)', 'Endocrinology', 35.00, '0.4-4.0 mIU/L', 'Active'),
+('Hemoglobin A1c (HbA1c)', 'Biochemistry', 22.00, '< 5.7 %', 'Active'),
+('Urinalysis', 'Pathology', 12.50, 'Negative for protein/glucose', 'Active'),
+('Prothrombin Time (PT/INR)', 'Hematology', 18.00, '11.0-13.5 sec', 'Inactive'),
+('Vitamin D 25-Hydroxy', 'Endocrinology', 45.00, '30-100 ng/mL', 'Active'),
+('C-Reactive Protein (CRP)', 'Immunology', 20.00, '< 3.0 mg/L', 'Active'),
+('Erythrocyte Sedimentation Rate (ESR)', 'Hematology', 14.00, '0-22 mm/hr', 'Inactive'),
+('Serum Electrolytes', 'Biochemistry', 24.00, 'Na: 135-145, K: 3.5-5.0', 'Active'),
+('Hepatitis B Surface Antigen', 'Virology', 30.00, 'Non-Reactive', 'Discontinued'),
+('HIV 1/2 Antibody', 'Virology', 40.00, 'Non-Reactive', 'Active'),
+('Pregnancy Test (Serum)', 'Endocrinology', 15.00, 'Negative', 'Active'),
+('Stool Analysis', 'Pathology', 12.00, 'No parasites detected', 'Inactive'),
+('Iron Panel', 'Biochemistry', 35.00, '60-170 mcg/dL', 'Active'),
+('Rheumatoid Factor (RF)', 'Immunology', 22.00, '< 14 IU/mL', 'Discontinued'),
+('PSA (Prostate Specific Antigen)', 'Endocrinology', 40.00, '< 4.0 ng/mL', 'Active'),
+('Blood Typing (ABO/Rh)', 'Hematology', 10.00, 'Positive/Negative', 'Active'),
+('Magnesium Serum', 'Biochemistry', 18.50, '1.7-2.2 mg/dL', 'Inactive'),
+('Calcium Serum', 'Biochemistry', 16.00, '8.5-10.2 mg/dL', 'Active'),
+('Uric Acid', 'Biochemistry', 14.00, '3.4-7.0 mg/dL', 'Active'),
+('Troponin I', 'Cardiology', 50.00, '< 0.04 ng/mL', 'Discontinued');
 
 
 
