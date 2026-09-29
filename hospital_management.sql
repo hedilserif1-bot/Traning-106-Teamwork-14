@@ -1495,13 +1495,23 @@ GROUP BY patients.id, patients.full_name, doctors.department_id
 HAVING COUNT(DISTINCT medical_visits.doctor_id) > 1
 ORDER BY patients.id ASC;
 
+-- عرض أكثر Diagnosis تكرارًا
 
+SELECT
+diagnosis,
+COUNT(*) AS diagnosis_count
+FROM medical_visits
+GROUP BY diagnosis
+ORDER BY diagnosis_count DESC;
 
+-- عرض عدد الحالات لكل Diagnosis
 
-
-
-
-
+SELECT 
+    diagnosis, 
+    COUNT(*) AS cases_count 
+FROM medical_visits 
+GROUP BY diagnosis 
+ORDER BY cases_count DESC;
 
 
 
