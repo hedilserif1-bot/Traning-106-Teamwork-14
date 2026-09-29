@@ -277,12 +277,13 @@ CREATE TABLE patient_lab_tests (
     visit_id INT NOT NULL,
     lab_test_id INT NOT NULL,
     ordered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completed_at DATETIME NOT NULL,
+    completed_at DATETIME NULL,
     result TEXT NOT NULL DEFAULT 'Pending Result' CHECK (TRIM(result) <> ''),
     result_status VARCHAR(50) NOT NULL DEFAULT 'Normal' CHECK (TRIM(result_status) <> ''),
     status VARCHAR(50) NOT NULL DEFAULT 'ordered' CHECK (status IN ('ordered', 'processing', 'completed', 'cancelled')),
     FOREIGN KEY (visit_id) REFERENCES medical_visits(id) ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY (lab_test_id) REFERENCES lab_tests(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    FOREIGN KEY (lab_test_id) REFERENCES lab_tests(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CHECK (completed_at >= ordered_at)
 );
 
 -- أمر انشاء الفهارس المناسبة على الجدول 
@@ -299,12 +300,13 @@ CREATE TABLE admissions (
     room_id INT NOT NULL,
     doctor_id INT NOT NULL,
     admitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    discharged_at DATETIME NOT NULL,
+    discharged_at DATETIME NULL,
     admission_reason VARCHAR(255) NOT NULL DEFAULT 'General Admission' CHECK (TRIM(admission_reason) <> ''),
     status VARCHAR(50) NOT NULL DEFAULT 'admitted' CHECK (status IN ('admitted', 'discharged', 'cancelled')),
     FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CHECK (discharged_at >= admitted_at)
 );
 
 -- أمر إنشاء الفهارس المناسبة لتسهيل البحث
@@ -339,10 +341,11 @@ CREATE TABLE patient_insurance (
     insurance_company_id INT NOT NULL,
     policy_number VARCHAR(100) NOT NULL UNIQUE CHECK (TRIM(policy_number) <> ''),
     start_date DATE NOT NULL,
-    expiry_date DATE NOT NULL,
+    expiry_date DATE NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Expired', 'Cancelled')),
     FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY (insurance_company_id) REFERENCES insurance_companies(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    FOREIGN KEY (insurance_company_id) REFERENCES insurance_companies(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CHECK (expiry_date >= start_date)
 );
 
 -- أمر إنشاء الفهارس المناسبة 
