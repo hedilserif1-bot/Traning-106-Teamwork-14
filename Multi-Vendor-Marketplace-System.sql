@@ -390,6 +390,32 @@ CREATE TABLE returns (
 
 
 
+--REFUNDS TABLE
+
+
+CREATE TABLE refunds (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    return_id INT NOT NULL,
+    payment_id INT NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    refunded_at DATETIME NULL,
+    status VARCHAR(50) NOT NULL,
+
+
+        FOREIGN KEY (return_id)
+        REFERENCES returns(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+        FOREIGN KEY (payment_id)
+        REFERENCES payments(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+ 
+        CHECK (amount >= 0)
+);
+
+
 -- REVIEWS TABLE 
 
 
