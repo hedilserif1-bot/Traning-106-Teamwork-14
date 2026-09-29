@@ -1390,13 +1390,19 @@ JOIN appointments ON patients.id = appointments.patient_id
 GROUP BY patients.id, patients.full_name 
 HAVING COUNT(appointments.id) > 3;
 
+-- عرض المرضى الذين لم يحجزوا أي موعد
 
+SELECT patients.id, patients.full_name 
+FROM patients 
+LEFT JOIN appointments ON patients.id = appointments.patient_id 
+WHERE appointments.id IS NULL;
 
+-- عرض الأطباء الذين لا توجد لديهم مواعيد
 
-
-
-
-
+SELECT doctors.id, doctors.full_name 
+FROM doctors 
+LEFT JOIN appointments ON doctors.id = appointments.doctor_id 
+WHERE appointments.id IS NULL;
 
 
 
