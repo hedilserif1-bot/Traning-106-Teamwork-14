@@ -253,6 +253,32 @@ CREATE TABLE prescription_items (
 CREATE INDEX idx_prescription_items_prescription ON prescription_items (prescription_id);
 CREATE INDEX idx_prescription_items_medicine ON prescription_items (medicine_id);
 
+-- أمر إنشاء جدول ( lab_tests ) مع كامل الحماية عليه
+
+CREATE TABLE lab_tests (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    test_name VARCHAR(100) NOT NULL DEFAULT 'Unnamed Test' CHECK (TRIM(test_name) <> ''),
+    category VARCHAR(100) NOT NULL DEFAULT 'General' CHECK (TRIM(category) <> ''),
+    price DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (price >= 0),
+    normal_range VARCHAR(100) NOT NULL DEFAULT 'Not Specified' CHECK (TRIM(normal_range) <> '')
+    status VARCHAR(50) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive', 'Discontinued'))
+);
+
+-- أمر إنشاء الفهارس على الجدول لتسهيل البحث
+
+CREATE INDEX idx_lab_tests_name ON lab_tests (test_name);
+CREATE INDEX idx_lab_tests_category ON lab_tests (category);
+CREATE INDEX idx_lab_tests_status ON lab_tests (status);
+
+
+
+
+
+
+
+
+
+
 
 
 
