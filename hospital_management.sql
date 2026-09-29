@@ -1404,6 +1404,28 @@ FROM doctors
 LEFT JOIN appointments ON doctors.id = appointments.doctor_id 
 WHERE appointments.id IS NULL;
 
+-- حساب عدد المواعيد لكل طبيب 
+
+SELECT 
+    doctors.id, 
+    doctors.full_name, 
+    COUNT(appointments.id) AS total_appointments 
+FROM doctors 
+LEFT JOIN appointments ON doctors.id = appointments.doctor_id 
+GROUP BY doctors.id, doctors.full_name 
+ORDER BY doctors.id ASC;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
