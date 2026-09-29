@@ -482,12 +482,6 @@ CREATE TABLE seller_settlements (
 
 
 
---DATA
-
-
-
-
-
 
 
 
