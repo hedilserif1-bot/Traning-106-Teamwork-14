@@ -1557,9 +1557,18 @@ FROM medicines
 WHERE expiry_date < CURDATE() 
 ORDER BY id ASC;
 
+-- عرض الأدوية التي ستنتهي خلال 30 يومًا
 
-
-
+SELECT 
+    id, 
+    medicine_name, 
+    manufacturer, 
+    stock_quantity, 
+    expiry_date, 
+    status 
+FROM medicines 
+WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
+ORDER BY id ASC;
 
 
 
