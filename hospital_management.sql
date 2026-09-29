@@ -1073,9 +1073,39 @@ INSERT INTO patient_lab_tests (visit_id, lab_test_id, ordered_at, completed_at, 
 (38, 24, '2026-11-19 10:30:00', '2026-11-19 12:15:00', 'Uric acid: 5.4', 'Normal', 'completed'),
 (55, 5, '2026-11-20 08:15:00', '2026-11-20 10:30:00', 'Processing sample', 'Pending', 'processing');
 
+--- أمر إدخال بيانات الى الجدول ( admissions ) 
 
-
-
+INSERT INTO admissions (patient_id, room_id, doctor_id, admitted_at, discharged_at, admission_reason, status) VALUES
+(5, 10, 3, '2026-10-01 08:00:00', '2026-10-05 14:00:00', 'Acute Appendicitis', 'discharged'),
+(12, 22, 7, '2026-10-02 09:30:00', '2026-10-10 10:00:00', 'Severe Pneumonia', 'discharged'),
+(25, 5, 15, '2026-10-03 14:00:00', '2026-10-04 12:00:00', 'Hypertensive Crisis', 'discharged'),
+(40, 18, 2, '2026-10-04 11:15:00', '2026-10-04 16:30:00', 'Scheduled Surgery Admission - Cancelled', 'cancelled'),
+(3, 1, 20, '2026-10-05 07:30:00', '2026-10-12 09:00:00', 'Myocardial Infarction', 'discharged'),
+(50, 14, 11, '2026-10-06 10:00:00', '2026-10-15 11:30:00', 'Type 2 Diabetes Complications', 'discharged'),
+(18, 25, 9, '2026-10-07 12:30:00', '2026-10-14 15:00:00', 'Asthma Exacerbation', 'discharged'),
+(33, 8, 4, '2026-10-08 08:15:00', '2026-10-08 13:00:00', 'Patient requested discharge against medical advice', 'cancelled'),
+(60, 30, 22, '2026-10-09 15:00:00', '2026-10-20 10:00:00', 'Bone Fracture Recovery', 'discharged'),
+(22, 12, 1, '2026-10-10 09:00:00', '2026-10-18 14:00:00', 'Gastroenteritis', 'discharged'),
+(7, 19, 13, '2026-10-11 16:20:00', '2026-10-25 11:00:00', 'Severe Burn Injury', 'discharged'),
+(45, 3, 18, '2026-10-12 11:00:00', '2026-10-12 14:00:00', 'Administrative cancellation', 'cancelled'),
+(14, 27, 6, '2026-10-13 08:30:00', '2026-10-19 12:00:00', 'Kidney Stones', 'discharged'),
+(31, 9, 25, '2026-10-14 10:45:00', '2026-10-22 09:30:00', 'Viral Meningitis', 'discharged'),
+(58, 21, 10, '2026-10-15 13:10:00', '2026-10-28 16:00:00', 'Stroke Rehabilitation', 'discharged'),
+(2, 16, 14, '2026-10-16 07:00:00', '2026-10-16 11:00:00', 'Duplicate booking cancellation', 'cancelled'),
+(29, 4, 19, '2026-10-17 14:30:00', '2026-10-24 10:00:00', 'Cellulitis Treatment', 'discharged'),
+(36, 28, 5, '2026-10-18 09:15:00', '2026-11-02 12:00:00', 'Post-operative Care', 'discharged'),
+(11, 11, 21, '2026-10-19 11:00:00', '2026-10-30 09:00:00', 'Appendectomy Recovery', 'discharged'),
+(52, 20, 8, '2026-10-20 08:00:00', '2026-10-20 12:30:00', 'Patient transfer error - cancelled', 'cancelled'),
+(20, 6, 12, '2026-10-21 10:00:00', '2026-10-29 15:00:00', 'Bacterial Infection', 'discharged'),
+(39, 23, 17, '2026-10-22 15:30:00', '2026-11-05 11:00:00', 'Chronic Heart Failure', 'discharged'),
+(8, 15, 3, '2026-10-23 09:45:00', '2026-11-01 10:30:00', 'Pancreatitis', 'discharged'),
+(55, 2, 24, '2026-10-24 12:00:00', '2026-10-24 17:00:00', 'Bed availability issue - cancelled', 'cancelled'),
+(16, 26, 16, '2026-10-25 08:30:00', '2026-11-03 14:00:00', 'Cholecystitis', 'discharged'),
+(34, 13, 2, '2026-10-26 10:15:00', '2026-11-10 09:00:00', 'Deep Vein Thrombosis under observation', 'admitted'),
+(48, 29, 9, '2026-10-27 11:00:00', '2026-11-15 16:30:00', 'Severe Migraine Ongoing Treatment', 'admitted'),
+(24, 7, 23, '2026-10-28 14:00:00', '2026-10-28 18:00:00', 'Family request cancellation', 'cancelled'),
+(41, 17, 11, '2026-10-29 09:00:00', '2026-11-20 11:00:00', 'Pneumothorax Active Care', 'admitted'),
+(19, 24, 15, '2026-10-30 08:00:00', '2026-11-25 10:00:00', 'General Trauma Recovery Ward', 'admitted');
 
 
 
