@@ -315,13 +315,21 @@ CREATE INDEX idx_admissions_doctor ON admissions (doctor_id);
 CREATE INDEX idx_admissions_status ON admissions (status);
 CREATE INDEX idx_admissions_admitted_at ON admissions (admitted_at);
 
+-- أمر إنشاء جدول ( insurance_companies ) مع حمايته  
 
+CREATE TABLE insurance_companies (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    company_name VARCHAR(100) NOT NULL DEFAULT 'Unnamed Company' CHECK (TRIM(company_name) <> ''),
+    phone VARCHAR(50) NOT NULL UNIQUE DEFAULT 'Not Specified' CHECK (TRIM(phone) <> ''),
+    email VARCHAR(100) NOT NULL UNIQUE DEFAULT 'no-email@hospital.com' CHECK (TRIM(email) <> ''),
+    coverage_percentage DECIMAL(5, 2) NOT NULL DEFAULT 0.00 CHECK (coverage_percentage >= 0 AND coverage_percentage <= 100),
+    status VARCHAR(50) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive'))
+);
 
+-- أمر إنشاء الفهارس المناسبة 
 
-
-
-
-
+CREATE INDEX idx_insurance_companies_name ON insurance_companies (company_name);
+CREATE INDEX idx_insurance_companies_status ON insurance_companies (status);
 
 
 
