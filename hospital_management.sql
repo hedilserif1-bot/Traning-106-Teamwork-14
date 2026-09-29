@@ -1107,9 +1107,14 @@ INSERT INTO admissions (patient_id, room_id, doctor_id, admitted_at, discharged_
 (41, 17, 11, '2026-10-29 09:00:00', '2026-11-20 11:00:00', 'Pneumothorax Active Care', 'admitted'),
 (19, 24, 15, '2026-10-30 08:00:00', '2026-11-25 10:00:00', 'General Trauma Recovery Ward', 'admitted');
 
+-- أمر إدخال البيانات الى جدول ال ( insurance_companies ) 
 
-
-
+INSERT INTO insurance_companies (company_name, phone, email, coverage_percentage, status) VALUES
+('Global Insurance Co.', '+1-800-555-0199', 'info@globalins.com', 80.00, 'Active'),
+('SafeLife Health Care', '+1-800-555-0288', 'support@safelife.com', 75.50, 'Active'),
+('MedGuard Assurance', '+1-800-555-0377', 'contact@medguard.net', 90.00, 'Inactive'),
+('Prime Care Insurance', '+1-800-555-0466', 'help@primecare.org', 60.00, 'Active'),
+('Trustworthy Health Plan', '+1-800-555-0555', 'service@trustworthy.com', 85.00, 'Inactive');
 
 
 
