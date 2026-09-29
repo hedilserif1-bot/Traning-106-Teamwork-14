@@ -2182,3 +2182,67 @@ VALUES
 
 
 
+--DATA RETURNS TABLE
+
+
+INSERT INTO returns
+(order_item_id, quantity, reason, requested_at, approved_at, completed_at, status)
+VALUES
+(4, 1, 'Wrong size', '2026-08-10 13:20:00', '2026-08-11 09:15:00', '2026-08-15 16:40:00', 'completed'),
+(9, 1, 'Product arrived damaged', '2026-08-12 15:45:00', '2026-08-13 10:30:00', NULL, 'approved'),
+(17, 2, 'Item was different from the description', '2026-08-14 11:20:00', NULL, NULL, 'requested'),
+(23, 1, 'Wrong product received', '2026-08-16 18:10:00', '2026-08-17 09:40:00', '2026-08-21 14:25:00', 'completed'),
+(31, 1, 'Product stopped working', '2026-08-18 12:35:00', '2026-08-19 11:10:00', NULL, 'approved'),
+(38, 1, 'Color was not as expected', '2026-08-20 16:50:00', NULL, NULL, 'requested'),
+(45, 2, 'Damaged during delivery', '2026-08-22 10:15:00', '2026-08-23 09:25:00', '2026-08-27 17:30:00', 'completed'),
+(52, 10, 'Missing parts', '2026-08-24 14:40:00', '2026-08-25 10:05:00', NULL, 'approved'),
+(61, 1, 'Wrong size', '2026-08-26 17:25:00', NULL, NULL, 'requested'),
+(68, 7, 'Product quality was poor', '2026-08-28 12:10:00', NULL, NULL, 'rejected'),
+
+(74, 1, 'Item arrived damaged', '2026-08-30 15:35:00', '2026-08-31 09:50:00', '2026-09-04 13:20:00', 'completed'),
+(82, 2, 'Wrong item received', '2026-09-01 11:45:00', '2026-09-02 14:15:00', NULL, 'approved'),
+(89, 1, 'Product does not work', '2026-09-03 19:05:00', NULL, NULL, 'requested'),
+(96, 1, 'Item was damaged', '2026-09-05 13:30:00', '2026-09-06 10:20:00', '2026-09-10 15:45:00', 'completed'),
+(103, 1, 'Wrong color', '2026-09-07 16:15:00', '2026-09-08 11:35:00', NULL, 'approved'),
+(111, 1, 'Size was too small', '2026-09-09 10:40:00', NULL, NULL, 'requested'),
+(119, 2, 'Missing accessories', '2026-09-11 18:25:00', '2026-09-12 09:30:00', '2026-09-16 16:10:00', 'completed'),
+(127, 1, 'Product did not match the listing', '2026-09-13 14:50:00', NULL, NULL, 'rejected'),
+(135, 1, 'Damaged packaging and product', '2026-09-15 12:20:00', '2026-09-16 10:45:00', NULL, 'approved'),
+(143, 1, 'Wrong model received', '2026-09-17 17:40:00', NULL, NULL, 'requested'),
+
+(151, 1, 'Product stopped working', '2026-09-19 11:15:00', '2026-09-20 09:40:00', '2026-09-24 14:30:00', 'completed'),
+(159, 1, 'Wrong size', '2026-09-20 15:25:00', '2026-09-21 10:10:00', NULL, 'approved'),
+(167, 2, 'Product arrived scratched', '2026-09-21 18:05:00', NULL, NULL, 'requested'),
+(175, 3, 'Different product received', '2026-09-22 13:45:00', '2026-09-23 11:25:00', '2026-09-27 15:50:00', 'completed'),
+(183, 6, 'Item was not working properly', '2026-09-23 16:30:00', NULL, NULL, 'requested'),
+(191, 3, 'Wrong color received', '2026-09-24 10:55:00', '2026-09-25 09:15:00', NULL, 'approved'),
+(199, 4, 'Damaged on arrival', '2026-09-25 14:20:00', '2026-09-26 10:30:00', '2026-09-29 12:15:00', 'rejected'),
+(207, 6, 'Missing component', '2026-09-26 17:10:00', NULL, NULL, 'requested'),
+(215, 7, 'Wrong item received', '2026-09-27 11:35:00', '2026-09-28 09:50:00', NULL, 'approved'),
+(223, 3, 'Product was not as described', '2026-09-28 16:45:00', NULL, NULL, 'requested')
+(231, 2, 'Product arrived damaged', '2026-09-29 10:20:00', '2026-09-30 09:15:00', '2026-10-04 14:30:00', 'completed'),
+(239, 1, 'Wrong size received', '2026-09-30 13:45:00', '2026-10-01 10:20:00', NULL, 'approved'),
+(247, 3, 'Product quality was poor', '2026-10-01 16:30:00', NULL, NULL, 'requested'),
+(255, 1, 'Wrong product received', '2026-10-02 11:15:00', NULL, NULL, 'rejected'),
+(263, 4, 'Missing accessories', '2026-10-03 14:50:00', '2026-10-04 09:40:00', '2026-10-08 16:20:00', 'completed'),
+
+(271, 2, 'Item was different from the description', '2026-10-04 17:25:00', NULL, NULL, 'requested'),
+(279, 1, 'Product stopped working', '2026-10-05 12:10:00', '2026-10-06 10:30:00', NULL, 'approved'),
+(287, 5, 'Damaged during delivery', '2026-10-06 15:40:00', '2026-10-07 09:25:00', '2026-10-11 13:50:00', 'completed'),
+(295, 2, 'Wrong color received', '2026-10-07 18:15:00', NULL, NULL, 'rejected'),
+(303, 3, 'Missing parts', '2026-10-08 10:35:00', '2026-10-09 11:20:00', NULL, 'approved'),
+
+(311, 1, 'Product did not match the listing', '2026-10-09 14:25:00', NULL, NULL, 'requested'),
+(319, 2, 'Item arrived scratched', '2026-10-10 16:50:00', '2026-10-11 09:45:00', '2026-10-15 15:30:00', 'completed'),
+(327, 1, 'Wrong model received', '2026-10-11 11:40:00', '2026-10-12 10:15:00', NULL, 'approved'),
+(335, 4, 'Product was not working properly', '2026-10-12 13:20:00', NULL, NULL, 'requested'),
+(343, 2, 'Damaged packaging and product', '2026-10-13 17:10:00', NULL, NULL, 'rejected'),
+
+(351, 3, 'Wrong item received', '2026-10-14 10:45:00', '2026-10-15 09:30:00', '2026-10-19 14:40:00', 'completed'),
+(359, 1, 'Size was too small', '2026-10-15 15:25:00', NULL, NULL, 'requested'),
+(367, 6, 'Missing component', '2026-10-16 12:55:00', '2026-10-17 10:05:00', NULL, 'approved'),
+(375, 2, 'Product arrived broken', '2026-10-17 18:30:00', '2026-10-18 09:50:00', '2026-10-22 16:15:00', 'completed'),
+(383, 3, 'Product was not as described', '2026-10-18 14:10:00', NULL, NULL, 'requested');
+
+
+
