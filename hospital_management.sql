@@ -1513,8 +1513,22 @@ FROM medical_visits
 GROUP BY diagnosis 
 ORDER BY cases_count DESC;
 
+-- عرض المرضى الذين لديهم Follow-up ولم يعودوا بعد تاريخ المتابعة
 
-
-
+SELECT DISTINCT 
+    patients.id, 
+    patients.full_name, 
+    medical_visits.follow_up_date 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id 
+WHERE medical_visits.follow_up_date IS NOT NULL 
+  AND medical_visits.follow_up_date < CURDATE() 
+  AND NOT EXISTS (
+      SELECT 1 
+      FROM medical_visits AS v2 
+      WHERE v2.patient_id = patients.id 
+        AND v2.visit_date > medical_visits.follow_up_date
+  ) 
+ORDER BY patients.id ASC;
 
 
