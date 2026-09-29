@@ -739,9 +739,252 @@ VALUES
 
 
 -- ============================================
+--shipment_tracking ادخال بيانات 20 سجل تتبع الشحنات لجدول 
+-- ============================================
+INSERT INTO shipment_tracking
+(shipment_id, branch_id, status, description, recorded_at)
+VALUES
+(1, 1, 'created', 'Shipment created at origin branch', '2026-01-05 09:05:00'),
+(1, 1, 'in_transit', 'Shipment left origin branch', '2026-01-05 14:00:00'),
+
+(2, 2, 'created', 'Shipment created at origin branch', '2026-01-06 10:05:00'),
+(2, 2, 'received', 'Shipment received at origin branch', '2026-01-06 13:00:00'),
+
+(3, 3, 'created', 'Shipment created at origin branch', '2026-01-07 11:05:00'),
+(3, 1, 'out_for_delivery', 'Shipment is out for delivery', '2026-01-08 09:00:00'),
+
+(4, 1, 'created', 'Shipment created at origin branch', '2026-01-08 09:35:00'),
+(4, 1, 'in_transit', 'Shipment left origin branch', '2026-01-08 15:00:00'),
+
+(5, 4, 'created', 'Shipment created at origin branch', '2026-01-09 12:05:00'),
+(5, 4, 'created', 'Shipment is waiting for processing', '2026-01-09 15:00:00'),
+
+(6, 5, 'created', 'Shipment created at origin branch', '2026-01-10 08:35:00'),
+(6, 5, 'received', 'Shipment received and registered', '2026-01-10 12:00:00'),
+
+(7, 2, 'created', 'Shipment created at origin branch', '2026-01-11 14:05:00'),
+(7, 2, 'in_transit', 'Shipment departed from branch', '2026-01-12 08:00:00'),
+
+(8, 3, 'created', 'Shipment created at origin branch', '2026-01-12 09:05:00'),
+(8, 3, 'created', 'Shipment waiting for processing', '2026-01-12 13:00:00'),
+
+(9, 4, 'created', 'Shipment created at origin branch', '2026-01-13 10:35:00'),
+(9, 4, 'in_transit', 'Shipment departed from origin branch', '2026-01-13 16:00:00'),
+
+(10, 5, 'created', 'Shipment created at origin branch', '2026-01-14 13:05:00'),
+(10, 5, 'cancelled', 'Shipment cancelled by customer', '2026-01-15 10:00:00');
+
+-- ============================================
+--shipment_tracking ادخال بيانات 100 سجل تتبع الشحنات لجدول 
 -- ============================================
 
+INSERT INTO shipment_tracking
+(shipment_id, branch_id, status, description, recorded_at)
+VALUES
+(11,1,'created','Shipment created','2026-01-15 09:05:00'),
+(11,2,'delivered','Shipment delivered successfully','2026-01-16 15:00:00'),
 
+(12,2,'created','Shipment created','2026-01-16 10:05:00'),
+(12,3,'delivered','Shipment delivered successfully','2026-01-17 16:00:00'),
+
+(13,3,'created','Shipment created','2026-01-17 11:05:00'),
+(13,4,'in_transit','Shipment in transit','2026-01-18 09:00:00'),
+
+(14,4,'created','Shipment created','2026-01-18 09:35:00'),
+(14,5,'delivered','Shipment delivered successfully','2026-01-19 14:00:00'),
+
+(15,5,'created','Shipment created','2026-01-19 12:05:00'),
+(15,5,'returned','Shipment returned to sender','2026-01-21 15:00:00'),
+
+(16,1,'created','Shipment created','2026-01-20 08:35:00'),
+(16,3,'delivered','Shipment delivered successfully','2026-01-21 13:00:00'),
+
+(17,2,'created','Shipment created','2026-01-21 14:05:00'),
+(17,4,'in_transit','Shipment in transit','2026-01-22 10:00:00'),
+
+(18,3,'created','Shipment created','Shipment created and waiting','2026-01-22 09:05:00'),
+(18,3,'created','Shipment waiting for processing','2026-01-23 11:00:00'),
+
+(19,4,'created','Shipment created','2026-01-23 10:35:00'),
+(19,2,'delivered','Shipment delivered successfully','2026-01-24 17:00:00'),
+
+(20,5,'created','Shipment created','2026-01-24 13:05:00'),
+(20,5,'cancelled','Shipment cancelled','2026-01-25 10:00:00'),
+
+(21,1,'created','Shipment created','2026-01-25 09:05:00'),
+(21,4,'delivered','Shipment delivered successfully','2026-01-26 15:00:00'),
+
+(22,2,'created','Shipment created','2026-01-26 10:05:00'),
+(22,5,'in_transit','Shipment in transit','2026-01-27 09:00:00'),
+
+(23,3,'created','Shipment created','2026-01-27 11:05:00'),
+(23,1,'delivered','Shipment delivered successfully','2026-01-28 16:00:00'),
+
+(24,4,'created','Shipment created','2026-01-28 12:05:00'),
+(24,2,'delivered','Shipment delivered successfully','2026-01-29 15:00:00'),
+
+(25,5,'created','Shipment created','2026-01-29 13:05:00'),
+(25,1,'in_transit','Shipment in transit','2026-01-30 10:00:00'),
+
+(26,1,'created','Shipment created','2026-02-01 09:05:00'),
+(26,3,'delivered','Shipment delivered successfully','2026-02-02 16:00:00'),
+
+(27,2,'created','Shipment created','2026-02-02 10:05:00'),
+(27,4,'delivered','Shipment delivered successfully','2026-02-03 15:00:00'),
+
+(28,3,'created','Shipment created','2026-02-03 11:05:00'),
+(28,5,'received','Shipment received at destination branch','2026-02-04 10:00:00'),
+
+(29,4,'created','Shipment created','2026-02-04 09:35:00'),
+(29,1,'delivered','Shipment delivered successfully','2026-02-05 14:00:00'),
+
+(30,5,'created','Shipment created','2026-02-05 12:05:00'),
+(30,5,'cancelled','Shipment cancelled','2026-02-06 09:00:00'),
+
+(31,1,'created','Shipment created','2026-02-06 08:35:00'),
+(31,5,'delivered','Shipment delivered successfully','2026-02-07 15:00:00'),
+
+(32,2,'created','Shipment created','2026-02-07 14:05:00'),
+(32,1,'delivered','Shipment delivered successfully','2026-02-08 14:00:00'),
+
+(33,3,'created','Shipment created','2026-02-08 09:05:00'),
+(33,2,'in_transit','Shipment in transit','2026-02-09 11:00:00'),
+
+(34,4,'created','Shipment created','2026-02-09 10:35:00'),
+(34,3,'delivered','Shipment delivered successfully','2026-02-10 16:00:00'),
+
+(35,5,'created','Shipment created','2026-02-10 13:05:00'),
+(35,4,'delivered','Shipment delivered successfully','2026-02-11 17:00:00'),
+
+(36,1,'created','Shipment created','2026-02-11 09:05:00'),
+(36,3,'received','Shipment received at destination branch','2026-02-12 10:00:00'),
+
+(37,2,'created','Shipment created','2026-02-12 10:05:00'),
+(37,3,'delivered','Shipment delivered successfully','2026-02-13 16:00:00'),
+
+(38,3,'created','Shipment created','2026-02-13 11:05:00'),
+(38,4,'delivered','Shipment delivered successfully','2026-02-14 15:00:00'),
+
+(39,4,'created','Shipment created','2026-02-14 09:35:00'),
+(39,5,'in_transit','Shipment in transit','2026-02-15 10:00:00'),
+
+(40,5,'created','Shipment created','2026-02-15 12:05:00'),
+(40,1,'delivered','Shipment delivered successfully','2026-02-16 17:00:00'),
+
+(41,1,'created','Shipment created','2026-02-16 08:35:00'),
+(41,3,'returned','Shipment returned to sender','2026-02-18 16:00:00'),
+
+(42,2,'created','Shipment created','2026-02-17 14:05:00'),
+(42,5,'delivered','Shipment delivered successfully','2026-02-18 16:00:00'),
+
+(43,3,'created','Shipment created','2026-02-18 09:05:00'),
+(43,1,'delivered','Shipment delivered successfully','2026-02-19 15:00:00'),
+
+(44,4,'created','Shipment created','2026-02-19 10:35:00'),
+(44,2,'in_transit','Shipment in transit','2026-02-20 11:00:00'),
+
+(45,5,'created','Shipment created','2026-02-20 13:05:00'),
+(45,3,'delivered','Shipment delivered successfully','2026-02-21 16:00:00'),
+
+(46,1,'created','Shipment created','2026-02-21 09:05:00'),
+(46,4,'delivered','Shipment delivered successfully','2026-02-22 15:00:00'),
+
+(47,2,'created','Shipment created','2026-02-22 10:05:00'),
+(47,5,'created','Shipment waiting for processing','2026-02-23 11:00:00'),
+
+(48,3,'created','Shipment created','2026-02-23 11:05:00'),
+(48,2,'delivered','Shipment delivered successfully','2026-02-24 16:00:00'),
+
+(49,4,'created','Shipment created','2026-02-24 12:05:00'),
+(49,1,'delivered','Shipment delivered successfully','2026-02-25 17:00:00'),
+
+(50,5,'created','Shipment created','2026-02-25 13:05:00'),
+(50,2,'in_transit','Shipment in transit','2026-02-26 10:00:00'),
+
+(51,1,'created','Shipment created','2026-02-26 09:05:00'),
+(51,5,'delivered','Shipment delivered successfully','2026-02-27 15:00:00'),
+
+(52,2,'created','Shipment created','2026-02-27 10:05:00'),
+(52,3,'in_transit','Shipment in transit','2026-02-28 10:00:00'),
+
+(53,3,'created','Shipment created','2026-02-28 11:05:00'),
+(53,4,'delivered','Shipment delivered successfully','2026-03-01 16:00:00'),
+
+(54,4,'created','Shipment created','2026-03-01 09:35:00'),
+(54,5,'delivered','Shipment delivered successfully','2026-03-02 15:00:00'),
+
+(55,5,'created','Shipment created','2026-03-02 12:05:00'),
+(55,5,'cancelled','Shipment cancelled','2026-03-03 09:00:00'),
+
+(56,1,'created','Shipment created','2026-03-03 08:35:00'),
+(56,3,'delivered','Shipment delivered successfully','2026-03-04 16:00:00'),
+
+(57,2,'created','Shipment created','2026-03-04 14:05:00'),
+(57,4,'received','Shipment received at destination branch','2026-03-05 10:00:00'),
+
+(58,3,'created','Shipment created','2026-03-05 09:05:00'),
+(58,5,'delivered','Shipment delivered successfully','2026-03-06 15:00:00'),
+
+(59,4,'created','Shipment created','2026-03-06 10:35:00'),
+(59,2,'in_transit','Shipment in transit','2026-03-07 09:00:00'),
+
+(60,5,'created','Shipment created','2026-03-07 13:05:00'),
+(60,4,'delivered','Shipment delivered successfully','2026-03-08 16:00:00');
+-- ============================================
+--   40 دفعة لجدول ال payments ادخال---
+-- ============================================
+
+INSERT INTO payments
+(shipment_id, amount, payment_method, payment_date, transaction_reference, status)
+VALUES
+
+(1,150.00,'card','2026-01-05 10:00:00','TXN100001','successful'),
+(2,220.00,'cash','2026-01-06 11:00:00','TXN100002','successful'),
+(3,180.00,'bank_transfer','2026-01-07 09:30:00','TXN100003','successful'),
+(4,350.00,'card','2026-01-08 12:00:00','TXN100004','successful'),
+(5,125.00,'cash','2026-01-09 14:00:00','TXN100005','successful'),
+
+(6,275.00,'pix','2026-01-10 10:15:00','TXN100006','successful'),
+(7,410.00,'card','2026-01-11 13:00:00','TXN100007','successful'),
+(8,195.00,'cash','2026-01-12 15:00:00','TXN100008','successful'),
+(9,320.00,'bank_transfer','2026-01-13 09:45:00','TXN100009','successful'),
+(10,150.00,'card','2026-01-14 11:30:00','TXN100010','successful'),
+
+(11,285.00,'cash','2026-01-16 10:00:00','TXN100011','successful'),
+(12,375.00,'card','2026-01-17 12:30:00','TXN100012','successful'),
+(13,210.00,'pix','2026-01-18 14:00:00','TXN100013','successful'),
+(14,450.00,'bank_transfer','2026-01-19 10:30:00','TXN100014','successful'),
+(15,175.00,'cash','2026-01-20 13:15:00','TXN100015','successful'),
+
+(16,290.00,'card','2026-01-21 09:30:00','TXN100016','successful'),
+(17,330.00,'pix','2026-01-22 11:00:00','TXN100017','successful'),
+(18,260.00,'cash','2026-01-23 14:30:00','TXN100018','successful'),
+(19,520.00,'card','2026-01-24 16:00:00','TXN100019','successful'),
+(20,195.00,'bank_transfer','2026-01-25 10:15:00','TXN100020','successful'),
+
+(21,240.00,'cash','2026-01-26 11:30:00','TXN100021','successful'),
+(22,310.00,'card','2026-01-27 13:00:00','TXN100022','successful'),
+(23,275.00,'pix','2026-01-28 09:45:00','TXN100023','successful'),
+(24,390.00,'bank_transfer','2026-01-29 12:00:00','TXN100024','successful'),
+(25,160.00,'cash','2026-01-30 15:00:00','TXN100025','successful'),
+
+(26,285.00,'card','2026-02-02 10:30:00','TXN100026','successful'),
+(27,340.00,'pix','2026-02-03 11:45:00','TXN100027','successful'),
+(28,225.00,'cash','2026-02-04 13:30:00','TXN100028','successful'),
+(29,470.00,'card','2026-02-05 15:15:00','TXN100029','successful'),
+(30,180.00,'bank_transfer','2026-02-06 09:30:00','TXN100030','successful'),
+
+(31,300.00,'cash','2026-02-07 10:00:00','TXN100031','successful'),
+(32,260.00,'card','2026-02-08 12:15:00','TXN100032','successful'),
+(33,350.00,'pix','2026-02-09 14:00:00','TXN100033','failed'),
+(34,420.00,'bank_transfer','2026-02-10 16:00:00','TXN100034','successful'),
+(35,200.00,'cash','2026-02-11 10:30:00','TXN100035','failed'),
+
+(36,275.00,'card','2026-02-12 11:45:00','TXN100036','successful'),
+(37,315.00,'pix','2026-02-13 13:15:00','TXN100037','refunded'),
+(38,450.00,'bank_transfer','2026-02-14 15:00:00','TXN100038','successful'),
+(39,190.00,'cash','2026-02-15 09:30:00','TXN100039','failed'),
+(40,500.00,'card','2026-02-16 12:00:00','TXN100040','successful');
 
 
 
