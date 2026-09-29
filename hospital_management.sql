@@ -1451,4 +1451,41 @@ JOIN (
 ) latest ON medical_visits.id = latest.max_visit_id 
 ORDER BY patients.id ASC;
 
+-- عرض أول زيارة لكل مريض
+
+SELECT 
+    patients.id AS patient_id, 
+    patients.full_name, 
+    medical_visits.id AS visit_id, 
+    medical_visits.visit_date, 
+    medical_visits.diagnosis 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id 
+JOIN (
+    SELECT patient_id, MIN(id) AS min_visit_id 
+    FROM medical_visits 
+    GROUP BY patient_id
+) earliest ON medical_visits.id = earliest.min_visit_id 
+ORDER BY patients.id ASC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
