@@ -2325,3 +2325,187 @@ VALUES
 
 
 
+--DATA REVIEWS TABLE
+
+
+INSERT INTO reviews
+(customer_id, product_id, order_item_id, rating, comment, created_at, status)
+VALUES
+(1, 5, 1, 5, 'Excellent product and very good quality', '2026-05-01 10:15:00', 'active'),
+(2, 12, 4, 4, 'Good product and fast delivery', '2026-05-02 11:30:00', 'active'),
+(3, 18, 7, 3, 'Product is acceptable for the price', '2026-05-03 14:20:00', 'active'),
+(4, 25, 10, 5, 'Amazing quality and exactly as described', '2026-05-04 16:45:00', 'active'),
+(5, 31, 13, 2, 'Quality was lower than expected', '2026-05-05 09:10:00', 'active'),
+(6, 38, 16, 4, 'Very satisfied with this purchase', '2026-05-06 12:35:00', 'active'),
+(7, 44, 19, 5, 'Excellent value for money', '2026-05-07 15:25:00', 'active'),
+(8, 51, 22, 1, 'Product did not meet my expectations', '2026-05-08 18:10:00', 'active'),
+(9, 57, 25, 4, 'Good quality and nice design', '2026-05-09 10:50:00', 'active'),
+(10, 63, 28, 5, 'Perfect product and highly satisfied', '2026-05-10 13:40:00', 'active'),
+
+(11, 70, 31, 3, 'Average product but works well', '2026-05-11 17:15:00', 'active'),
+(12, 76, 34, 4, 'Good quality and easy to use', '2026-05-12 09:45:00', 'active'),
+(13, 82, 37, 5, 'One of the best products I purchased', '2026-05-13 11:20:00', 'active'),
+(14, 89, 40, 2, 'Not as good as I expected', '2026-05-14 14:55:00', 'inactive'),
+(15, 95, 43, 4, 'Product matches the description', '2026-05-15 16:30:00', 'active'),
+(16, 102, 46, 5, 'Great product and excellent condition', '2026-05-16 10:05:00', 'active'),
+(17, 108, 49, 3, 'Decent product for everyday use', '2026-05-17 12:40:00', 'active'),
+(18, 115, 52, 1, 'Very disappointed with the quality', '2026-05-18 15:15:00', 'inactive'),
+(19, 119, 55, 5, 'Absolutely worth the price', '2026-05-19 18:25:00', 'active'),
+(20, 7, 58, 4, 'Works exactly as expected', '2026-05-20 09:35:00', 'active'),
+
+(21, 14, 61, 3, 'Nothing special but does the job', '2026-05-21 11:50:00', 'active'),
+(22, 21, 64, 5, 'Fantastic quality and packaging', '2026-05-22 14:10:00', 'active'),
+(23, 28, 67, 4, 'Very nice product overall', '2026-05-23 16:20:00', 'active'),
+(24, 35, 70, 2, 'Product could be much better', '2026-05-24 10:40:00', 'active'),
+(25, 42, 73, 5, 'Excellent purchase and very happy', '2026-05-25 13:15:00', 'active'),
+(26, 49, 76, 4, 'Good product for the price', '2026-05-26 15:50:00', 'active'),
+(27, 56, 79, 3, 'Average quality but usable', '2026-05-27 17:30:00', 'active'),
+(28, 63, 82, 5, 'Exceeded my expectations', '2026-05-28 09:25:00', 'active'),
+(29, 70, 85, 1, 'Poor quality and disappointing', '2026-05-29 12:05:00', 'inactive'),
+(30, 77, 88, 4, 'Nice product and good packaging', '2026-05-30 14:35:00', 'active'),
+
+(31, 84, 91, 5, 'Excellent and very reliable product', '2026-06-01 10:20:00', 'active'),
+(32, 91, 94, 3, 'It works but could be improved', '2026-06-02 13:45:00', 'active'),
+(33, 98, 97, 4, 'Satisfied with the overall quality', '2026-06-03 16:15:00', 'active'),
+(34, 105, 100, 5, 'Perfect condition and great quality', '2026-06-04 18:30:00', 'active'),
+(35, 112, 103, 2, 'Expected better material quality', '2026-06-05 09:55:00', 'active'),
+(36, 119, 106, 4, 'Good experience overall', '2026-06-06 11:25:00', 'active'),
+(37, 6, 109, 5, 'Very impressive product', '2026-06-07 14:40:00', 'active'),
+(38, 13, 112, 3, 'Reasonable quality for the price', '2026-06-08 17:05:00', 'active'),
+(39, 20, 115, 1, 'Product stopped working quickly', '2026-06-09 10:35:00', 'inactive'),
+(40, 27, 118, 5, 'Excellent quality and performance', '2026-06-10 12:50:00', 'active'),
+
+(41, 34, 121, 4, 'Very good and useful product', '2026-06-11 15:30:00', 'active'),
+(42, 41, 124, 3, 'The product is okay overall', '2026-06-12 18:15:00', 'active'),
+(43, 48, 127, 5, 'Really happy with this purchase', '2026-06-13 09:40:00', 'active'),
+(44, 55, 130, 4, 'Good quality and fair price', '2026-06-14 11:55:00', 'active'),
+(45, 62, 133, 2, 'Not satisfied with the material', '2026-06-15 14:25:00', 'active'),
+(46, 69, 136, 5, 'Everything was perfect', '2026-06-16 16:50:00', 'active'),
+(47, 76, 139, 4, 'Good product and works properly', '2026-06-17 10:10:00', 'active'),
+(48, 83, 142, 3, 'Acceptable but nothing exceptional', '2026-06-18 12:30:00', 'active'),
+(49, 90, 145, 5, 'Excellent product and would buy again', '2026-06-19 15:45:00', 'active'),
+(50, 97, 148, 1, 'Very poor quality product', '2026-06-20 18:20:00', 'inactive'),
+
+(51, 104, 151, 4, 'Good value and useful product', '2026-06-21 09:30:00', 'active'),
+(52, 111, 154, 5, 'Great quality and fast delivery', '2026-06-22 11:45:00', 'active'),
+(53, 118, 157, 3, 'Product is fine for normal use', '2026-06-23 14:15:00', 'active'),
+(54, 5, 160, 4, 'Satisfied with my order', '2026-06-24 16:35:00', 'active'),
+(55, 12, 163, 5, 'Very good quality product', '2026-06-25 10:25:00', 'active'),
+(56, 19, 166, 2, 'Could be better for this price', '2026-06-26 13:05:00', 'active'),
+(57, 26, 169, 4, 'Works well and looks nice', '2026-06-27 15:20:00', 'active'),
+(58, 33, 172, 5, 'Fantastic product and great value', '2026-06-28 17:40:00', 'active'),
+(59, 40, 175, 3, 'Average but still useful', '2026-06-29 09:50:00', 'active'),
+(60, 47, 178, 1, 'Did not work as advertised', '2026-06-30 12:15:00', 'inactive'),
+
+(61, 54, 181, 5, 'Very satisfied with the product', '2026-07-01 14:45:00', 'active'),
+(62, 61, 184, 4, 'Good product with nice quality', '2026-07-02 17:10:00', 'active'),
+(63, 68, 187, 3, 'It is okay for the price', '2026-07-03 10:30:00', 'active'),
+(64, 75, 190, 5, 'Excellent quality and design', '2026-07-04 13:20:00', 'active'),
+(65, 82, 193, 4, 'Very useful and well made', '2026-07-05 15:35:00', 'active'),
+(66, 89, 196, 2, 'Quality needs improvement', '2026-07-06 18:05:00', 'active'),
+(67, 96, 199, 5, 'Exactly what I was looking for', '2026-07-07 09:15:00', 'active'),
+(68, 103, 202, 4, 'Nice product and good value', '2026-07-08 11:40:00', 'active'),
+(69, 110, 205, 3, 'Product works as expected', '2026-07-09 14:05:00', 'active'),
+(70, 117, 208, 5, 'Excellent purchase overall', '2026-07-10 16:25:00', 'active'),
+
+(1, 4, 211, 4, 'Very good product and reliable', '2026-07-11 10:45:00', 'active'),
+(2, 11, 214, 3, 'Good but there is room for improvement', '2026-07-12 13:30:00', 'active'),
+(3, 18, 217, 5, 'Amazing product for the price', '2026-07-13 15:55:00', 'active'),
+(4, 25, 220, 2, 'The quality was disappointing', '2026-07-14 18:15:00', 'active'),
+(5, 32, 223, 4, 'Works perfectly for my needs', '2026-07-15 09:35:00', 'active'),
+(6, 39, 226, 5, 'Excellent quality and packaging', '2026-07-16 12:00:00', 'active'),
+(7, 46, 229, 3, 'Average product overall', '2026-07-17 14:25:00', 'active'),
+(8, 53, 232, 1, 'Product arrived in poor condition', '2026-07-18 16:50:00', 'inactive'),
+(9, 60, 235, 5, 'Very happy with this product', '2026-07-19 10:15:00', 'active'),
+(10, 67, 238, 4, 'Good quality and reasonable price', '2026-07-20 13:40:00', 'active'),
+
+(11, 74, 241, 5, 'Excellent performance and quality', '2026-07-21 15:20:00', 'active'),
+(12, 81, 244, 3, 'Decent product for the cost', '2026-07-22 17:45:00', 'active'),
+(13, 88, 247, 4, 'Very satisfied with the quality', '2026-07-23 09:25:00', 'active'),
+(14, 95, 250, 2, 'Not quite what I expected', '2026-07-24 11:50:00', 'active'),
+(15, 102, 253, 5, 'Great product and worth buying', '2026-07-25 14:10:00', 'active'),
+(16, 109, 256, 4, 'Good product with solid quality', '2026-07-26 16:35:00', 'active'),
+(17, 116, 259, 3, 'Product is acceptable', '2026-07-27 18:05:00', 'active'),
+(18, 3, 262, 5, 'Really excellent product', '2026-07-28 10:30:00', 'active'),
+(19, 10, 265, 1, 'Very disappointed with this purchase', '2026-07-29 13:15:00', 'inactive'),
+(20, 17, 268, 4, 'Good quality overall', '2026-07-30 15:40:00', 'active'),
+
+(21, 24, 271, 5, 'Perfect product and great experience', '2026-08-01 09:45:00', 'active'),
+(22, 31, 274, 4, 'Very nice and well made', '2026-08-02 12:20:00', 'active'),
+(23, 38, 277, 3, 'Average quality but acceptable', '2026-08-03 14:50:00', 'active'),
+(24, 45, 280, 5, 'Excellent product for daily use', '2026-08-04 17:15:00', 'active'),
+(25, 52, 283, 2, 'Expected better quality', '2026-08-05 10:05:00', 'active'),
+(26, 59, 286, 4, 'Good product and nice finish', '2026-08-06 12:40:00', 'active'),
+(27, 66, 289, 5, 'Very impressive quality', '2026-08-07 15:10:00', 'active'),
+(28, 73, 292, 3, 'Works fine but nothing special', '2026-08-08 17:35:00', 'active'),
+(29, 80, 295, 4, 'Good value for the money', '2026-08-09 09:20:00', 'active'),
+(30, 87, 298, 1, 'Product was not good quality', '2026-08-10 11:55:00', 'inactive'),
+
+(31, 94, 301, 5, 'Excellent product and service', '2026-08-11 14:25:00', 'active'),
+(32, 101, 304, 4, 'Very useful and good quality', '2026-08-12 16:50:00', 'active'),
+(33, 108, 307, 3, 'The product is satisfactory', '2026-08-13 10:10:00', 'active'),
+(34, 115, 310, 5, 'Amazing product and great quality', '2026-08-14 12:35:00', 'active'),
+(35, 2, 313, 4, 'Good quality and works well', '2026-08-15 15:05:00', 'active'),
+(36, 9, 316, 2, 'Product was below expectations', '2026-08-16 17:30:00', 'active'),
+(37, 16, 319, 5, 'Perfect and exactly as described', '2026-08-17 09:40:00', 'active'),
+(38, 23, 322, 4, 'Nice product and reliable', '2026-08-18 12:15:00', 'active'),
+(39, 30, 325, 3, 'Acceptable product for the price', '2026-08-19 14:45:00', 'active'),
+(40, 37, 328, 5, 'Very happy with my purchase', '2026-08-20 17:10:00', 'active'),
+
+(41, 44, 331, 4, 'Good product and nice design', '2026-08-21 10:25:00', 'active'),
+(42, 51, 334, 1, 'Product quality was very poor', '2026-08-22 12:55:00', 'inactive'),
+(43, 58, 337, 5, 'Excellent quality for the price', '2026-08-23 15:20:00', 'active'),
+(44, 65, 340, 3, 'Product is fine and works properly', '2026-08-24 17:45:00', 'active'),
+(45, 72, 343, 4, 'Satisfied with the purchase', '2026-08-25 09:30:00', 'active'),
+(46, 79, 346, 5, 'Great quality and excellent product', '2026-08-26 11:50:00', 'active'),
+(47, 86, 349, 2, 'Not worth the price in my opinion', '2026-08-27 14:15:00', 'active'),
+(48, 93, 352, 4, 'Good product and easy to use', '2026-08-28 16:40:00', 'active'),
+(49, 100, 355, 5, 'Excellent and highly recommended', '2026-08-29 10:00:00', 'active'),
+(50, 107, 358, 3, 'Average experience overall', '2026-08-30 12:25:00', 'active');
+
+
+
+--DATA SELLER SETTLEMENT
+
+
+
+INSERT INTO seller_settlements
+(seller_id, period_start, period_end, gross_sales, commission_amount, refund_amount, net_amount, paid_at, status)
+VALUES
+
+(1, '2026-01-01', '2026-01-31', 18450.00, 922.50, 180.00, 17347.50, '2026-02-03 10:15:00', 'paid'),
+(2, '2026-01-01', '2026-01-31', 12780.50, 639.03, 95.00, 12046.47, '2026-02-03 11:20:00', 'paid'),
+(3, '2026-01-01', '2026-01-31', 22150.75, 1107.54, 320.00, 20723.21, '2026-02-04 09:45:00', 'paid'),
+(4, '2026-01-01', '2026-01-31', 9650.00, 482.50, 75.00, 9092.50, '2026-02-04 14:10:00', 'paid'),
+(5, '2026-01-01', '2026-01-31', 15320.40, 766.02, 140.00, 14414.38, '2026-02-05 10:30:00', 'paid'),
+
+(6, '2026-01-01', '2026-01-31', 18750.00, 937.50, 210.00, 17602.50, '2026-02-05 13:25:00', 'paid'),
+(7, '2026-01-01', '2026-01-31', 11240.80, 562.04, 90.00, 10588.76, '2026-02-06 09:20:00', 'paid'),
+(8, '2026-01-01', '2026-01-31', 24680.00, 1234.00, 410.00, 23036.00, '2026-02-06 15:40:00', 'paid'),
+(9, '2026-01-01', '2026-01-31', 8750.25, 437.51, 60.00, 8252.74, '2026-02-07 10:05:00', 'paid'),
+(10, '2026-01-01', '2026-01-31', 13450.60, 672.53, 125.00, 12653.07, '2026-02-07 12:15:00', 'paid'),
+
+(11, '2026-02-01', '2026-02-28', 19840.00, 992.00, 175.00, 18673.00, '2026-03-03 09:50:00', 'paid'),
+(12, '2026-02-01', '2026-02-28', 14560.30, 728.02, 120.00, 13712.28, '2026-03-03 11:35:00', 'paid'),
+(13, '2026-02-01', '2026-02-28', 17250.00, 862.50, 260.00, 16127.50, '2026-03-04 10:10:00', 'paid'),
+(14, '2026-02-01', '2026-02-28', 10320.75, 516.04, 80.00, 9724.71, '2026-03-04 13:45:00', 'paid'),
+(15, '2026-02-01', '2026-02-28', 21980.90, 1099.05, 350.00, 20531.85, '2026-03-05 09:30:00', 'paid'),
+
+(16, '2026-02-01', '2026-02-28', 12875.00, 643.75, 100.00, 12131.25, '2026-03-05 14:20:00', 'paid'),
+(17, '2026-02-01', '2026-02-28', 16740.50, 837.03, 145.00, 15758.47, NULL, 'pending'),
+(18, '2026-02-01', '2026-02-28', 9320.00, 466.00, 70.00, 8784.00, NULL, 'pending'),
+(19, '2026-02-01', '2026-02-28', 25460.25, 1273.01, 500.00, 23687.24, NULL, 'pending'),
+(20, '2026-02-01', '2026-02-28', 11890.80, 594.54, 90.00, 11206.26, NULL, 'pending'),
+
+(1, '2026-02-01', '2026-02-28', 20560.00, 1028.00, 220.00, 19312.00, '2026-03-06 10:25:00', 'paid'),
+(2, '2026-02-01', '2026-02-28', 13980.45, 699.02, 110.00, 13171.43, '2026-03-06 12:40:00', 'paid'),
+(3, '2026-02-01', '2026-02-28', 23120.00, 1156.00, 275.00, 21689.00, '2026-03-07 09:15:00', 'paid'),
+(4, '2026-02-01', '2026-02-28', 10875.60, 543.78, 85.00, 10246.82, '2026-03-07 13:30:00', 'paid'),
+(5, '2026-02-01', '2026-02-28', 16140.25, 807.01, 160.00, 15173.24, '2026-03-08 11:05:00', 'paid'),
+
+(6, '2026-02-01', '2026-02-28', 19250.00, 962.50, 240.00, 18047.50, '2026-03-08 14:15:00', 'paid'),
+(7, '2026-02-01', '2026-02-28', 12480.90, 624.05, 95.00, 11761.85, '2026-03-09 10:40:00', 'paid'),
+(8, '2026-02-01', '2026-02-28', 26840.00, 1342.00, 460.00, 25038.00, '2026-03-09 15:20:00', 'paid'),
+(9, '2026-02-01', '2026-02-28', 9840.50, 492.03, 65.00, 9283.47, NULL, 'pending'),
+(10, '2026-02-01', '2026-02-28', 15120.00, 756.00, 130.00, 14234.00, NULL, 'pending');
+
