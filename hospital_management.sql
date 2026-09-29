@@ -173,7 +173,7 @@ CREATE TABLE medical_visits (
     symptoms VARCHAR(255) NOT NULL CHECK (TRIM(symptoms) <> ''),
     diagnosis VARCHAR(255) NOT NULL CHECK (TRIM(diagnosis) <> ''),
     doctor_notes VARCHAR(500) NOT NULL DEFAULT 'لا توجد ملاحظات' CHECK (TRIM(doctor_notes) <> ''),
-    follow_up_date DATE NOT NULL DEFAULT '1970-01-01',
+    follow_up_date DATE NOT NULL,
     FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
