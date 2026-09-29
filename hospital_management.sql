@@ -331,6 +331,39 @@ CREATE TABLE insurance_companies (
 CREATE INDEX idx_insurance_companies_name ON insurance_companies (company_name);
 CREATE INDEX idx_insurance_companies_status ON insurance_companies (status);
 
+-- أمر إنشاء جدول ( patient_insurance ) مع حمايته كاملاً 
+ 
+CREATE TABLE patient_insurance (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT NOT NULL,
+    insurance_company_id INT NOT NULL,
+    policy_number VARCHAR(100) NOT NULL UNIQUE CHECK (TRIM(policy_number) <> ''),
+    start_date DATE NOT NULL,
+    expiry_date DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Expired', 'Cancelled')),
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (insurance_company_id) REFERENCES insurance_companies(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+-- أمر إنشاء الفهارس المناسبة 
+
+CREATE INDEX idx_patient_insurance_patient ON patient_insurance (patient_id);
+CREATE INDEX idx_patient_insurance_company ON patient_insurance (insurance_company_id);
+CREATE INDEX idx_patient_insurance_status ON patient_insurance (status);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
