@@ -201,6 +201,53 @@ END;
 
 DELIMITER ;
 
+-- أمر إنشاء جدول ( medicines ) مع الحماية الخاصة بالاعمدة
+
+CREATE TABLE medicines (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    medicine_name VARCHAR(100) NOT NULL DEFAULT 'Unnamed Medicine' CHECK (TRIM(medicine_name) <> ''),
+    manufacturer VARCHAR(100) NOT NULL DEFAULT 'Unknown' CHECK (TRIM(manufacturer) <> ''),
+    unit_price DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (unit_price >= 0),
+    stock_quantity INT NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+    minimum_stock INT NOT NULL DEFAULT 0 CHECK (minimum_stock >= 0),
+    expiry_date DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Available' CHECK (status IN ('Available', 'Out of Stock', 'Expired', 'Discontinued'))
+);
+
+-- أمر انشاء الفهارس المناسبة لنسهيل الاستعلام 
+
+CREATE INDEX idx_medicines_name ON medicines (medicine_name);
+CREATE INDEX idx_medicines_status ON medicines (status);
+CREATE INDEX idx_medicines_expiry ON medicines (expiry_date);
+
+-- أمر إنشاء جدول ( prescriptions ) مع حمايته 
+
+CREATE TABLE prescriptions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    visit_id INT NOT NULL,
+    prescribed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes VARCHAR(500) NOT NULL DEFAULT 'لا توجد ملاحظات' CHECK (TRIM(notes) <> ''), 
+    FOREIGN KEY (visit_id) REFERENCES medical_visits(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+-- أمر إنشاء الفهارس على الجدول لتسهيل البحث فيه
+
+CREATE INDEX idx_prescriptions_visit ON prescriptions (visit_id);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
