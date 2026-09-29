@@ -270,13 +270,26 @@ CREATE INDEX idx_lab_tests_name ON lab_tests (test_name);
 CREATE INDEX idx_lab_tests_category ON lab_tests (category);
 CREATE INDEX idx_lab_tests_status ON lab_tests (status);
 
+-- أمر إنشاء جدول ( patient_lab_tests ) مع الحماية الكاملة على اعمدته 
 
+CREATE TABLE patient_lab_tests (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    visit_id INT NOT NULL,
+    lab_test_id INT NOT NULL,
+    ordered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME NOT NULL,
+    result TEXT NOT NULL DEFAULT 'Pending Result' CHECK (TRIM(result) <> ''),
+    result_status VARCHAR(50) NOT NULL DEFAULT 'Normal' CHECK (TRIM(result_status) <> ''),
+    status VARCHAR(50) NOT NULL DEFAULT 'ordered' CHECK (status IN ('ordered', 'processing', 'completed', 'cancelled')),
+    FOREIGN KEY (visit_id) REFERENCES medical_visits(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (lab_test_id) REFERENCES lab_tests(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
 
+-- أمر انشاء الفهارس المناسبة على الجدول 
 
-
-
-
-
+CREATE INDEX idx_patient_lab_tests_visit ON patient_lab_tests (visit_id);
+CREATE INDEX idx_patient_lab_tests_test ON patient_lab_tests (lab_test_id);
+CREATE INDEX idx_patient_lab_tests_status ON patient_lab_tests (status);
 
 
 
