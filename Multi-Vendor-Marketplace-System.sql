@@ -2229,3 +2229,249 @@ VALUES
 (10, '2026-02-01', '2026-02-28', 15120.0, 756.0, 130.0, 14234.0, NULL, 'pending');
 
 
+
+
+
+-- Sale means an order with a payment whose status is 'paid'.
+-- Product revenue = quantity * unit_price - item discount, before refunds.
+-- orders has no creation date, so queries 19 and 20 use its AUTO_INCREMENT id.
+
+-- 1. Show every product with its seller and category.
+SELECT p.id, p.product_name, p.price, s.store_name, c.category_name
+FROM products AS p
+JOIN sellers AS s ON s.id = p.seller_id
+JOIN categories AS c ON c.id = p.category_id;
+
+-- 2. Show currently available active products.
+SELECT id, product_name, stock_quantity, price
+FROM products
+WHERE status = 'active' AND stock_quantity > 0;
+
+-- 3. Show products that are out of stock.
+SELECT id, product_name, stock_quantity
+FROM products
+WHERE stock_quantity = 0;
+
+-- 4. Show products at or below minimum stock, excluding zero-stock items.
+SELECT id, product_name, stock_quantity, minimum_stock
+FROM products
+WHERE stock_quantity > 0 AND stock_quantity <= minimum_stock;
+
+-- 5. Show products never included in a paid order.
+SELECT p.id, p.product_name
+FROM products AS p
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM order_items AS oi
+    JOIN payments AS pay ON pay.order_id = oi.order_id AND pay.status = 'paid'
+    WHERE oi.product_id = p.id
+);
+
+-- 6. Show products that sold more than 100 units in paid orders.
+SELECT p.id, p.product_name, SUM(oi.quantity) AS units_sold
+FROM products AS p
+JOIN order_items AS oi ON oi.product_id = p.id
+WHERE EXISTS (
+    SELECT 1 FROM payments AS pay
+    WHERE pay.order_id = oi.order_id AND pay.status = 'paid'
+)
+GROUP BY p.id, p.product_name
+HAVING SUM(oi.quantity) > 100
+ORDER BY units_sold DESC;
+
+-- 7. Total units sold per product, including products with zero sales.
+SELECT p.id, p.product_name,
+       COALESCE(SUM(CASE WHEN pay.id IS NOT NULL THEN oi.quantity ELSE 0 END), 0)
+           AS units_sold
+FROM products AS p
+LEFT JOIN order_items AS oi ON oi.product_id = p.id
+LEFT JOIN payments AS pay ON pay.order_id = oi.order_id AND pay.status = 'paid'
+GROUP BY p.id, p.product_name
+ORDER BY units_sold DESC;
+
+-- 8. Total product revenue after item discounts, including zero-sales products.
+SELECT p.id, p.product_name,
+       COALESCE(ROUND(SUM(CASE WHEN pay.id IS NOT NULL
+           THEN oi.quantity * oi.unit_price - oi.discount_amount
+           ELSE 0 END), 2), 0) AS product_revenue
+FROM products AS p
+LEFT JOIN order_items AS oi ON oi.product_id = p.id
+LEFT JOIN payments AS pay ON pay.order_id = oi.order_id AND pay.status = 'paid'
+GROUP BY p.id, p.product_name
+ORDER BY product_revenue DESC;
+
+-- 9. Top 10 products by units sold.
+SELECT p.id, p.product_name, SUM(oi.quantity) AS units_sold
+FROM products AS p
+JOIN order_items AS oi ON oi.product_id = p.id
+WHERE EXISTS (
+    SELECT 1 FROM payments AS pay
+    WHERE pay.order_id = oi.order_id AND pay.status = 'paid'
+)
+GROUP BY p.id, p.product_name
+ORDER BY units_sold DESC
+LIMIT 10;
+
+-- 10. Top 10 products by revenue after item discounts.
+SELECT p.id, p.product_name,
+       ROUND(SUM(oi.quantity * oi.unit_price - oi.discount_amount), 2)
+           AS product_revenue
+FROM products AS p
+JOIN order_items AS oi ON oi.product_id = p.id
+WHERE EXISTS (
+    SELECT 1 FROM payments AS pay
+    WHERE pay.order_id = oi.order_id AND pay.status = 'paid'
+)
+GROUP BY p.id, p.product_name
+ORDER BY product_revenue DESC
+LIMIT 10;
+
+-- 11. Average product price per category; empty categories show NULL.
+SELECT c.id, c.category_name, ROUND(AVG(p.price), 2) AS average_price
+FROM categories AS c
+LEFT JOIN products AS p ON p.category_id = c.id
+GROUP BY c.id, c.category_name;
+
+-- 12. Products priced above their own category's average.
+SELECT p.id, p.product_name, p.price, c.category_name
+FROM products AS p
+JOIN categories AS c ON c.id = p.category_id
+WHERE p.price > (
+    SELECT AVG(p2.price)
+    FROM products AS p2
+    WHERE p2.category_id = p.category_id
+);
+
+-- 13. The most expensive product in each category, including ties.
+SELECT c.category_name, p.id, p.product_name, p.price
+FROM products AS p
+JOIN categories AS c ON c.id = p.category_id
+WHERE p.price = (
+    SELECT MAX(p2.price)
+    FROM products AS p2
+    WHERE p2.category_id = p.category_id
+);
+
+-- 14. Second distinct highest price per category, including ties.
+SELECT c.category_name, p.id, p.product_name, p.price
+FROM products AS p
+JOIN categories AS c ON c.id = p.category_id
+WHERE p.price = (
+    SELECT MAX(p2.price)
+    FROM products AS p2
+    WHERE p2.category_id = p.category_id
+      AND p2.price < (
+          SELECT MAX(p3.price)
+          FROM products AS p3
+          WHERE p3.category_id = p.category_id
+      )
+);
+
+-- 15. Customers who have never placed an order.
+SELECT c.id, c.full_name
+FROM customers AS c
+WHERE NOT EXISTS (
+    SELECT 1 FROM orders AS o WHERE o.customer_id = c.id
+);
+
+-- 16. Customers with more than 5 orders, regardless of payment status.
+SELECT c.id, c.full_name, COUNT(o.id) AS order_count
+FROM customers AS c
+JOIN orders AS o ON o.customer_id = c.id
+GROUP BY c.id, c.full_name
+HAVING COUNT(o.id) > 5;
+
+-- 17. Total paid spending for each customer; customers without payments show zero.
+SELECT c.id, c.full_name,
+       COALESCE(ROUND(SUM(pay.amount), 2), 0) AS total_spent
+FROM customers AS c
+LEFT JOIN orders AS o ON o.customer_id = c.id
+LEFT JOIN payments AS pay ON pay.order_id = o.id AND pay.status = 'paid'
+GROUP BY c.id, c.full_name
+ORDER BY total_spent DESC;
+
+-- 18. Customers spending more than the average across all customers (zeroes included).
+WITH spending AS (
+    SELECT c.id, c.full_name,
+           COALESCE(SUM(pay.amount), 0) AS total_spent
+    FROM customers AS c
+    LEFT JOIN orders AS o ON o.customer_id = c.id
+    LEFT JOIN payments AS pay ON pay.order_id = o.id AND pay.status = 'paid'
+    GROUP BY c.id, c.full_name
+)
+SELECT id, full_name, ROUND(total_spent, 2) AS total_spent
+FROM spending
+WHERE total_spent > (SELECT AVG(total_spent) FROM spending)
+ORDER BY total_spent DESC;
+
+-- 19. Latest order per customer by highest order id, including ties only if possible.
+SELECT c.id AS customer_id, c.full_name,
+       o.id AS order_id, o.order_number, o.total_amount, o.status
+FROM customers AS c
+JOIN orders AS o ON o.customer_id = c.id
+WHERE o.id = (
+    SELECT MAX(o2.id) FROM orders AS o2 WHERE o2.customer_id = c.id
+);
+
+-- 20. First order per customer by lowest order id.
+SELECT c.id AS customer_id, c.full_name,
+       o.id AS order_id, o.order_number, o.total_amount, o.status
+FROM customers AS c
+JOIN orders AS o ON o.customer_id = c.id
+WHERE o.id = (
+    SELECT MIN(o2.id) FROM orders AS o2 WHERE o2.customer_id = c.id
+);
+
+-- 21. Average order value per customer, regardless of payment status.
+SELECT c.id, c.full_name,
+       ROUND(AVG(o.total_amount), 2) AS average_order_value
+FROM customers AS c
+LEFT JOIN orders AS o ON o.customer_id = c.id
+GROUP BY c.id, c.full_name;
+
+-- 22. Customers who purchased from more than 5 distinct sellers.
+SELECT c.id, c.full_name,
+       COUNT(DISTINCT oi.seller_id) AS seller_count
+FROM customers AS c
+JOIN orders AS o ON o.customer_id = c.id
+JOIN order_items AS oi ON oi.order_id = o.id
+WHERE EXISTS (
+    SELECT 1 FROM payments AS pay
+    WHERE pay.order_id = o.id AND pay.status = 'paid'
+)
+GROUP BY c.id, c.full_name
+HAVING COUNT(DISTINCT oi.seller_id) > 5;
+
+-- 23. Customers who bought the same product in more than one distinct paid order.
+SELECT c.id AS customer_id, c.full_name,
+       p.id AS product_id, p.product_name,
+       COUNT(DISTINCT o.id) AS order_count
+FROM customers AS c
+JOIN orders AS o ON o.customer_id = c.id
+JOIN order_items AS oi ON oi.order_id = o.id
+JOIN products AS p ON p.id = oi.product_id
+WHERE EXISTS (
+    SELECT 1 FROM payments AS pay
+    WHERE pay.order_id = o.id AND pay.status = 'paid'
+)
+GROUP BY c.id, c.full_name, p.id, p.product_name
+HAVING COUNT(DISTINCT o.id) > 1
+ORDER BY c.id, order_count DESC;
+
+-- 24. Orders containing products from more than one seller.
+SELECT o.id, o.order_number,
+       COUNT(DISTINCT oi.seller_id) AS seller_count
+FROM orders AS o
+JOIN order_items AS oi ON oi.order_id = o.id
+GROUP BY o.id, o.order_number
+HAVING COUNT(DISTINCT oi.seller_id) > 1;
+
+
+
+
+
+
+
+
+
+
