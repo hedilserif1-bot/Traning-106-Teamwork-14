@@ -843,7 +843,124 @@ INSERT INTO prescription_items (prescription_id, medicine_id, dosage, frequency,
 (21, 27, '10mg', 'Every 12 hours', 10, 20),
 (47, 9, '20mg', 'Once daily', 30, 30),
 (14, 22, '100mg', 'Three times daily', 7, 21),
-(30, 38, '50mg', 'Once daily', 30, 30);
+(30, 38, '50mg', 'Once daily', 30, 30),
+(2, 5, '500mg', 'Twice daily', 10, 20),
+(11, 16, '250mg', 'Once daily', 30, 30),
+(24, 32, '100mg', 'Every 8 hours', 7, 21),
+(37, 3, '50mg', 'Once daily', 14, 14),
+(45, 21, '400mg', 'Three times daily', 5, 15),
+(7, 10, '10mg', 'Once daily', 30, 30),
+(19, 28, '20mg', 'Every 12 hours', 10, 20),
+(31, 39, '850mg', 'Twice daily', 30, 60),
+(43, 13, '500mg', 'Once daily', 7, 7),
+(4, 34, '250mg', 'Twice daily', 14, 28),
+(13, 26, '100mg', 'Once daily', 30, 30),
+(26, 17, '15mg', 'Every 8 hours', 10, 30),
+(35, 1, '500mg', 'Twice daily', 7, 14),
+(48, 22, '20mg', 'Once daily', 30, 30),
+(9, 31, '250mg', 'Three times daily', 5, 15),
+(20, 8, '100mg', 'Once daily', 14, 14),
+(32, 36, '50mg', 'Every 12 hours', 10, 20),
+(41, 12, '400mg', 'Once daily', 30, 30),
+(6, 25, '300mg', 'Twice daily', 7, 14),
+(17, 33, '10mg', 'Once daily', 30, 30),
+(27, 15, '500mg', 'Every 8 hours', 5, 15),
+(38, 4, '250mg', 'Twice daily', 14, 28),
+(46, 18, '100mg', 'Once daily', 30, 30),
+(16, 29, '20mg', 'Twice daily', 10, 20),
+(50, 7, '50mg', 'Once daily', 14, 14)
+(12, 5, '500mg', 'Twice daily', 10, 20),
+(25, 14, '250mg', 'Once daily', 30, 30),
+(38, 22, '100mg', 'Every 8 hours', 7, 21),
+(45, 3, '50mg', 'Once daily', 14, 14),
+(7, 39, '400mg', 'Three times daily', 5, 15),
+(19, 11, '10mg', 'Once daily', 30, 30),
+(31, 28, '20mg', 'Every 12 hours', 10, 20),
+(48, 35, '850mg', 'Twice daily', 30, 60),
+(3, 13, '500mg', 'Once daily', 7, 7),
+(16, 24, '250mg', 'Twice daily', 14, 28),
+(29, 37, '100mg', 'Once daily', 30, 30),
+(42, 17, '15mg', 'Every 8 hours', 10, 30),
+(10, 1, '500mg', 'Twice daily', 7, 14),
+(23, 30, '20mg', 'Once daily', 30, 30),
+(36, 12, '250mg', 'Three times daily', 5, 15),
+(5, 8, '100mg', 'Once daily', 14, 14),
+(18, 40, '50mg', 'Every 12 hours', 10, 20),
+(27, 20, '400mg', 'Once daily', 30, 30),
+(40, 26, '300mg', 'Twice daily', 7, 14),
+(14, 33, '10mg', 'Once daily', 30, 30),
+(22, 15, '500mg', 'Every 8 hours', 5, 15),
+(34, 4, '250mg', 'Twice daily', 14, 28),
+(47, 18, '100mg', 'Once daily', 30, 30),
+(9, 29, '20mg', 'Twice daily', 10, 20),
+(50, 7, '50mg', 'Once daily', 14, 14),
+(4, 15, '500mg', 'Twice daily', 10, 20),
+(15, 27, '250mg', 'Once daily', 30, 30),
+(28, 33, '100mg', 'Every 8 hours', 7, 21),
+(39, 2, '50mg', 'Once daily', 14, 14),
+(46, 18, '400mg', 'Three times daily', 5, 15),
+(8, 9, '10mg', 'Once daily', 30, 30),
+(21, 24, '20mg', 'Every 12 hours', 10, 20),
+(32, 35, '850mg', 'Twice daily', 30, 60),
+(44, 10, '500mg', 'Once daily', 7, 7),
+(2, 29, '250mg', 'Twice daily', 14, 28),
+(13, 21, '100mg', 'Once daily', 30, 30),
+(26, 16, '15mg', 'Every 8 hours', 10, 30),
+(37, 3, '500mg', 'Twice daily', 7, 14),
+(49, 23, '20mg', 'Once daily', 30, 30),
+(6, 31, '250mg', 'Three times daily', 5, 15),
+(19, 7, '100mg', 'Once daily', 14, 14),
+(30, 38, '50mg', 'Every 12 hours', 10, 20),
+(41, 12, '400mg', 'Once daily', 30, 30),
+(11, 26, '300mg', 'Twice daily', 7, 14),
+(24, 34, '10mg', 'Once daily', 30, 30),
+(35, 14, '500mg', 'Every 8 hours', 5, 15),
+(47, 5, '250mg', 'Twice daily', 14, 28),
+(9, 19, '100mg', 'Once daily', 30, 30),
+(22, 28, '20mg', 'Twice daily', 10, 20),
+(50, 6, '50mg', 'Once daily', 14, 14),
+(5, 12, '500mg', 'Twice daily', 10, 20),
+(12, 25, '250mg', 'Once daily', 30, 30),
+(22, 33, '100mg', 'Every 8 hours', 7, 21),
+(34, 4, '50mg', 'Once daily', 14, 14),
+(45, 18, '400mg', 'Three times daily', 5, 15),
+(3, 9, '10mg', 'Once daily', 30, 30),
+(17, 24, '20mg', 'Every 12 hours', 10, 20),
+(29, 35, '850mg', 'Twice daily', 30, 60),
+(41, 10, '500mg', 'Once daily', 7, 7),
+(50, 29, '250mg', 'Twice daily', 14, 28),
+(8, 21, '100mg', 'Once daily', 30, 30),
+(19, 16, '15mg', 'Every 8 hours', 10, 30),
+(31, 3, '500mg', 'Twice daily', 7, 14),
+(43, 23, '20mg', 'Once daily', 30, 30),
+(1, 31, '250mg', 'Three times daily', 5, 15),
+(14, 7, '100mg', 'Once daily', 14, 14),
+(27, 38, '50mg', 'Every 12 hours', 10, 20),
+(39, 12, '400mg', 'Once daily', 30, 30),
+(48, 26, '300mg', 'Twice daily', 7, 14),
+(25, 40, '10mg', 'Once daily', 14, 14);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
