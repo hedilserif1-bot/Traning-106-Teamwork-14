@@ -2270,5 +2270,58 @@ VALUES
 (375, 2, 'Product arrived broken', '2026-10-17 18:30:00', '2026-10-18 09:50:00', '2026-10-22 16:15:00', 'completed'),
 (383, 3, 'Product was not as described', '2026-10-18 14:10:00', NULL, NULL, 'requested');
 
+--DATA REFUNDS TABLE
+
+INSERT INTO refunds
+(return_id, payment_id, amount, refunded_at, status)
+VALUES
+(1, 1, 120.00, '2026-08-16 10:20:00', 'completed'),
+(2, 2, 85.50, NULL, 'pending'),
+(3, 3, 210.00, NULL, 'pending'),
+(4, 4, 150.00, '2026-08-22 14:30:00', 'completed'),
+(5, 5, 95.75, NULL, 'approved'),
+
+(6, 6, 320.00, NULL, 'pending'),
+(7, 7, 175.00, '2026-08-28 11:45:00', 'completed'),
+(8, 8, 450.00, NULL, 'approved'),
+(9, 9, 65.00, NULL, 'pending'),
+(10, 10, 230.50, NULL, 'rejected'),
+
+(11, 11, 140.00, '2026-09-05 09:30:00', 'completed'),
+(12, 12, 275.00, NULL, 'approved'),
+(13, 13, 110.00, NULL, 'pending'),
+(14, 14, 190.00, '2026-09-11 15:20:00', 'completed'),
+(15, 15, 75.50, NULL, 'approved'),
+
+(16, 16, 260.00, NULL, 'pending'),
+(17, 17, 340.00, '2026-09-17 12:10:00', 'completed'),
+(18, 18, 125.00, NULL, 'rejected'),
+(19, 19, 215.75, NULL, 'approved'),
+(20, 20, 180.00, NULL, 'pending'),
+
+(21, 21, 300.00, '2026-09-25 10:40:00', 'completed'),
+(22, 22, 155.50, NULL, 'approved'),
+(23, 23, 90.00, NULL, 'pending'),
+(24, 24, 420.00, '2026-09-28 14:15:00', 'completed'),
+(25, 25, 250.00, NULL, 'pending'),
+
+(26, 26, 135.00, NULL, 'approved'),
+(27, 27, 380.00, NULL, 'rejected'),
+(28, 28, 195.50, NULL, 'pending'),
+(29, 29, 225.00, NULL, 'approved'),
+(30, 30, 160.00, '2026-10-03 11:25:00', 'completed'),
+
+(31, 31, 285.00, '2026-10-06 13:40:00', 'completed'),
+(32, 32, 105.50, NULL, 'pending'),
+(33, 33, 350.00, NULL, 'approved'),
+(34, 34, 145.00, NULL, 'rejected'),
+(35, 35, 470.00, '2026-10-12 16:30:00', 'completed'),
+
+(36, 36, 200.00, NULL, 'pending'),
+(37, 37, 165.75, NULL, 'approved'),
+(38, 38, 310.00, '2026-10-17 10:50:00', 'completed'),
+(39, 39, 130.00, NULL, 'pending'),
+(40, 40, 240.00, '2026-10-20 15:15:00', 'completed');
+
 
 
