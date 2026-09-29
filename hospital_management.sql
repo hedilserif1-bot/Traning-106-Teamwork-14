@@ -1468,13 +1468,32 @@ JOIN (
 ) earliest ON medical_visits.id = earliest.min_visit_id 
 ORDER BY patients.id ASC;
 
+-- عرض المرضى الذين زاروا أكثر من قسم مختلف
 
+SELECT 
+    patients.id, 
+    patients.full_name, 
+    COUNT(DISTINCT doctors.department_id) AS distinct_departments_count 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id 
+JOIN doctors ON medical_visits.doctor_id = doctors.id 
+GROUP BY patients.id, patients.full_name 
+HAVING COUNT(DISTINCT doctors.department_id) > 1 
+ORDER BY patients.id ASC;
 
+-- عرض المرضى الذين زاروا أكثر من طبيب داخل نفس القسم
 
-
-
-
-
+SELECT
+patients.id,
+patients.full_name,
+doctors.department_id,
+COUNT(DISTINCT medical_visits.doctor_id) AS doctors_count
+FROM patients
+JOIN medical_visits ON patients.id = medical_visits.patient_id
+JOIN doctors ON medical_visits.doctor_id = doctors.id
+GROUP BY patients.id, patients.full_name, doctors.department_id
+HAVING COUNT(DISTINCT medical_visits.doctor_id) > 1
+ORDER BY patients.id ASC;
 
 
 
