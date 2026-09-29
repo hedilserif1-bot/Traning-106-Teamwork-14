@@ -291,6 +291,37 @@ CREATE INDEX idx_patient_lab_tests_visit ON patient_lab_tests (visit_id);
 CREATE INDEX idx_patient_lab_tests_test ON patient_lab_tests (lab_test_id);
 CREATE INDEX idx_patient_lab_tests_status ON patient_lab_tests (status);
 
+-- أمر إنشاء جدول (admissions) مع حمايته
+
+CREATE TABLE admissions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_id INT NOT NULL,
+    room_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    admitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    discharged_at DATETIME NOT NULL,
+    admission_reason VARCHAR(255) NOT NULL DEFAULT 'General Admission' CHECK (TRIM(admission_reason) <> ''),
+    status VARCHAR(50) NOT NULL DEFAULT 'admitted' CHECK (status IN ('admitted', 'discharged', 'cancelled')),
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+-- أمر إنشاء الفهارس المناسبة لتسهيل البحث
+
+CREATE INDEX idx_admissions_patient ON admissions (patient_id);
+CREATE INDEX idx_admissions_room ON admissions (room_id);
+CREATE INDEX idx_admissions_doctor ON admissions (doctor_id);
+CREATE INDEX idx_admissions_status ON admissions (status);
+CREATE INDEX idx_admissions_admitted_at ON admissions (admitted_at);
+
+
+
+
+
+
+
+
 
 
 
