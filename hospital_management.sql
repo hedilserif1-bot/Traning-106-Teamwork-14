@@ -168,52 +168,40 @@ CREATE TABLE medical_visits (
     id INT PRIMARY KEY AUTO_INCREMENT,
     patient_id INT NOT NULL,
     doctor_id INT NOT NULL,
-
-    -- الموعد ممكن يكون غير موجود لذلك يقبل NULL
-    appointment_id INT NULL,
-
+    appointment_id INT NOT NULL DEFAULT 0,
     visit_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    symptoms VARCHAR(255) NOT NULL
-        CHECK (TRIM(symptoms) <> ''),
-
-    diagnosis VARCHAR(255) NOT NULL
-        CHECK (TRIM(diagnosis) <> ''),
-
-    doctor_notes VARCHAR(500) NOT NULL DEFAULT 'لا توجد ملاحظات'
-        CHECK (TRIM(doctor_notes) <> ''),
-
-    -- ليس كل زيارة تحتاج موعد متابعة
-    follow_up_date DATE NULL,
-
-    FOREIGN KEY (patient_id)
-        REFERENCES patients(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    FOREIGN KEY (doctor_id)
-        REFERENCES doctors(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    -- ربط الموعد بجدول المواعيد مباشرة
-    FOREIGN KEY (appointment_id)
-        REFERENCES appointments(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT
+    symptoms VARCHAR(255) NOT NULL CHECK (TRIM(symptoms) <> ''),
+    diagnosis VARCHAR(255) NOT NULL CHECK (TRIM(diagnosis) <> ''),
+    doctor_notes VARCHAR(500) NOT NULL DEFAULT 'لا توجد ملاحظات' CHECK (TRIM(doctor_notes) <> ''),
+    follow_up_date DATE NOT NULL DEFAULT '1970-01-01',
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
-
 
 -- أمر إنشاء الفهارس لتسهيل البحث بالجدول 
 
-CREATE INDEX idx_medical_visits_patient
-ON medical_visits (patient_id);
+CREATE INDEX idx_medical_visits_patient ON medical_visits (patient_id);
+CREATE INDEX idx_medical_visits_doctor ON medical_visits (doctor_id);
+CREATE INDEX idx_medical_visits_date ON medical_visits (visit_date);
 
-CREATE INDEX idx_medical_visits_doctor
-ON medical_visits (doctor_id);
+-- أمر إنشاء مشغل ( trigger ) لحماية الفهرس الاجنبي
 
-CREATE INDEX idx_medical_visits_date
-ON medical_visits (visit_date);
+DELIMITER //
 
-CREATE INDEX idx_medical_visits_appointment
-ON medical_visits (appointment_id);
+CREATE TRIGGER check_appointment_validity
+BEFORE INSERT ON medical_visits
+FOR EACH ROW
+BEGIN
+    IF NEW.appointment_id <> 0 AND NOT EXISTS (SELECT 1 FROM appointments WHERE id = NEW.appointment_id) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Error: Appointment ID does not exist in the system!';
+    END IF;
+END;
+//
+
+DELIMITER ;
+
+
+
+
+
