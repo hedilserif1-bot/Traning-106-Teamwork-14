@@ -3623,6 +3623,159 @@ BEGIN
     FROM orders
     WHERE id = v_order_id;
 
+
+
+-- Overselling Challenge
+
+DROP PROCEDURE IF EXISTS buy_product_safe;
+
+DELIMITER $$
+
+CREATE PROCEDURE buy_product_safe(
+    IN p_customer_id INT,
+    IN p_product_id INT,
+    IN p_quantity INT
+)
+BEGIN
+    DECLARE v_stock INT DEFAULT NULL;
+    DECLARE v_price DECIMAL(12,2) DEFAULT NULL;
+    DECLARE v_seller_id INT DEFAULT NULL;
+    DECLARE v_order_id INT;
+    DECLARE v_order_number VARCHAR(100);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    /* Quantity must be positive */
+    IF p_quantity <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Quantity must be greater than zero';
+    END IF;
+
+    /* Ürün satırını kilitle */
+    SELECT stock_quantity, price, seller_id
+    INTO v_stock, v_price, v_seller_id
+    FROM products
+    WHERE id = p_product_id
+    FOR UPDATE;
+
+    /* Product existence */
+    IF v_stock IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product not found';
+    END IF;
+
+    /* Product and seller status */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM products AS p
+        INNER JOIN sellers AS s
+            ON s.id = p.seller_id
+        WHERE p.id = p_product_id
+          AND p.status = 'active'
+          AND s.status = 'active'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product or seller is not active';
+    END IF;
+
+    /* Stok kontrolü */
+    IF v_stock < p_quantity THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Insufficient stock';
+    END IF;
+
+    /* Müşteri kontrolü */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM customers
+        WHERE id = p_customer_id
+          AND status = 'active'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer is not active';
+    END IF;
+
+    /* Sipariş numarası */
+    SET v_order_number = CONCAT('ORD-', UUID());
+
+    /* Sipariş oluştur */
+    INSERT INTO orders
+    (
+        order_number,
+        customer_id,
+        subtotal,
+        discount_amount,
+        shipping_cost,
+        total_amount,
+        status
+    )
+    VALUES
+    (
+        v_order_number,
+        p_customer_id,
+        v_price * p_quantity,
+        0,
+        0,
+        v_price * p_quantity,
+        'pending'
+    );
+
+    SET v_order_id = LAST_INSERT_ID();
+
+    /* Sipariş ürünü oluştur */
+    INSERT INTO order_items
+    (
+        order_id,
+        product_id,
+        seller_id,
+        quantity,
+        unit_price,
+        discount_amount,
+        platform_commission,
+        seller_amount,
+        status
+    )
+    SELECT
+        v_order_id,
+        p_product_id,
+        v_seller_id,
+        p_quantity,
+        v_price,
+        0,
+        0,
+        v_price * p_quantity,
+        'active';
+
+    /* Stok azalt */
+    UPDATE products
+    SET stock_quantity = stock_quantity - p_quantity
+    WHERE id = p_product_id;
+
+    /* Stok 0 olduysa out_of_stock */
+    UPDATE products
+    SET status = 'out_of_stock'
+    WHERE id = p_product_id
+      AND stock_quantity = 0;
+
+    COMMIT;
+
+    SELECT
+        v_order_id AS order_id,
+        v_order_number AS order_number,
+        p_product_id AS product_id,
+        p_quantity AS quantity,
+        v_stock - p_quantity AS remaining_stock;
+
+END$$
+
+DELIMITER ;
+
 END$$
 
 DELIMITER ;
