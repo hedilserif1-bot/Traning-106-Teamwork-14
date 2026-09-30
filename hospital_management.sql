@@ -1728,9 +1728,19 @@ WHERE r.status = 'occupied'
   AND a.discharged_at IS NULL
 ORDER BY r.id ASC;
 
+-- عرض المرضى الموجودين داخل المستشفى حاليًا
 
-
-
+SELECT 
+    p.id AS patient_id, 
+    p.full_name, 
+    p.gender, 
+    p.phone, 
+    a.admitted_at, 
+    a.room_id 
+FROM patients p
+JOIN admissions a ON p.id = a.patient_id 
+WHERE a.discharged_at IS NULL 
+ORDER BY p.id ASC;
 
 
 
