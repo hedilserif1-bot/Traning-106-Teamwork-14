@@ -1793,13 +1793,33 @@ WHERE a.discharged_at IS NOT NULL
   AND DATEDIFF(a.discharged_at, a.admitted_at) > dept_avg.dept_avg_stay
 ORDER BY p.id ASC;
 
+-- عرض أكثر غرفة تم استخدامها
 
+SELECT 
+    r.id AS room_id,
+    r.room_number,
+    d.department_name,
+    COUNT(a.id) AS total_usage_count
+FROM rooms r
+JOIN admissions a ON r.id = a.room_id
+JOIN departments d ON r.department_id = d.id
+GROUP BY r.id, r.room_number, d.department_name
+ORDER BY total_usage_count DESC
+LIMIT 1;
 
+-- عرض الأقسام التي نسبة إشغال غرفها أعلى من 80%
 
-
-
-
-
+SELECT 
+    d.id AS department_id,
+    d.department_name,
+    COUNT(r.id) AS total_rooms,
+    SUM(CASE WHEN r.status = 'occupied' THEN 1 ELSE 0 END) AS occupied_rooms,
+    ROUND((SUM(CASE WHEN r.status = 'occupied' THEN 1 ELSE 0 END) * 100.0) / COUNT(r.id), 2) AS occupancy_rate_percentage
+FROM departments d
+JOIN rooms r ON d.id = r.department_id
+GROUP BY d.id, d.department_name
+HAVING occupancy_rate_percentage > 80
+ORDER BY occupancy_rate_percentage DESC;
 
 
 
