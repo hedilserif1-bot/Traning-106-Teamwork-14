@@ -1116,46 +1116,159 @@ GROUP BY
 
 
   ---------- Indexes------------
-
+           --EXPLAIN--
 -- ============================================
 -- 1. tracking_number
 -- ============================================
 CREATE INDEX idx_shipments_tracking_number
 ON shipments(tracking_number);
+
+--------------------------------ا   اشرح متى يمكن أن يصبح وجود Index إضافي غير مفيد أو مكلف.
+--tracking_number لديه Unique Index أصلًا → إنشاء Index عادي إضافي عليه غير ضروري.-------
+
+
+--The index already exists because tracking_number is UNIQUE.
+
+--EXPLAIN:
+--type = const
+--key = tracking_number
+--rows = 1
+
+--Conclusion:
+--The existing UNIQUE index is already used by MySQL,
+--so no additional index was created.
+
+
+
 -- ============================================
 -- 2. customer_id
 -- ============================================
 CREATE INDEX idx_shipments_customer_id
 ON shipments(customer_id);
+
+------------------------
+
+
+--The index already exists on customer_id.
+
+--EXPLAIN:
+--type = ref
+--key = customer_id
+--rows = 3
+
+--Conclusion:
+--The existing index is already used by MySQL,
+--so no additional index was created.
+
+
 -- ============================================
 --3. shipment_status
 -- ============================================
 
 CREATE INDEX idx_shipments_status
 ON shipments(shipment_status);
+----------------------
+
+
+--Before Index:
+--type = ALL, key = NULL, rows = 60
+
+--After Index:
+--type = ref, key = idx_shipments_status, rows = 30
+
+--Conclusion:
+--The index on shipment_status improved the search by allowing MySQL
+--to use the index instead of scanning the entire table.
+
 
 -- ============================================
 -- 4. created_at
 -- ============================================
 CREATE INDEX idx_shipments_created_at
 ON shipments(created_at);
+
+-------
+---Before Index:
+---type = ALL
+--key = NULL
+--rows = 60
+
+--After Index:
+--type = ALL
+--key = NULL
+--rows = 60
+
+--Conclusion:
+--The index on created_at exists, but MySQL did not use it for this query.
+--Because the table is small and the condition may match many rows,
+---a full table scan can be considered more efficient.
+
+
+
 -- ============================================
 -- 5. expected_delivery_date
 -- ============================================
 CREATE INDEX idx_shipments_expected_delivery
 ON shipments(expected_delivery_date);
+
+-----------------
+---Before Index:
+---type = ALL
+---possible_keys = NULL
+---key = NULL
+---rows = 60
+
+---After Index:
+---type = ALL
+---possible_keys = idx_shipments_expected_delivery
+---key = NULL
+---rows = 60
+
+---Conclusion:
+---The index exists and is considered as a possible key,
+---but MySQL chose not to use it for this query.
+
+
 -- ============================================
 -- 6. driver_id
 -- ============================================
 CREATE INDEX idx_deliveries_driver_id
 ON deliveries(driver_id);
+--------
+---Before creating new Index:
+---Index already exists on driver_id.
+
+---EXPLAIN:
+---type = ref
+--key = driver_id
+--rows = 2
+
+---Conclusion:
+---The existing index on driver_id is already being used,
+---so creating another index would be redundant.
+
 
 -- ============================================
 -- 7. payment_date
 -- ============================================
 CREATE INDEX idx_payments_payment_date
 ON payments(payment_date);
+----------
+--Before Index:
+--type = ALL
+--possible_keys = NULL
+--key = NULL
+---rows = 40
 
+--After Index:
+--type = ALL
+--possible_keys = idx_payments_payment_date
+--key = NULL
+--rows = 40
+
+--Conclusion:
+--The index on payment_date exists, but MySQL chose not to use it
+--for this query because a full table scan was considered more suitable.
 -- ===========================================
 
 -- ============================================
