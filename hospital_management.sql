@@ -2611,11 +2611,111 @@ FROM admissions a
 JOIN patients p ON a.patient_id = p.id
 ORDER BY p.id, admission_sequence;
 
+مقارنة قيمة كل فاتورة بالفاتورة السابقة لنفس المريض باستخدام LAG()
 
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    i.id AS invoice_id,
+    i.issued_at,
+    i.total_amount AS current_invoice_amount,
+    LAG(i.total_amount) OVER (PARTITION BY i.patient_id ORDER BY i.issued_at ASC) AS previous_invoice_amount,
+    (i.total_amount - LAG(i.total_amount) OVER (PARTITION BY i.patient_id ORDER BY i.issued_at ASC)) AS amount_difference
+FROM invoices i
+JOIN patients p ON i.patient_id = p.id
+ORDER BY p.id, i.issued_at ASC;
 
+-- عرض الفرق بين الزيارة الحالية والزيارة السابقة لكل مريض 
 
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    mv.id AS current_visit_id,
+    mv.visit_date AS current_visit_date,
+    LAG(mv.visit_date) OVER (PARTITION BY mv.patient_id ORDER BY mv.visit_date ASC) AS previous_visit_date,
+    DATEDIFF(mv.visit_date, LAG(mv.visit_date) OVER (PARTITION BY mv.patient_id ORDER BY mv.visit_date ASC)) AS days_since_last_visit,
+    mv.diagnosis AS current_diagnosis
+FROM medical_visits mv
+JOIN patients p ON mv.patient_id = p.id
+ORDER BY p.id, mv.visit_date ASC;
 
+-- حساب الإيراد التراكمي شهريًا
 
+WITH MonthlyRevenue AS (
+    SELECT 
+        DATE_FORMAT(issued_at, '%Y-%m') AS revenue_month,
+        SUM(total_amount) AS monthly_revenue
+    FROM 
+        invoices
+    GROUP BY 
+        DATE_FORMAT(issued_at, '%Y-%m')
+)
+SELECT 
+    revenue_month,
+    monthly_revenue,
+    SUM(monthly_revenue) OVER (
+        ORDER BY revenue_month 
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS cumulative_revenue
+FROM 
+    MonthlyRevenue
+ORDER BY 
+    revenue_month;
+
+-- مقارنة إيرادات كل شهر بالشهر السابق 
+
+-- ملاحظة مهمة : في هذا الاستعلام من الطبيعي أن تظهر قيمة سالبية في العمود الاخير لأنه يقيس معدل أرتفاع الدخل و نزوله 
+
+WITH MonthlyRevenue AS (
+    SELECT 
+        DATE_FORMAT(issued_at, '%Y-%m') AS revenue_month,
+        SUM(total_amount) AS monthly_revenue
+    FROM 
+        invoices
+    GROUP BY 
+        DATE_FORMAT(issued_at, '%Y-%m')
+)
+SELECT 
+    revenue_month,
+    monthly_revenue,
+    LAG(monthly_revenue, 1) OVER (ORDER BY revenue_month) AS previous_month_revenue,
+    monthly_revenue - LAG(monthly_revenue, 1) OVER (ORDER BY revenue_month) AS revenue_difference,
+    ROUND(
+        ((monthly_revenue - LAG(monthly_revenue, 1) OVER (ORDER BY revenue_month)) / 
+         NULLIF(LAG(monthly_revenue, 1) OVER (ORDER BY revenue_month), 0)) * 100, 2
+    ) AS growth_percentage
+FROM 
+    MonthlyRevenue
+ORDER BY 
+    revenue_month;
+
+-- حساب نسبة مساهمة كل قسم في إجمالي إيرادات المستشفى
+
+WITH DepartmentRevenue AS (
+    SELECT 
+        d.department_name,
+        SUM(i.total_amount) AS dept_revenue
+    FROM 
+        invoices i
+    LEFT JOIN medical_visits mv ON i.visit_id = mv.id
+    LEFT JOIN admissions a ON i.admission_id = a.id
+    LEFT JOIN doctors doc_v ON mv.doctor_id = doc_v.id
+    LEFT JOIN doctors doc_a ON a.doctor_id = doc_a.id
+    JOIN departments d ON d.id = COALESCE(doc_v.department_id, doc_a.department_id)
+    GROUP BY 
+        d.id, d.department_name
+)
+SELECT 
+    department_name,
+    dept_revenue,
+    SUM(dept_revenue) OVER () AS total_hospital_revenue,
+    ROUND(
+        (dept_revenue / NULLIF(SUM(dept_revenue) OVER (), 0)) * 100, 2
+    ) AS contribution_percentage
+FROM 
+    DepartmentRevenue
+ORDER BY 
+    dept_revenue DESC;
 
 
 
