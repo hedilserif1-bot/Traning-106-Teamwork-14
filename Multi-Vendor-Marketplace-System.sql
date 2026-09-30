@@ -4342,3 +4342,141 @@ END$$
 
 DELIMITER ;
 
+
+
+
+DROP PROCEDURE IF EXISTS complete_return;
+
+DELIMITER $$
+
+CREATE PROCEDURE complete_return(
+    IN p_return_id INT,
+    IN p_payment_id INT
+)
+BEGIN
+    DECLARE v_order_item_id INT;
+    DECLARE v_product_id INT;
+    DECLARE v_quantity INT;
+    DECLARE v_unit_price DECIMAL(12,2);
+    DECLARE v_return_status VARCHAR(30);
+    DECLARE v_refund_amount DECIMAL(12,2);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT
+        r.order_item_id,
+        r.quantity,
+        r.status,
+        oi.product_id,
+        oi.unit_price
+    INTO
+        v_order_item_id,
+        v_quantity,
+        v_return_status,
+        v_product_id,
+        v_unit_price
+    FROM returns r
+    JOIN order_items oi
+        ON oi.id = r.order_item_id
+    WHERE r.id = p_return_id
+    FOR UPDATE;
+
+    IF v_order_item_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Return bulunamadi';
+    END IF;
+
+    IF v_return_status <> 'approved' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Return approved degil';
+    END IF;
+
+    SET v_refund_amount = v_unit_price * v_quantity;
+
+    UPDATE returns
+    SET
+        status = 'completed',
+        completed_at = NOW()
+    WHERE id = p_return_id;
+
+    INSERT INTO refunds
+    (
+        return_id,
+        payment_id,
+        amount,
+        refunded_at,
+        status
+    )
+    VALUES
+    (
+        p_return_id,
+        p_payment_id,
+        v_refund_amount,
+        NOW(),
+        'completed'
+    );
+
+    UPDATE payments
+    SET status =
+        CASE
+        WHEN (
+            SELECT COALESCE(SUM(rf.amount), 0)
+            FROM refunds rf
+            WHERE rf.payment_id = payments.id
+              AND rf.status = 'completed'
+        ) >= payments.amount
+         THEN 'refunded'
+        ELSE 'partially_refunded'
+        END
+    WHERE id = p_payment_id;
+
+    UPDATE products
+    SET
+        stock_quantity = stock_quantity + v_quantity,
+        status = CASE
+            WHEN status = 'out_of_stock'
+                THEN 'active'
+            ELSE status
+        END
+    WHERE id = v_product_id
+      AND status IN ('active', 'out_of_stock');
+
+    UPDATE orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    SET o.status =
+        CASE
+            WHEN NOT EXISTS (
+                SELECT 1
+                FROM order_items x
+                WHERE x.order_id = o.id
+                  AND (
+                      SELECT COALESCE(SUM(r2.quantity), 0)
+                      FROM returns r2
+                      WHERE r2.order_item_id = x.id
+                        AND r2.status = 'completed'
+                  ) < x.quantity
+            )
+            THEN 'returned'
+            ELSE 'partially_returned'
+        END
+    WHERE oi.id = v_order_item_id;
+
+    COMMIT;
+
+    SELECT
+        p_return_id AS return_id,
+        v_refund_amount AS refund_amount,
+        'completed' AS return_status;
+
+END$$
+
+DELIMITER ;
+
+
