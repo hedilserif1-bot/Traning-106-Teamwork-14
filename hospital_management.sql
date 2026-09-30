@@ -2228,9 +2228,17 @@ LEFT JOIN payments p ON i.id = p.invoice_id
 GROUP BY i.id, i.total_amount
 ORDER BY i.id ASC;
 
+-- المرضى الذين لديهم فواتير غير مدفوعة
 
-
-
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    COUNT(i.id) AS unpaid_invoices_count
+FROM patients p
+JOIN invoices i ON p.id = i.patient_id
+WHERE i.payment_status IN ('unpaid', 'partially_paid')
+GROUP BY p.id, p.full_name
+ORDER BY p.id ASC;
 
 
 
