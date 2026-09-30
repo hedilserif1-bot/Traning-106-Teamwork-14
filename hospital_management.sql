@@ -1318,6 +1318,316 @@ INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference,
 (74, 300.00, 'insurance', 'TXN-9100', '2027-01-08 11:00:00', 'completed');
 
 
+-- بيانات إضافية لقاعدة المستشفى الحالية — شغّلي الملف مرة واحدة.
+-- اختاري قاعدة المستشفى أولًا. لا يحذف الملف أي بيانات ولا يغيّر الأعمدة.
+-- التواريخ محسوبة نسبةً إلى يوم تشغيل الملف.
+-- المعرّفات تؤخذ من LAST_INSERT_ID()؛ لا تعتمد على بدء المعرّفات من 1.
+-- إذا ظهر خطأ قبل COMMIT، نفذي ROLLBACK ولا تعيدي تشغيل الملف كاملًا قبل معالجة السبب.
+
+START TRANSACTION;
+SET @training_today = CURDATE();
+
+-- قسم مستقل حتى تبقى بيانات التدريب مترابطة
+INSERT INTO departments
+(department_name, floor_number, phone, status)
+VALUES
+('Training Care Unit', 3, '+905550099900', 'active');
+SET @training_department = LAST_INSERT_ID();
+
+INSERT INTO doctors
+(department_id, full_name, email, phone, specialization, license_number, hire_date, consultation_fee, status)
+VALUES
+(@training_department, 'Dr. Training 1', 'hospital.training1@example.invalid', '+905550099901', 'General Medicine', 'TRAIN-LIC-901', DATE_ADD(@training_today, INTERVAL -365 DAY), 100.00, 'active');
+SET @training_doctor1 = LAST_INSERT_ID();
+
+INSERT INTO doctors
+(department_id, full_name, email, phone, specialization, license_number, hire_date, consultation_fee, status)
+VALUES
+(@training_department, 'Dr. Training 2', 'hospital.training2@example.invalid', '+905550099902', 'General Medicine', 'TRAIN-LIC-902', DATE_ADD(@training_today, INTERVAL -365 DAY), 100.00, 'active');
+SET @training_doctor2 = LAST_INSERT_ID();
+
+INSERT INTO patients
+(full_name, national_id, birth_date, gender, phone, email, blood_type, city, address, emergency_contact_name, emergency_contact_phone, registered_at, status)
+VALUES
+('Training Patient A', 'TRAIN-PATIENT-A', '1995-05-10', 'Female', '+905550098901', 'training.patienta@example.invalid', 'O+', 'Istanbul', 'Training address A', 'Training emergency contact A', '+905550098910', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -60 DAY), '08:00:00'), 'admitted');
+SET @training_patientA = LAST_INSERT_ID();
+
+INSERT INTO patients
+(full_name, national_id, birth_date, gender, phone, email, blood_type, city, address, emergency_contact_name, emergency_contact_phone, registered_at, status)
+VALUES
+('Training Patient B', 'TRAIN-PATIENT-B', '1990-03-15', 'Male', '+905550098902', 'training.patientb@example.invalid', 'O+', 'Istanbul', 'Training address B', 'Training emergency contact B', '+905550098920', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -60 DAY), '08:00:00'), 'active');
+SET @training_patientB = LAST_INSERT_ID();
+
+INSERT INTO rooms
+(department_id, room_number, room_type, floor_number, daily_price, status)
+VALUES
+(@training_department, 'TRAIN-R1', 'normal', 3, 100.00, 'available');
+SET @training_room1 = LAST_INSERT_ID();
+
+INSERT INTO rooms
+(department_id, room_number, room_type, floor_number, daily_price, status)
+VALUES
+(@training_department, 'TRAIN-R2', 'normal', 3, 100.00, 'available');
+SET @training_room2 = LAST_INSERT_ID();
+
+INSERT INTO rooms
+(department_id, room_number, room_type, floor_number, daily_price, status)
+VALUES
+(@training_department, 'TRAIN-R3', 'normal', 3, 100.00, 'occupied');
+SET @training_room3 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 1
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor1, DATE_ADD(@training_today, INTERVAL -30 DAY), '09:00:00', 'Training completed visit 1', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -31 DAY), '10:00:00'));
+SET @training_appointment1 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientA, @training_doctor1, @training_appointment1, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -30 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL 7 DAY));
+SET @training_visit1 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 2
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor2, DATE_ADD(@training_today, INTERVAL -25 DAY), '09:00:00', 'Training completed visit 2', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -26 DAY), '10:00:00'));
+SET @training_appointment2 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientA, @training_doctor2, @training_appointment2, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -25 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL 7 DAY));
+SET @training_visit2 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 3
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor1, DATE_ADD(@training_today, INTERVAL -20 DAY), '09:00:00', 'Training completed visit 3', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -21 DAY), '10:00:00'));
+SET @training_appointment3 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientA, @training_doctor1, @training_appointment3, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -20 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL 7 DAY));
+SET @training_visit3 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 4
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor2, DATE_ADD(@training_today, INTERVAL -15 DAY), '09:00:00', 'Training completed visit 4', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -16 DAY), '10:00:00'));
+SET @training_appointment4 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientA, @training_doctor2, @training_appointment4, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -15 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL 7 DAY));
+SET @training_visit4 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 5
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor1, DATE_ADD(@training_today, INTERVAL -10 DAY), '09:00:00', 'Training completed visit 5', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -11 DAY), '10:00:00'));
+SET @training_appointment5 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientA, @training_doctor1, @training_appointment5, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -10 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL 7 DAY));
+SET @training_visit5 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 6
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor2, DATE_ADD(@training_today, INTERVAL -5 DAY), '09:00:00', 'Training completed visit 6', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -6 DAY), '10:00:00'));
+SET @training_appointment6 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientA, @training_doctor2, @training_appointment6, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -5 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL 7 DAY));
+SET @training_visit6 = LAST_INSERT_ID();
+
+-- موعد مكتمل مرتبط بالزيارة 7
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientB, @training_doctor1, DATE_ADD(@training_today, INTERVAL -13 DAY), '09:00:00', 'Training completed visit 7', 'completed', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -14 DAY), '10:00:00'));
+SET @training_appointment7 = LAST_INSERT_ID();
+
+INSERT INTO medical_visits
+(patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+VALUES
+(@training_patientB, @training_doctor1, @training_appointment7, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -13 DAY), '09:00:00'), 'Training follow-up symptoms', 'Training routine follow-up', 'Synthetic record for SQL exercises.', DATE_ADD(@training_today, INTERVAL -7 DAY));
+SET @training_visit7 = LAST_INSERT_ID();
+
+-- موعد مجدول لليوم أو خلال الأيام السبعة القادمة
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor1, DATE_ADD(@training_today, INTERVAL 0 DAY), '18:00:00', 'Training scheduled appointment 1', 'scheduled', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -1 DAY), '10:00:00'));
+
+-- موعد مجدول لليوم أو خلال الأيام السبعة القادمة
+INSERT INTO appointments
+(patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+VALUES
+(@training_patientA, @training_doctor1, DATE_ADD(@training_today, INTERVAL 3 DAY), '18:00:00', 'Training scheduled appointment 2', 'scheduled', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -1 DAY), '10:00:00'));
+
+-- دواء يُوصف للمريض A في زيارتين مختلفتين
+INSERT INTO medicines
+(medicine_name, manufacturer, unit_price, stock_quantity, minimum_stock, expiry_date, status)
+VALUES
+('Training Medicine Repeated', 'Training Manufacturer', 5.00, 20, 5, DATE_ADD(@training_today, INTERVAL 365 DAY), 'Available');
+SET @training_medicine_used = LAST_INSERT_ID();
+
+-- دواء لم يُوصف، يصل إلى الحد الأدنى، وتنتهي صلاحيته خلال 30 يومًا
+INSERT INTO medicines
+(medicine_name, manufacturer, unit_price, stock_quantity, minimum_stock, expiry_date, status)
+VALUES
+('Training Medicine Unused', 'Training Manufacturer', 8.00, 5, 5, DATE_ADD(@training_today, INTERVAL 15 DAY), 'Available');
+SET @training_medicine_unused = LAST_INSERT_ID();
+
+INSERT INTO prescriptions
+(visit_id, prescribed_at, notes)
+VALUES
+(@training_visit1, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -30 DAY), '09:30:00'), 'Synthetic prescription for database practice only.');
+SET @training_prescription1 = LAST_INSERT_ID();
+
+INSERT INTO prescription_items
+(prescription_id, medicine_id, dosage, frequency, duration_days, quantity)
+VALUES
+(@training_prescription1, @training_medicine_used, 'Training dose', 'Once daily', 7, 7);
+
+INSERT INTO prescriptions
+(visit_id, prescribed_at, notes)
+VALUES
+(@training_visit2, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -25 DAY), '09:30:00'), 'Synthetic prescription for database practice only.');
+SET @training_prescription2 = LAST_INSERT_ID();
+
+INSERT INTO prescription_items
+(prescription_id, medicine_id, dosage, frequency, duration_days, quantity)
+VALUES
+(@training_prescription2, @training_medicine_used, 'Training dose', 'Once daily', 7, 7);
+
+-- فحص مستخدم أو فحص لم يُطلب نهائيًا
+INSERT INTO lab_tests
+(test_name, category, price, normal_range, status)
+VALUES
+('Training Lab Test Used', 'Training', 25.00, 'Training reference range', 'Active');
+SET @training_lab_used = LAST_INSERT_ID();
+
+-- فحص مستخدم أو فحص لم يُطلب نهائيًا
+INSERT INTO lab_tests
+(test_name, category, price, normal_range, status)
+VALUES
+('Training Lab Test Unused', 'Training', 25.00, 'Training reference range', 'Active');
+SET @training_lab_unused = LAST_INSERT_ID();
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit1, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -30 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -30 DAY), '11:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit2, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -25 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -25 DAY), '11:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit3, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -20 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -20 DAY), '11:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit4, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -15 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -15 DAY), '11:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit5, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -10 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -10 DAY), '11:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit6, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -5 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -5 DAY), '11:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- فحص مكتمل؛ للمريض A سبعة فحوصات، وأحدها أطول من المتوسط
+INSERT INTO patient_lab_tests
+(visit_id, lab_test_id, ordered_at, completed_at, result, result_status, status)
+VALUES
+(@training_visit6, @training_lab_used, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -5 DAY), '10:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -5 DAY), '16:00:00'), 'Training result within reference range', 'Normal', 'completed');
+
+-- إقامة مكتملة أو إقامة حالية في غرفة مستقلة
+INSERT INTO admissions
+(patient_id, room_id, doctor_id, admitted_at, discharged_at, admission_reason, status)
+VALUES
+(@training_patientA, @training_room1, @training_doctor1, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -21 DAY), '08:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -19 DAY), '08:00:00'), 'Training short completed stay', 'discharged');
+SET @training_admission1 = LAST_INSERT_ID();
+
+-- إقامة مكتملة أو إقامة حالية في غرفة مستقلة
+INSERT INTO admissions
+(patient_id, room_id, doctor_id, admitted_at, discharged_at, admission_reason, status)
+VALUES
+(@training_patientB, @training_room2, @training_doctor1, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -14 DAY), '08:00:00'), TIMESTAMP(DATE_ADD(@training_today, INTERVAL -8 DAY), '08:00:00'), 'Training longer completed stay', 'discharged');
+SET @training_admission2 = LAST_INSERT_ID();
+
+-- إقامة مكتملة أو إقامة حالية في غرفة مستقلة
+INSERT INTO admissions
+(patient_id, room_id, doctor_id, admitted_at, discharged_at, admission_reason, status)
+VALUES
+(@training_patientA, @training_room3, @training_doctor1, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -1 DAY), '08:00:00'), NULL, 'Training current admission', 'admitted');
+SET @training_admission3 = LAST_INSERT_ID();
+
+-- الفاتورة والزيارة والإقامة تخص المريض نفسه؛ المبلغ يطابق الدفعة
+INSERT INTO invoices
+(patient_id, visit_id, admission_id, subtotal, insurance_discount, total_amount, issued_at, due_date, payment_status)
+VALUES
+(@training_patientA, @training_visit3, @training_admission1, 325.00, 0.00, 325.00, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -19 DAY), '09:00:00'), DATE_ADD(@training_today, INTERVAL -5 DAY), 'paid');
+SET @training_invoice1 = LAST_INSERT_ID();
+
+INSERT INTO payments
+(invoice_id, amount, payment_method, transaction_reference, paid_at, status)
+VALUES
+(@training_invoice1, 325.00, 'card', 'TRAIN-TXN-901', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -19 DAY), '10:00:00'), 'completed');
+
+-- الفاتورة والزيارة والإقامة تخص المريض نفسه؛ المبلغ يطابق الدفعة
+INSERT INTO invoices
+(patient_id, visit_id, admission_id, subtotal, insurance_discount, total_amount, issued_at, due_date, payment_status)
+VALUES
+(@training_patientB, @training_visit7, @training_admission2, 700.00, 0.00, 700.00, TIMESTAMP(DATE_ADD(@training_today, INTERVAL -8 DAY), '09:00:00'), DATE_ADD(@training_today, INTERVAL 6 DAY), 'paid');
+SET @training_invoice2 = LAST_INSERT_ID();
+
+INSERT INTO payments
+(invoice_id, amount, payment_method, transaction_reference, paid_at, status)
+VALUES
+(@training_invoice2, 700.00, 'card', 'TRAIN-TXN-902', TIMESTAMP(DATE_ADD(@training_today, INTERVAL -8 DAY), '10:00:00'), 'completed');
+
+COMMIT;
+
+-- ملخص السجلات الجديدة: المريض A لديه 6 زيارات و7 فحوصات.
+SELECT patients.id, patients.full_name,
+       COUNT(DISTINCT medical_visits.id) AS visit_count,
+       COUNT(DISTINCT patient_lab_tests.id) AS test_count
+FROM patients
+LEFT JOIN medical_visits ON medical_visits.patient_id = patients.id
+LEFT JOIN patient_lab_tests ON patient_lab_tests.visit_id = medical_visits.id
+WHERE patients.id IN (@training_patientA, @training_patientB)
+GROUP BY patients.id, patients.full_name;
+
 
 -- من هنا تبدا تعليمات ال ( Queries ) 
 
@@ -1349,9 +1659,14 @@ ORDER BY appointments.id ASC;
 
 SELECT * FROM appointments WHERE appointment_date = CURDATE() ORDER BY id ASC;
 
--- عرض المواعيد القادمة خلال 7 أيام
+-- عرض المواعيد المجدولة خلال 7 أيام، بما فيها اليوم
 
-SELECT * FROM appointments WHERE appointment_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY) ORDER BY id ASC;
+SELECT *
+FROM appointments
+WHERE appointment_date >= CURDATE()
+  AND appointment_date < DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+  AND status = 'scheduled'
+ORDER BY appointment_date ASC, appointment_time ASC;
 
 -- عرض المرضى الذين لديهم أكثر من 3 مواعيد
 
@@ -1408,7 +1723,7 @@ FROM doctors
 JOIN appointments ON doctors.id = appointments.doctor_id 
 WHERE appointments.status = 'completed' 
 GROUP BY doctors.id, doctors.full_name 
-ORDER BY completed_appointments DESC 
+ORDER BY completed_appointments DESC, doctors.id ASC 
 LIMIT 1;
 
 -- عرض نسبة no_show لكل طبيب
@@ -1416,7 +1731,12 @@ LIMIT 1;
 SELECT 
     doctors.id, 
     doctors.full_name, 
-    COUNT(CASE WHEN appointments.status = 'no_show' THEN appointments.id END) AS no_show_count 
+    COUNT(appointments.id) AS total_appointments,
+    COUNT(CASE WHEN appointments.status = 'no_show' THEN appointments.id END) AS no_show_count,
+    COALESCE(ROUND(
+        100.0 * COUNT(CASE WHEN appointments.status = 'no_show' THEN appointments.id END)
+        / NULLIF(COUNT(appointments.id), 0), 2
+    ), 0) AS no_show_percentage 
 FROM doctors 
 LEFT JOIN appointments ON doctors.id = appointments.doctor_id 
 GROUP BY doctors.id, doctors.full_name 
@@ -1436,36 +1756,46 @@ ORDER BY patients.id ASC;
 
 -- عرض آخر زيارة لكل مريض
 
-SELECT 
-    patients.id AS patient_id, 
-    patients.full_name, 
-    medical_visits.id AS visit_id, 
-    medical_visits.visit_date, 
-    medical_visits.diagnosis 
-FROM patients 
-JOIN medical_visits ON patients.id = medical_visits.patient_id 
-JOIN (
-    SELECT patient_id, MAX(id) AS max_visit_id 
-    FROM medical_visits 
-    GROUP BY patient_id
-) latest ON medical_visits.id = latest.max_visit_id 
+SELECT
+    patients.id AS patient_id,
+    patients.full_name,
+    medical_visits.id AS visit_id,
+    medical_visits.visit_date,
+    medical_visits.diagnosis
+FROM patients
+JOIN medical_visits ON patients.id = medical_visits.patient_id
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM medical_visits AS v2
+    WHERE v2.patient_id = medical_visits.patient_id
+      AND (
+          v2.visit_date > medical_visits.visit_date
+          OR (v2.visit_date = medical_visits.visit_date
+              AND v2.id > medical_visits.id)
+      )
+)
 ORDER BY patients.id ASC;
 
 -- عرض أول زيارة لكل مريض
 
-SELECT 
-    patients.id AS patient_id, 
-    patients.full_name, 
-    medical_visits.id AS visit_id, 
-    medical_visits.visit_date, 
-    medical_visits.diagnosis 
-FROM patients 
-JOIN medical_visits ON patients.id = medical_visits.patient_id 
-JOIN (
-    SELECT patient_id, MIN(id) AS min_visit_id 
-    FROM medical_visits 
-    GROUP BY patient_id
-) earliest ON medical_visits.id = earliest.min_visit_id 
+SELECT
+    patients.id AS patient_id,
+    patients.full_name,
+    medical_visits.id AS visit_id,
+    medical_visits.visit_date,
+    medical_visits.diagnosis
+FROM patients
+JOIN medical_visits ON patients.id = medical_visits.patient_id
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM medical_visits AS v2
+    WHERE v2.patient_id = medical_visits.patient_id
+      AND (
+          v2.visit_date < medical_visits.visit_date
+          OR (v2.visit_date = medical_visits.visit_date
+              AND v2.id < medical_visits.id)
+      )
+)
 ORDER BY patients.id ASC;
 
 -- عرض المرضى الذين زاروا أكثر من قسم مختلف
@@ -1502,7 +1832,8 @@ diagnosis,
 COUNT(*) AS diagnosis_count
 FROM medical_visits
 GROUP BY diagnosis
-ORDER BY diagnosis_count DESC;
+ORDER BY diagnosis_count DESC, diagnosis ASC
+LIMIT 1;
 
 -- عرض عدد الحالات لكل Diagnosis
 
@@ -1527,7 +1858,8 @@ WHERE medical_visits.follow_up_date IS NOT NULL
       SELECT 1 
       FROM medical_visits AS v2 
       WHERE v2.patient_id = patients.id 
-        AND v2.visit_date > medical_visits.follow_up_date
+        AND DATE(v2.visit_date) > medical_visits.follow_up_date
+        AND v2.visit_date <= NOW()
   ) 
 ORDER BY patients.id ASC;
 
@@ -1580,7 +1912,8 @@ SELECT
 FROM medicines 
 JOIN prescription_items ON medicines.id = prescription_items.medicine_id 
 GROUP BY medicines.id, medicines.medicine_name, medicines.manufacturer 
-ORDER BY prescription_times DESC;
+ORDER BY prescription_times DESC, medicines.id ASC
+LIMIT 10;
 
 -- حساب إجمالي الكمية المطلوبة من كل دواء
 
@@ -1588,9 +1921,9 @@ SELECT
     medicines.id, 
     medicines.medicine_name, 
     medicines.manufacturer, 
-    SUM(prescription_items.quantity) AS total_requested_quantity 
+    COALESCE(SUM(prescription_items.quantity), 0) AS total_requested_quantity 
 FROM medicines 
-JOIN prescription_items ON medicines.id = prescription_items.medicine_id 
+LEFT JOIN prescription_items ON medicines.id = prescription_items.medicine_id 
 GROUP BY medicines.id, medicines.medicine_name, medicines.manufacturer 
 ORDER BY total_requested_quantity DESC;
 
@@ -1662,20 +1995,22 @@ LEFT JOIN patient_lab_tests ON lab_tests.id = patient_lab_tests.lab_test_id
 WHERE patient_lab_tests.lab_test_id IS NULL 
 ORDER BY lab_tests.id ASC;
 
--- حساب متوسط الوقت بين طلب الفحص واكتماله
+-- حساب متوسط الوقت بين طلب الفحص واكتماله لكل نوع فحص، بالثواني
 
 SELECT 
     lab_tests.id, 
     lab_tests.test_name, 
     lab_tests.category, 
-    SEC_TO_TIME(AVG(TIME_TO_SEC(TIMEDIFF(patient_lab_tests.completed_at, patient_lab_tests.ordered_at)))) AS avg_time_taken 
+    ROUND(AVG(TIMESTAMPDIFF(SECOND, patient_lab_tests.ordered_at,
+                            patient_lab_tests.completed_at)), 2) AS avg_time_taken_seconds 
 FROM patient_lab_tests 
 JOIN lab_tests ON patient_lab_tests.lab_test_id = lab_tests.id
-WHERE patient_lab_tests.completed_at IS NOT NULL 
+WHERE patient_lab_tests.status = 'completed'
+  AND patient_lab_tests.completed_at IS NOT NULL 
 GROUP BY lab_tests.id, lab_tests.test_name, lab_tests.category 
 ORDER BY lab_tests.id ASC;
 
--- عرض الفحوصات التي استغرقت أكثر من متوسط وقت التنفيذ
+-- عرض الفحوصات التي استغرقت أكثر من متوسط تنفيذ نوع الفحص نفسه
 
 SELECT 
     patient_lab_tests.id, 
@@ -1683,18 +2018,21 @@ SELECT
     lab_tests.test_name, 
     patient_lab_tests.ordered_at, 
     patient_lab_tests.completed_at, 
-    TIMEDIFF(patient_lab_tests.completed_at, patient_lab_tests.ordered_at) AS time_taken 
+    TIMESTAMPDIFF(SECOND, patient_lab_tests.ordered_at,
+                  patient_lab_tests.completed_at) AS time_taken_seconds 
 FROM patient_lab_tests 
 JOIN lab_tests ON patient_lab_tests.lab_test_id = lab_tests.id
-WHERE patient_lab_tests.completed_at IS NOT NULL 
+WHERE patient_lab_tests.status = 'completed'
+  AND patient_lab_tests.completed_at IS NOT NULL 
   AND TIMESTAMPDIFF(SECOND, patient_lab_tests.ordered_at, patient_lab_tests.completed_at) > (
-      SELECT AVG(TIMESTAMPDIFF(SECOND, ordered_at, completed_at)) 
-      FROM patient_lab_tests 
-      WHERE completed_at IS NOT NULL
+      SELECT AVG(TIMESTAMPDIFF(SECOND, t2.ordered_at, t2.completed_at))
+      FROM patient_lab_tests AS t2
+      WHERE t2.lab_test_id = patient_lab_tests.lab_test_id
+        AND t2.status = 'completed'
+        AND t2.completed_at IS NOT NULL
   )
 ORDER BY patient_lab_tests.id ASC;
 
---عرض الغرف المتاحة حاليًا
 
 SELECT 
     r.id, 
@@ -1706,10 +2044,13 @@ SELECT
     r.status 
 FROM rooms r
 WHERE r.status = 'available'
-  AND r.id NOT IN (
-      SELECT room_id 
-      FROM admissions 
-      WHERE discharged_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM admissions AS a
+      WHERE a.room_id = r.id
+        AND a.status = 'admitted'
+        AND a.admitted_at <= NOW()
+        AND (a.discharged_at IS NULL OR a.discharged_at > NOW())
   )
 ORDER BY r.id ASC;
 
@@ -1724,8 +2065,9 @@ SELECT
 FROM rooms r
 JOIN admissions a ON r.id = a.room_id
 JOIN patients p ON a.patient_id = p.id
-WHERE r.status = 'occupied' 
-  AND a.discharged_at IS NULL
+WHERE a.status = 'admitted'
+  AND a.admitted_at <= NOW()
+  AND (a.discharged_at IS NULL OR a.discharged_at > NOW())
 ORDER BY r.id ASC;
 
 -- عرض المرضى الموجودين داخل المستشفى حاليًا
@@ -1739,7 +2081,9 @@ SELECT
     a.room_id 
 FROM patients p
 JOIN admissions a ON p.id = a.patient_id 
-WHERE a.discharged_at IS NULL 
+WHERE a.status = 'admitted'
+  AND a.admitted_at <= NOW()
+  AND (a.discharged_at IS NULL OR a.discharged_at > NOW()) 
 ORDER BY p.id ASC;
 
 -- حساب عدد أيام الإقامة لكل Admission مكتمل
@@ -1752,7 +2096,9 @@ SELECT
     discharged_at, 
     DATEDIFF(discharged_at, admitted_at) AS stay_duration_days 
 FROM admissions 
-WHERE discharged_at IS NOT NULL 
+WHERE status = 'discharged'
+  AND discharged_at IS NOT NULL
+  AND discharged_at <= NOW() 
 ORDER BY id ASC;
 
 -- حساب متوسط مدة الإقامة في كل قسم
@@ -1764,34 +2110,38 @@ SELECT
 FROM departments d
 JOIN rooms r ON d.id = r.department_id
 JOIN admissions a ON r.id = a.room_id
-WHERE a.discharged_at IS NOT NULL
+WHERE a.status = 'discharged'
+  AND a.discharged_at IS NOT NULL
+  AND a.discharged_at <= NOW()
 GROUP BY d.id, d.department_name
 ORDER BY d.id ASC;
 
--- عرض المرضى الذين مدة إقامتهم أعلى من متوسط مدة الإقامة
+-- عرض المرضى الذين مدة إقامتهم المكتملة أعلى من متوسط مدة الإقامة في المستشفى
 
-SELECT 
+SELECT
     p.id AS patient_id,
     p.full_name AS patient_name,
     d.department_name,
     DATEDIFF(a.discharged_at, a.admitted_at) AS patient_stay_days,
-    ROUND(dept_avg.dept_avg_stay, 0) AS department_avg_days
+    ROUND(hospital_avg.avg_stay_days, 2) AS hospital_avg_days
 FROM admissions a
 JOIN rooms r ON a.room_id = r.id
 JOIN departments d ON r.department_id = d.id
 JOIN patients p ON a.patient_id = p.id
-JOIN (
-    SELECT 
-        sub_r.department_id,
-        AVG(DATEDIFF(sub_a.discharged_at, sub_a.admitted_at)) AS dept_avg_stay
-    FROM admissions sub_a
-    JOIN rooms sub_r ON sub_a.room_id = sub_r.id
-    WHERE sub_a.discharged_at IS NOT NULL
-    GROUP BY sub_r.department_id
-) dept_avg ON d.id = dept_avg.department_id
-WHERE a.discharged_at IS NOT NULL
-  AND DATEDIFF(a.discharged_at, a.admitted_at) > dept_avg.dept_avg_stay
+CROSS JOIN (
+    SELECT AVG(DATEDIFF(discharged_at, admitted_at)) AS avg_stay_days
+    FROM admissions
+    WHERE status = 'discharged'
+      AND discharged_at IS NOT NULL
+      AND discharged_at <= NOW()
+) hospital_avg
+WHERE a.status = 'discharged'
+  AND a.discharged_at IS NOT NULL
+  AND a.discharged_at <= NOW()
+  AND DATEDIFF(a.discharged_at, a.admitted_at) > hospital_avg.avg_stay_days
 ORDER BY p.id ASC;
+
+
 
 -- عرض أكثر غرفة تم استخدامها
 
@@ -1807,20 +2157,48 @@ GROUP BY r.id, r.room_number, d.department_name
 ORDER BY total_usage_count DESC
 LIMIT 1;
 
--- عرض الأقسام التي نسبة إشغال غرفها أعلى من 80%
 
-SELECT 
+
+
+-- عرض الأقسام التي نسبة إشغال غرفها حاليًا أعلى من 80%
+
+SELECT
     d.id AS department_id,
     d.department_name,
     COUNT(r.id) AS total_rooms,
-    SUM(CASE WHEN r.status = 'occupied' THEN 1 ELSE 0 END) AS occupied_rooms,
-    ROUND((SUM(CASE WHEN r.status = 'occupied' THEN 1 ELSE 0 END) * 100.0) / COUNT(r.id), 2) AS occupancy_rate_percentage
+    SUM(
+        CASE WHEN EXISTS (
+            SELECT 1
+            FROM admissions a
+            WHERE a.room_id = r.id
+              AND a.status = 'admitted'
+              AND a.admitted_at <= NOW()
+              AND (
+                  a.discharged_at IS NULL
+                  OR a.discharged_at > NOW()
+              )
+        ) THEN 1 ELSE 0 END
+    ) AS occupied_rooms,
+    ROUND(
+        100.0 * SUM(
+            CASE WHEN EXISTS (
+                SELECT 1
+                FROM admissions a
+                WHERE a.room_id = r.id
+                  AND a.status = 'admitted'
+                  AND a.admitted_at <= NOW()
+                  AND (
+                      a.discharged_at IS NULL
+                      OR a.discharged_at > NOW()
+                  )
+            ) THEN 1 ELSE 0 END
+        ) / COUNT(r.id),
+        2
+    ) AS occupancy_rate_percentage
 FROM departments d
-JOIN rooms r ON d.id = r.department_id
+JOIN rooms r ON r.department_id = d.id
 GROUP BY d.id, d.department_name
-HAVING occupancy_rate_percentage > 80
 ORDER BY occupancy_rate_percentage DESC;
-
 
 
 
