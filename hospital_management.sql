@@ -2336,9 +2336,19 @@ GROUP BY i.id, i.total_amount
 HAVING SUM(p.amount) > i.total_amount
 ORDER BY i.id ASC;
 
+-- الفواتير المسجلة paid ولكن مجموع المدفوعات أقل من total_amount
 
-
-
+SELECT 
+    i.id AS invoice_id,
+    i.payment_status,
+    ROUND(i.total_amount, 0) AS invoice_amount,
+    COALESCE(ROUND(SUM(p.amount), 0), 0) AS total_paid_amount
+FROM invoices i
+LEFT JOIN payments p ON i.id = p.invoice_id AND p.status = 'completed'
+WHERE i.payment_status = 'paid'
+GROUP BY i.id, i.payment_status, i.total_amount
+HAVING COALESCE(SUM(p.amount), 0) < i.total_amount
+ORDER BY i.id ASC;
 
 
 
