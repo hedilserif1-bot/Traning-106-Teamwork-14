@@ -1570,13 +1570,29 @@ FROM medicines
 WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) 
 ORDER BY id ASC;
 
+-- عرض أكثر 10 أدوية تم وصفها
 
+SELECT 
+    medicines.id, 
+    medicines.medicine_name, 
+    medicines.manufacturer, 
+    COUNT(prescription_items.id) AS prescription_times 
+FROM medicines 
+JOIN prescription_items ON medicines.id = prescription_items.medicine_id 
+GROUP BY medicines.id, medicines.medicine_name, medicines.manufacturer 
+ORDER BY prescription_times DESC;
 
+-- حساب إجمالي الكمية المطلوبة من كل دواء
 
-
-
-
-
+SELECT 
+    medicines.id, 
+    medicines.medicine_name, 
+    medicines.manufacturer, 
+    SUM(prescription_items.quantity) AS total_requested_quantity 
+FROM medicines 
+JOIN prescription_items ON medicines.id = prescription_items.medicine_id 
+GROUP BY medicines.id, medicines.medicine_name, medicines.manufacturer 
+ORDER BY total_requested_quantity DESC;
 
 
 
