@@ -1624,9 +1624,17 @@ GROUP BY patients.id, patients.full_name, medicines.id, medicines.medicine_name
 HAVING COUNT(DISTINCT medical_visits.id) > 1 
 ORDER BY patients.id ASC;
 
+-- عرض الفحوصات الأكثر طلبًا
 
-
-
+SELECT 
+    lab_tests.id, 
+    lab_tests.test_name, 
+    lab_tests.category, 
+    COUNT(patient_lab_tests.id) AS request_count 
+FROM lab_tests 
+JOIN patient_lab_tests ON lab_tests.id = patient_lab_tests.lab_test_id 
+GROUP BY lab_tests.id, lab_tests.test_name, lab_tests.category 
+ORDER BY request_count DESC;
 
 
 
