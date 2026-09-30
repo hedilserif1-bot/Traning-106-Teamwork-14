@@ -3325,7 +3325,13 @@ GROUP BY start_category_id;
 
 
 
+ALTER TABLE products
+ADD CONSTRAINT chk_products_price_positive
+CHECK (price > 0);
 
+ALTER TABLE products
+ADD CONSTRAINT chk_products_stock_nonnegative
+CHECK (stock_quantity >= 0);
 
 
 
