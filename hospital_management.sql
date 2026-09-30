@@ -1768,6 +1768,46 @@ WHERE a.discharged_at IS NOT NULL
 GROUP BY d.id, d.department_name
 ORDER BY d.id ASC;
 
+-- عرض المرضى الذين مدة إقامتهم أعلى من متوسط مدة الإقامة
+
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    d.department_name,
+    DATEDIFF(a.discharged_at, a.admitted_at) AS patient_stay_days,
+    ROUND(dept_avg.dept_avg_stay, 0) AS department_avg_days
+FROM admissions a
+JOIN rooms r ON a.room_id = r.id
+JOIN departments d ON r.department_id = d.id
+JOIN patients p ON a.patient_id = p.id
+JOIN (
+    SELECT 
+        sub_r.department_id,
+        AVG(DATEDIFF(sub_a.discharged_at, sub_a.admitted_at)) AS dept_avg_stay
+    FROM admissions sub_a
+    JOIN rooms sub_r ON sub_a.room_id = sub_r.id
+    WHERE sub_a.discharged_at IS NOT NULL
+    GROUP BY sub_r.department_id
+) dept_avg ON d.id = dept_avg.department_id
+WHERE a.discharged_at IS NOT NULL
+  AND DATEDIFF(a.discharged_at, a.admitted_at) > dept_avg.dept_avg_stay
+ORDER BY p.id ASC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
