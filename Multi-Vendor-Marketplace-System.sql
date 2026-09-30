@@ -3778,3 +3778,149 @@ END$$
 DELIMITER ;
 
 
+-- Atomic Stock Update
+
+
+DROP PROCEDURE IF EXISTS atomic_stock_order;
+
+DELIMITER $$
+
+CREATE PROCEDURE atomic_stock_order(
+    IN p_customer_id INT,
+    IN p_product_id INT,
+    IN p_quantity INT
+)
+BEGIN
+    DECLARE v_price DECIMAL(12,2);
+    DECLARE v_seller_id INT;
+    DECLARE v_order_id INT;
+    DECLARE v_order_number VARCHAR(100);
+    DECLARE v_rows INT DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    /* التحقق من الكمية */
+    IF p_quantity <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Quantity must be greater than 0';
+    END IF;
+
+    /* الحصول على معلومات المنتج */
+    SELECT price, seller_id
+    INTO v_price, v_seller_id
+    FROM products
+    WHERE id = p_product_id
+      AND status = 'active'
+    FOR UPDATE;
+
+    /* التحقق من وجود المنتج */
+    IF v_price IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product not found or inactive';
+    END IF;
+
+    /* تقليل المخزون فقط إذا كانت الكمية كافية */
+    UPDATE products
+    SET stock_quantity = stock_quantity - p_quantity
+    WHERE id = p_product_id
+      AND status = 'active'
+      AND stock_quantity >= p_quantity;
+
+    /* عدد الصفوف المتأثرة */
+    SET v_rows = ROW_COUNT();
+
+    /* إذا كان المخزون غير كافٍ تتوقف العملية */
+    IF v_rows <> 1 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Insufficient stock';
+    END IF;
+
+    /* تحديث حالة المنتج إذا أصبح المخزون صفرًا */
+    UPDATE products
+    SET status = 'out_of_stock'
+    WHERE id = p_product_id
+      AND stock_quantity = 0;
+
+    /* Customer فعال؟ */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM customers
+        WHERE id = p_customer_id
+          AND status = 'active'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer is not active';
+    END IF;
+
+    /* Order number */
+    SET v_order_number = CONCAT('ORD-', UUID());
+
+    /* إنشاء Order */
+    INSERT INTO orders
+    (
+        order_number,
+        customer_id,
+        subtotal,
+        discount_amount,
+        shipping_cost,
+        total_amount,
+        status
+    )
+    VALUES
+    (
+        v_order_number,
+        p_customer_id,
+        v_price * p_quantity,
+        0,
+        0,
+        v_price * p_quantity,
+        'pending'
+    );
+
+    SET v_order_id = LAST_INSERT_ID();
+
+    /* إنشاء Order Item */
+    INSERT INTO order_items
+    (
+        order_id,
+        product_id,
+        seller_id,
+        quantity,
+        unit_price,
+        discount_amount,
+        platform_commission,
+        seller_amount,
+        status
+    )
+    VALUES
+    (
+        v_order_id,
+        p_product_id,
+        v_seller_id,
+        p_quantity,
+        v_price,
+        0,
+        0,
+        v_price * p_quantity,
+        'active'
+    );
+
+    COMMIT;
+
+    SELECT
+        v_order_id AS order_id,
+        v_order_number AS order_number,
+        p_product_id AS product_id,
+        p_quantity AS quantity;
+
+END$$
+
+DELIMITER ;
+
+
