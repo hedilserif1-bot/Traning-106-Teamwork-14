@@ -2500,6 +2500,117 @@ WHERE d.consultation_fee > (
 )
 ORDER BY d.consultation_fee DESC;
 
+-- من هنا تبدا إستعلامات ال ( Window Functions )
+
+-- ترتيب الأطباء حسب عدد المواعيد باستخدام RANK()
+
+WITH DoctorAppointments AS (
+    SELECT 
+        d.id AS doctor_id,
+        d.full_name AS doctor_name,
+        COUNT(a.id) AS appointment_count
+    FROM doctors d
+    LEFT JOIN appointments a ON d.id = a.doctor_id
+    GROUP BY d.id, d.full_name
+)
+SELECT 
+    doctor_id,
+    doctor_name,
+    appointment_count,
+    RANK() OVER (ORDER BY appointment_count DESC) AS appointment_rank
+FROM DoctorAppointments
+ORDER BY appointment_rank ASC;
+
+-- ترتيب الأطباء داخل كل قسم حسب عدد المرضى
+
+WITH DoctorPatientCount AS (
+    SELECT 
+        dept.id AS department_id,
+        dept.department_name,
+        d.id AS doctor_id,
+        d.full_name AS doctor_name,
+        COUNT(DISTINCT a.patient_id) AS patient_count
+    FROM departments dept
+    JOIN doctors d ON dept.id = d.department_id
+    LEFT JOIN appointments a ON d.id = a.doctor_id
+    GROUP BY dept.id, dept.department_name, d.id, d.full_name
+)
+SELECT 
+    department_name,
+    doctor_name,
+    patient_count,
+    RANK() OVER (PARTITION BY department_id ORDER BY patient_count DESC) AS doctor_rank
+FROM DoctorPatientCount
+ORDER BY department_name, doctor_rank;
+
+-- ترتيب المرضى حسب إجمالي إنفاقهم باستخدام DENSE_RANK()
+
+WITH PatientSpending AS (
+    SELECT 
+        p.id AS patient_id,
+        p.full_name AS patient_name,
+        COALESCE(SUM(pay.amount), 0) AS total_spent
+    FROM patients p
+    LEFT JOIN invoices i ON p.id = i.patient_id
+    LEFT JOIN payments pay ON i.id = pay.invoice_id AND pay.status = 'completed'
+    GROUP BY p.id, p.full_name
+)
+SELECT 
+    patient_id,
+    patient_name,
+    ROUND(total_spent, 2) AS total_spent,
+    DENSE_RANK() OVER (ORDER BY total_spent DESC) AS spending_rank
+FROM PatientSpending
+ORDER BY spending_rank ASC;
+
+-- استخراج أعلى 3 أطباء من حيث الإيرادات داخل كل قسم
+
+WITH DoctorRevenue AS (
+    SELECT 
+        dept.id AS department_id,
+        dept.department_name,
+        d.id AS doctor_id,
+        d.full_name AS doctor_name,
+        COALESCE(SUM(pay.amount), 0) AS total_revenue
+    FROM departments dept
+    JOIN doctors d ON dept.id = d.department_id
+    LEFT JOIN medical_visits mv ON d.id = mv.doctor_id
+    LEFT JOIN invoices i ON mv.id = i.visit_id
+    LEFT JOIN payments pay ON i.id = pay.invoice_id AND pay.status = 'completed'
+    GROUP BY dept.id, dept.department_name, d.id, d.full_name
+),
+RankedDoctors AS (
+    SELECT 
+        department_name,
+        doctor_name,
+        total_revenue,
+        ROW_NUMBER() OVER (PARTITION BY department_id ORDER BY total_revenue DESC) AS revenue_rank
+    FROM DoctorRevenue
+)
+SELECT 
+    department_name,
+    doctor_name,
+    ROUND(total_revenue, 2) AS total_revenue,
+    revenue_rank
+FROM RankedDoctors
+WHERE revenue_rank <= 3
+ORDER BY department_name, revenue_rank;
+
+-- ترتيب Admissions لكل مريض حسب التاريخ باستخدام ROW_NUMBER() 
+
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    a.id AS admission_id,
+    a.admitted_at,
+    a.discharged_at,
+    a.admission_reason,
+    a.status,
+    ROW_NUMBER() OVER (PARTITION BY a.patient_id ORDER BY a.admitted_at ASC) AS admission_sequence
+FROM admissions a
+JOIN patients p ON a.patient_id = p.id
+ORDER BY p.id, admission_sequence;
+
 
 
 
