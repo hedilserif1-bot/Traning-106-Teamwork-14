@@ -1993,3 +1993,51 @@ HAVING SUM(li.paid_amount) = 0;
 -- 50. إجمالي قيمة القروض
 SELECT SUM(total_amount) AS total_loans
 FROM loans;
+
+
+
+/*customer_financial_summary view*/
+CREATE VIEW customer_financial_summary AS
+SELECT
+c.id AS customer,
+COUNT(a.id) AS number_of_accounts,
+SUM(a.balance) AS total_balance,
+SUM(t.amount) AS total_transfers_sent,
+SUM(t.amount) AS total_transfers_received,
+SUM(l.total_amount) AS total_loans,
+MAX(t.created_at) AS last_transaction
+FROM customers c
+LEFT JOIN accounts a ON c.id = a.customer_id
+LEFT JOIN transfers t ON a.id = t.from_account_id
+LEFT JOIN loans l ON c.id = l.customer_id
+GROUP BY c.id;
+
+/*account_activity_view*/
+CREATE VIEW account_activity_view AS
+SELECT
+a.id AS account,
+a.customer_id AS customer,
+a.balance,
+SUM(t.amount) AS deposits,
+SUM(t.amount) AS withdrawals,
+COUNT(t.id) AS transaction_count,
+MAX(t.created_at) AS last_transaction
+FROM accounts a
+LEFT JOIN transactions t ON a.id = t.account_id
+GROUP BY a.id;
+
+
+/*loan_status_view*/
+CREATE VIEW loan_status_view AS
+SELECT
+l.id AS loan,
+l.customer_id AS customer,
+l.principal_amount AS principal,
+l.total_amount,
+SUM(li.paid_amount) AS paid_amount,
+l.total_amount - SUM(li.paid_amount) AS remaining_amount,
+COUNT(li.id) AS total_installments
+FROM loans l
+LEFT JOIN loan_installments li ON l.id = li.loan_id
+GROUP BY l.id;
+
