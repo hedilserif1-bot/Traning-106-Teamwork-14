@@ -1742,9 +1742,18 @@ JOIN admissions a ON p.id = a.patient_id
 WHERE a.discharged_at IS NULL 
 ORDER BY p.id ASC;
 
+-- حساب عدد أيام الإقامة لكل Admission مكتمل
 
-
-
+SELECT 
+    id, 
+    patient_id, 
+    room_id, 
+    admitted_at, 
+    discharged_at, 
+    DATEDIFF(discharged_at, admitted_at) AS stay_duration_days 
+FROM admissions 
+WHERE discharged_at IS NOT NULL 
+ORDER BY id ASC;
 
 
 
