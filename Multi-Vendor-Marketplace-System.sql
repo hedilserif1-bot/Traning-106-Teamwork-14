@@ -3981,3 +3981,102 @@ END$$
 
 DELIMITER ;
 
+
+
+
+
+
+CALL use_coupon_safe(1);
+
+
+-- Idempotency
+
+ALTER TABLE payments
+ADD COLUMN idempotency_key VARCHAR(150) NULL,
+ADD UNIQUE KEY uq_payment_idempotency (idempotency_key);
+
+
+DROP PROCEDURE IF EXISTS create_payment;
+
+DELIMITER $$
+
+CREATE PROCEDURE create_payment(
+    IN p_order_id INT,
+    IN p_amount DECIMAL(12,2),
+    IN p_method VARCHAR(20),
+    IN p_idempotency_key VARCHAR(150)
+)
+BEGIN
+    DECLARE v_payment_id INT DEFAULT NULL;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    /* Aynı request daha önce geldiyse eski payment'ı döndür */
+    SELECT id
+    INTO v_payment_id
+    FROM payments
+    WHERE idempotency_key = p_idempotency_key
+    LIMIT 1
+    FOR UPDATE;
+
+    IF v_payment_id IS NOT NULL THEN
+
+        COMMIT;
+
+        SELECT
+            id,
+            order_id,
+            amount,
+            payment_method,
+            status,
+            idempotency_key
+        FROM payments
+        WHERE id = v_payment_id;
+
+    ELSE
+
+        /* Yeni payment oluştur */
+        INSERT INTO payments
+        (
+            order_id,
+            payment_reference,
+            amount,
+            payment_method,
+            status,
+            idempotency_key
+        )
+        VALUES
+        (
+            p_order_id,
+            UUID(),
+            p_amount,
+            p_method,
+            'paid',
+            p_idempotency_key
+        );
+
+        SET v_payment_id = LAST_INSERT_ID();
+
+        COMMIT;
+
+        SELECT
+            id,
+            order_id,
+            amount,
+            payment_method,
+            status,
+            idempotency_key
+        FROM payments
+        WHERE id = v_payment_id;
+
+    END IF;
+
+END$$
+
+DELIMITER ;
