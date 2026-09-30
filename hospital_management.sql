@@ -2361,9 +2361,26 @@ JOIN payments p ON i.id = p.invoice_id
 WHERE i.payment_status = 'unpaid' 
   AND p.status = 'completed';
 
+-- المرضى الذين مجموع مدفوعاتهم أعلى من متوسط مدفوعات المرضى
 
-
-
+WITH PatientPayments AS (
+    SELECT 
+        p.id AS patient_id,
+        p.full_name AS patient_name,
+        SUM(pay.amount) AS total_paid
+    FROM patients p
+    JOIN invoices i ON p.id = i.patient_id
+    JOIN payments pay ON i.id = pay.invoice_id
+    WHERE pay.status = 'completed'
+    GROUP BY p.id, p.full_name
+)
+SELECT 
+    patient_id,
+    patient_name,
+    ROUND(total_paid, 0) AS total_paid
+FROM PatientPayments
+WHERE total_paid > (SELECT AVG(total_paid) FROM PatientPayments)
+ORDER BY total_paid DESC;
 
 
 
