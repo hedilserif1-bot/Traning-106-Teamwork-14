@@ -2382,6 +2382,126 @@ FROM PatientPayments
 WHERE total_paid > (SELECT AVG(total_paid) FROM PatientPayments)
 ORDER BY total_paid DESC;
 
+-- من هنا تبدا إستعلامات ال ( Subqueries )
+
+-- الأطباء الذين عدد مرضاهم أعلى من متوسط عدد المرضى لكل طبيب
+
+WITH DoctorPatients AS (
+    SELECT 
+        doc.id AS doctor_id,
+        doc.full_name AS doctor_name,
+        COUNT(DISTINCT mv.patient_id) AS patient_count
+    FROM doctors doc
+    JOIN medical_visits mv ON doc.id = mv.doctor_id
+    GROUP BY doc.id, doc.full_name
+)
+SELECT 
+    doctor_id,
+    doctor_name,
+    patient_count
+FROM DoctorPatients
+WHERE patient_count > (SELECT AVG(patient_count) FROM DoctorPatients)
+ORDER BY patient_count DESC;
+
+-- المرضى الذين عدد زياراتهم أعلى من متوسط الزيارات
+
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    COUNT(mv.id) AS visit_count
+FROM patients p
+JOIN medical_visits mv ON p.id = mv.patient_id
+GROUP BY p.id, p.full_name
+HAVING COUNT(mv.id) > (
+    SELECT AVG(patient_visits)
+    FROM (
+        SELECT COUNT(id) AS patient_visits
+        FROM medical_visits
+        GROUP BY patient_id
+    ) AS avg_visits
+)
+ORDER BY visit_count DESC;
+
+-- الأدوية التي سعرها أعلى من متوسط أسعار الأدوية
+
+SELECT 
+    id,
+    medicine_name,
+    unit_price
+FROM medicines
+WHERE unit_price > (
+    SELECT AVG(unit_price) 
+    FROM medicines
+)
+ORDER BY unit_price DESC;
+
+-- الأقسام التي إيراداتها أعلى من متوسط إيرادات الأقسام
+
+SELECT 
+    dept_id,
+    dept_name,
+    ROUND(total_revenue, 0) AS total_revenue
+FROM (
+    SELECT 
+        d.id AS dept_id,
+        d.department_name AS dept_name,
+        SUM(p.amount) AS total_revenue
+    FROM departments d
+    JOIN doctors doc ON d.id = doc.department_id
+    JOIN medical_visits mv ON doc.id = mv.doctor_id
+    JOIN invoices i ON mv.id = i.visit_id
+    JOIN payments p ON i.id = p.invoice_id
+    WHERE p.status = 'completed'
+    GROUP BY d.id, d.department_name
+) AS department_revenues
+WHERE total_revenue > (
+    SELECT AVG(dept_total)
+    FROM (
+        SELECT SUM(p.amount) AS dept_total
+        FROM departments d
+        JOIN doctors doc ON d.id = doc.department_id
+        JOIN medical_visits mv ON doc.id = mv.doctor_id
+        JOIN invoices i ON mv.id = i.visit_id
+        JOIN payments p ON i.id = p.invoice_id
+        WHERE p.status = 'completed'
+        GROUP BY d.id
+    ) AS avg_calculation
+)
+ORDER BY total_revenue DESC;
+
+-- المرضى الذين مدة إقامتهم أعلى من متوسط الإقامة 
+
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    DATEDIFF(a.discharged_at, a.admitted_at) AS stay_duration_days
+FROM patients p
+JOIN admissions a ON p.id = a.patient_id
+WHERE DATEDIFF(a.discharged_at, a.admitted_at) > (
+    SELECT AVG(DATEDIFF(discharged_at, admitted_at))
+    FROM admissions
+    WHERE discharged_at IS NOT NULL AND admitted_at IS NOT NULL
+)
+ORDER BY stay_duration_days DESC;
+
+-- الأطباء الذين consultation_fee لديهم أعلى من متوسط القسم الخاص بهم
+
+SELECT 
+    d.id AS doctor_id,
+    d.full_name AS doctor_name,
+    dept.department_name,
+    ROUND(d.consultation_fee, 0) AS consultation_fee
+FROM doctors d
+JOIN departments dept ON d.department_id = dept.id
+WHERE d.consultation_fee > (
+    SELECT AVG(d2.consultation_fee)
+    FROM doctors d2
+    WHERE d2.department_id = d.department_id
+)
+ORDER BY d.consultation_fee DESC;
+
+
+
 
 
 
