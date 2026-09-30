@@ -2291,9 +2291,16 @@ WHERE p.status = 'completed'
 GROUP BY doc.id, doc.full_name
 ORDER BY total_revenue DESC;
 
+-- الشهر صاحب أعلى إيرادات
 
-
-
+SELECT 
+    DATE_FORMAT(p.paid_at, '%Y-%m') AS revenue_month,
+    ROUND(SUM(p.amount), 0) AS total_revenue
+FROM payments p
+WHERE p.status = 'completed'
+GROUP BY revenue_month
+ORDER BY total_revenue DESC
+LIMIT 1;
 
 
 
