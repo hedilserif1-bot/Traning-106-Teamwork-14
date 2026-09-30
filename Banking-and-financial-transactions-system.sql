@@ -2041,3 +2041,124 @@ FROM loans l
 LEFT JOIN loan_installments li ON l.id = li.loan_id
 GROUP BY l.id;
 
+
+USE banking_system;
+
+-- ========================================
+/*deposit_money procedure*/
+DROP PROCEDURE IF EXISTS deposit_money;
+DELIMITER //
+
+CREATE PROCEDURE deposit_money(
+IN acc_id INT,
+IN money DECIMAL(15,2)
+)
+BEGIN
+START TRANSACTION;
+
+UPDATE accounts
+SET balance = balance + money
+WHERE id = acc_id;
+
+INSERT INTO transactions
+(account_id, transaction_type, amount,
+balance_before, balance_after, description)
+SELECT id, 'deposit', money,
+balance - money, balance, 'Deposit'
+FROM accounts
+WHERE id = acc_id;
+
+COMMIT;
+END //
+
+DELIMITER ;
+
+/*run deposit_money procedure*/
+CALL deposit_money(1, 500);
+
+-- ====================================
+/*withdraw_money procedure*/
+DROP PROCEDURE IF EXISTS  withdraw_money;
+
+DELIMITER //
+
+CREATE PROCEDURE withdraw_money(
+IN acc_id INT,
+IN money DECIMAL(15,2)
+)
+BEGIN
+START TRANSACTION;
+
+UPDATE accounts
+SET balance = balance - money
+WHERE id = acc_id
+AND balance >= money;
+
+INSERT INTO transactions
+(account_id, transaction_type, amount,
+balance_before, balance_after, description)
+SELECT id, 'withdrawal', money,
+balance + money, balance, 'Withdrawal'
+FROM accounts
+WHERE id = acc_id;
+
+COMMIT;
+END //
+
+DELIMITER ;
+
+/*run withdraw_money procedure*/
+CALL withdraw_money(1, 200);
+
+-- ======================================
+/*pay_loan_installment procedure*/
+DROP PROCEDURE IF EXISTS pay_loan_installment;
+
+DELIMITER //
+
+CREATE PROCEDURE pay_loan_installment(
+    IN inst_id INT,
+    IN money DECIMAL(15,2)
+)
+BEGIN
+
+    START TRANSACTION;
+
+    UPDATE loan_installments
+    SET paid_amount = paid_amount + money,
+        paid_at = NOW(),
+        status = 'paid'
+    WHERE id = inst_id
+      AND paid_amount + money <= amount
+      AND status <> 'paid';
+
+    COMMIT;
+
+END //
+
+DELIMITER ;
+
+/*run pay_loan_installment procedure*/
+CALL pay_loan_installment(1, 500);
+
+-- =============================
+/*block_account procedure*/
+
+DELIMITER //
+
+CREATE PROCEDURE block_account(
+IN acc_id INT
+)
+BEGIN
+
+UPDATE accounts
+SET status = 'frozen'
+WHERE id = acc_id;
+
+END //
+
+DELIMITER ;
+
+/*run block_account procedure*/
+CALL block_account(1);
+
