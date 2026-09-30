@@ -2216,9 +2216,17 @@ SELECT
 FROM invoices
 WHERE payment_status IN ('unpaid', 'partially_paid');
 
+-- المبلغ المتبقي لكل فاتورة
 
-
-
+SELECT 
+    i.id AS invoice_id,
+    i.total_amount,
+    COALESCE(SUM(CASE WHEN p.status = 'completed' THEN p.amount ELSE 0 END), 0) AS total_paid,
+    (i.total_amount - COALESCE(SUM(CASE WHEN p.status = 'completed' THEN p.amount ELSE 0 END), 0)) AS remaining_unpaid_amount
+FROM invoices i
+LEFT JOIN payments p ON i.id = p.invoice_id
+GROUP BY i.id, i.total_amount
+ORDER BY i.id ASC;
 
 
 
