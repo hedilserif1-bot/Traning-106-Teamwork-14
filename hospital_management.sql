@@ -2302,6 +2302,45 @@ GROUP BY revenue_month
 ORDER BY total_revenue DESC
 LIMIT 1;
 
+-- طريقة الدفع الأكثر استخدامًا
+
+SELECT 
+    payment_method,
+    COUNT(*) AS usage_count
+FROM payments
+WHERE status = 'completed'
+GROUP BY payment_method
+ORDER BY usage_count DESC
+LIMIT 1;
+
+-- إجمالي الإيرادات حسب طريقة الدفع
+
+SELECT 
+    payment_method,
+    ROUND(SUM(amount), 0) AS total_revenue
+FROM payments
+WHERE status = 'completed'
+GROUP BY payment_method
+ORDER BY total_revenue DESC;
+
+-- الفواتير التي مجموع مدفوعاتها أكبر من قيمة الفاتورة
+
+SELECT 
+    i.id AS invoice_id,
+    ROUND(i.total_amount, 0) AS invoice_amount,
+    ROUND(SUM(p.amount), 0) AS total_paid_amount
+FROM invoices i
+JOIN payments p ON i.id = p.invoice_id
+WHERE p.status = 'completed'
+GROUP BY i.id, i.total_amount
+HAVING SUM(p.amount) > i.total_amount
+ORDER BY i.id ASC;
+
+
+
+
+
+
 
 
 
