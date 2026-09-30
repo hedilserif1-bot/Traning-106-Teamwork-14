@@ -1115,6 +1115,54 @@ GROUP BY
     c.city;
 
 
+  ---------- Indexes------------
+
+-- ============================================
+-- 1. tracking_number
+-- ============================================
+CREATE INDEX idx_shipments_tracking_number
+ON shipments(tracking_number);
+-- ============================================
+-- 2. customer_id
+-- ============================================
+CREATE INDEX idx_shipments_customer_id
+ON shipments(customer_id);
+-- ============================================
+--3. shipment_status
+-- ============================================
+
+CREATE INDEX idx_shipments_status
+ON shipments(shipment_status);
+
+-- ============================================
+-- 4. created_at
+-- ============================================
+CREATE INDEX idx_shipments_created_at
+ON shipments(created_at);
+-- ============================================
+-- 5. expected_delivery_date
+-- ============================================
+CREATE INDEX idx_shipments_expected_delivery
+ON shipments(expected_delivery_date);
+-- ============================================
+-- 6. driver_id
+-- ============================================
+CREATE INDEX idx_deliveries_driver_id
+ON deliveries(driver_id);
+
+-- ============================================
+-- 7. payment_date
+-- ============================================
+CREATE INDEX idx_payments_payment_date
+ON payments(payment_date);
+
+-- ===========================================
+
+-- ============================================
+
+
+
+
 
 
 
