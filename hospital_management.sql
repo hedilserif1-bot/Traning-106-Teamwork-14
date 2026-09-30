@@ -2194,11 +2194,13 @@ JOIN rooms r ON r.department_id = d.id
 GROUP BY d.id, d.department_name
 ORDER BY occupancy_rate_percentage DESC;
 
+-- من هنا تبدا إستعلامات ( Financial Queries )
 
+-- إجمالي قيمة الفواتير
 
-
-
-
+SELECT 
+    SUM(total_amount) AS grand_total_invoices
+FROM invoices;
 
 
 
