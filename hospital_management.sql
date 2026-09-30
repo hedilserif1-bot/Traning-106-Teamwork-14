@@ -2202,6 +2202,33 @@ SELECT
     SUM(total_amount) AS grand_total_invoices
 FROM invoices;
 
+-- إجمالي المبالغ المدفوعة
+
+SELECT 
+    SUM(amount) AS total_paid_amount
+FROM payments
+WHERE status = 'completed';
+
+-- إجمالي المبالغ غير المحصلة
+
+SELECT 
+    SUM(total_amount) AS total_uncollected_amount
+FROM invoices
+WHERE payment_status IN ('unpaid', 'partially_paid');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
