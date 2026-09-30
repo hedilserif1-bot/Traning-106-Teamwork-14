@@ -1636,9 +1636,18 @@ JOIN patient_lab_tests ON lab_tests.id = patient_lab_tests.lab_test_id
 GROUP BY lab_tests.id, lab_tests.test_name, lab_tests.category 
 ORDER BY request_count DESC;
 
+-- عرض المرضى الذين لديهم أكثر من 5 فحوصات
 
-
-
+SELECT 
+    patients.id AS patient_id, 
+    patients.full_name, 
+    COUNT(patient_lab_tests.id) AS total_tests_count 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id 
+JOIN patient_lab_tests ON medical_visits.id = patient_lab_tests.visit_id
+GROUP BY patients.id, patients.full_name 
+HAVING COUNT(patient_lab_tests.id) > 5 
+ORDER BY total_tests_count DESC;
 
 
 
