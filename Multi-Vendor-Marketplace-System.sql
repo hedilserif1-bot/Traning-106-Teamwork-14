@@ -4080,3 +4080,25 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+
+CALL create_payment(
+    1,
+    500.00,
+    'card',
+    'PAYMENT-ABC-001'
+);
+
+SELECT *
+FROM payments
+WHERE idempotency_key = 'PAYMENT-ABC-001';
+
+
+
+SELECT
+    idempotency_key,
+    COUNT(*) AS payment_count
+FROM payments
+WHERE idempotency_key = 'PAYMENT-ABC-001'
+GROUP BY idempotency_key;
