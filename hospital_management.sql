@@ -1755,9 +1755,18 @@ FROM admissions
 WHERE discharged_at IS NOT NULL 
 ORDER BY id ASC;
 
+-- حساب متوسط مدة الإقامة في كل قسم
 
-
-
+SELECT 
+    d.id AS department_id,
+    d.department_name,
+    ROUND(AVG(DATEDIFF(a.discharged_at, a.admitted_at)), 0) AS avg_stay_duration_days
+FROM departments d
+JOIN rooms r ON d.id = r.department_id
+JOIN admissions a ON r.id = a.room_id
+WHERE a.discharged_at IS NOT NULL
+GROUP BY d.id, d.department_name
+ORDER BY d.id ASC;
 
 
 
