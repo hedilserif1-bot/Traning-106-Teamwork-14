@@ -1269,10 +1269,149 @@ ON payments(payment_date);
 --Conclusion:
 --The index on payment_date exists, but MySQL chose not to use it
 --for this query because a full table scan was considered more suitable.
--- ===========================================
 
+
+
+-- ===========================================
+----------***TRANSACTION***----------
 -- ============================================
 
+
+
+--Transactions are used to group multiple SQL operations into one logical unit.
+
+--The main commands are:
+
+--- `START TRANSACTION` → starts the transaction.
+----`COMMIT` → permanently saves all changes made during the transaction.
+--- `ROLLBACK` → cancels the changes made during the transaction.
+
+-- Example: Create Shipment with Tracking and Payment
+
+---The following transaction creates a new shipment, adds its first tracking record, and records its payment as one logical operation.
+
+
+START TRANSACTION;
+
+INSERT INTO shipments (
+    tracking_number,
+    customer_id,
+    origin_branch_id,
+    destination_branch_id,
+    sender_name,
+    sender_phone,
+    receiver_name,
+    receiver_phone,
+    receiver_address,
+    receiver_city,
+    weight,
+    shipping_cost,
+    created_at,
+    expected_delivery_date,
+    payment_status,
+    shipment_status
+)
+VALUES (
+    'TRK100061',
+    1,
+    1,
+    2,
+    'Ahmad Hassan',
+    '0501000001',
+    'Sara Hassan',
+    '0505000001',
+    'Besiktas',
+    'Istanbul',
+    2.50,
+    180.00,
+    NOW(),
+    '2026-10-05',
+    'paid',
+    'created'
+);
+
+INSERT INTO shipment_tracking (
+    shipment_id,
+    branch_id,
+    status,
+    description,
+    recorded_at
+)
+VALUES (
+    61,
+    1,
+    'created',
+    'Shipment created',
+    NOW()
+);
+
+INSERT INTO payments (
+    shipment_id,
+    amount,
+    payment_method,
+    payment_date,
+    transaction_reference,
+    status
+)
+VALUES (
+    61,
+    180.00,
+    'cash',
+    NOW(),
+    'TXN100061',
+    'successful'
+);
+
+COMMIT;
+
+-------------------------------------------------
+
+--After the transaction, the inserted data was verified in all three tables:
+
+
+SELECT *
+FROM shipments
+WHERE id = 61;
+
+SELECT *
+FROM shipment_tracking
+WHERE shipment_id = 61;
+
+SELECT *
+FROM payments
+WHERE shipment_id = 61;
+```
+
+---Result----
+
+----The transaction was completed successfully.
+
+-- Shipment `61` was created.
+-- Tracking record `121` was created.
+-- Payment record `41` was created.
+--- `COMMIT` permanently saved all changes.
+
+---- ROLLBACK---
+
+----`ROLLBACK` is used when an error occurs or when we want to cancel the changes made inside the current transaction.
+
+--Example:
+
+
+START TRANSACTION;
+
+-- SQL operations
+
+ROLLBACK;
+----------------------------------------------------------------
+
+--In this case, all changes made after `START TRANSACTION` are undone, as long as they have not been committed.
+
+----- Important Note----
+
+---`COMMIT` makes the changes permanent, while `ROLLBACK` cancels the uncommitted changes.
+
+--The transaction ensures that related operations can be treated as one unit, which helps maintain data consistency.
 
 
 
