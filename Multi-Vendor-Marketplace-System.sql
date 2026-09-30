@@ -2464,6 +2464,410 @@ JOIN order_items AS oi ON oi.order_id = o.id
 GROUP BY o.id, o.order_number
 HAVING COUNT(DISTINCT oi.seller_id) > 1;
 
+-- 25. عرض Orders غير المدفوعة
+SELECT o.id, o.order_number, o.customer_id, o.total_amount, o.ordered_at
+FROM orders o
+LEFT JOIN payments p ON p.order_id = o.id
+WHERE p.id IS NULL
+   OR p.status <> 'paid';
+
+
+-- 26. عرض Orders المدفوعة ولم يتم شحنها
+SELECT o.id, o.order_number, o.customer_id, p.paid_at
+FROM orders o
+JOIN payments p ON p.order_id = o.id
+LEFT JOIN shipments s ON s.order_id = o.id
+WHERE p.status = 'paid'
+  AND (s.id IS NULL OR s.shipped_at IS NULL);
+
+
+-- 27. عرض Orders التي تجاوزت Expected Delivery ولم تصل
+SELECT
+    o.id,
+    o.order_number,
+    s.expected_delivery,
+    s.status
+FROM orders o
+JOIN shipments s ON s.order_id = o.id
+WHERE s.expected_delivery < NOW()
+  AND s.delivered_at IS NULL;
+
+
+-- 28. حساب متوسط مدة التوصيل
+SELECT
+    AVG(TIMESTAMPDIFF(DAY, shipped_at, delivered_at))
+        AS average_delivery_days
+FROM shipments
+WHERE shipped_at IS NOT NULL
+  AND delivered_at IS NOT NULL;
+
+
+-- 29. عرض Shipments التي استغرقت أكثر من متوسط مدة التوصيل
+SELECT
+    s.id,
+    s.order_id,
+    s.tracking_number,
+    s.shipped_at,
+    s.delivered_at,
+    TIMESTAMPDIFF(DAY, s.shipped_at, s.delivered_at) AS delivery_days
+FROM shipments s
+WHERE s.shipped_at IS NOT NULL
+  AND s.delivered_at IS NOT NULL
+  AND TIMESTAMPDIFF(DAY, s.shipped_at, s.delivered_at) >
+      (
+        SELECT AVG(TIMESTAMPDIFF(DAY, shipped_at, delivered_at))
+        FROM shipments
+        WHERE shipped_at IS NOT NULL
+          AND delivered_at IS NOT NULL
+      );
+
+
+-- 30. حساب عدد Orders لكل شهر
+SELECT
+    DATE_FORMAT(ordered_at, '%Y-%m') AS month,
+    COUNT(*) AS orders_count
+FROM orders
+GROUP BY DATE_FORMAT(ordered_at, '%Y-%m')
+ORDER BY month;
+
+
+-- 31. حساب Revenue لكل شهر
+SELECT
+    DATE_FORMAT(paid_at, '%Y-%m') AS month,
+    SUM(amount) AS revenue
+FROM payments
+WHERE status = 'paid'
+GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+ORDER BY month;
+
+
+-- 32. عرض الشهر صاحب أعلى Revenue
+SELECT
+    DATE_FORMAT(paid_at, '%Y-%m') AS month,
+    SUM(amount) AS revenue
+FROM payments
+WHERE status = 'paid'
+GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+ORDER BY revenue DESC
+LIMIT 1;
+
+
+-- 33. حساب Average Order Value لكل شهر
+SELECT
+    DATE_FORMAT(ordered_at, '%Y-%m') AS month,
+    AVG(total_amount) AS average_order_value
+FROM orders
+GROUP BY DATE_FORMAT(ordered_at, '%Y-%m')
+ORDER BY month;
+
+
+-- 34. مقارنة Revenue الشهر الحالي بالشهر السابق
+SELECT
+    current_month.month,
+    current_month.revenue AS current_revenue,
+    previous_month.revenue AS previous_revenue,
+    current_month.revenue - previous_month.revenue AS difference
+FROM
+(
+    SELECT
+        DATE_FORMAT(paid_at, '%Y-%m') AS month,
+        SUM(amount) AS revenue
+    FROM payments
+    WHERE status = 'paid'
+    GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+) current_month
+LEFT JOIN
+(
+    SELECT
+        DATE_FORMAT(paid_at, '%Y-%m') AS month,
+        SUM(amount) AS revenue
+    FROM payments
+    WHERE status = 'paid'
+    GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+) previous_month
+ON previous_month.month =
+   DATE_FORMAT(
+       DATE_SUB(
+           STR_TO_DATE(CONCAT(current_month.month, '-01'), '%Y-%m-%d'),
+           INTERVAL 1 MONTH
+       ),
+       '%Y-%m'
+   );
+
+
+-- 35. حساب Growth Percentage بين الأشهر
+SELECT
+    current_month.month,
+    current_month.revenue AS current_revenue,
+    previous_month.revenue AS previous_revenue,
+    ROUND(
+        (
+            (current_month.revenue - previous_month.revenue)
+            / NULLIF(previous_month.revenue, 0)
+        ) * 100,
+        2
+    ) AS growth_percentage
+FROM
+(
+    SELECT
+        DATE_FORMAT(paid_at, '%Y-%m') AS month,
+        SUM(amount) AS revenue
+    FROM payments
+    WHERE status = 'paid'
+    GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+) current_month
+LEFT JOIN
+(
+    SELECT
+        DATE_FORMAT(paid_at, '%Y-%m') AS month,
+        SUM(amount) AS revenue
+    FROM payments
+    WHERE status = 'paid'
+    GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+) previous_month
+ON previous_month.month =
+   DATE_FORMAT(
+       DATE_SUB(
+           STR_TO_DATE(CONCAT(current_month.month, '-01'), '%Y-%m-%d'),
+           INTERVAL 1 MONTH
+       ),
+       '%Y-%m'
+   );
+
+
+-- 36. عرض Sellers الذين لم يحققوا أي Sale
+SELECT
+    s.id,
+    s.store_name
+FROM sellers s
+LEFT JOIN order_items oi
+    ON oi.seller_id = s.id
+WHERE oi.id IS NULL;
+
+
+-- 37. حساب Revenue لكل Seller
+SELECT
+    s.id,
+    s.store_name,
+    SUM(oi.seller_amount) AS revenue
+FROM sellers s
+JOIN order_items oi
+    ON oi.seller_id = s.id
+GROUP BY s.id, s.store_name
+ORDER BY revenue DESC;
+
+
+-- 38. حساب Platform Commission لكل Seller
+SELECT
+    s.id,
+    s.store_name,
+    SUM(oi.platform_commission) AS platform_commission
+FROM sellers s
+JOIN order_items oi
+    ON oi.seller_id = s.id
+GROUP BY s.id, s.store_name
+ORDER BY platform_commission DESC;
+
+
+-- 39. حساب المبلغ المستحق لكل Seller بعد Commission و Refunds
+SELECT
+    s.id,
+    s.store_name,
+    COALESCE(SUM(oi.seller_amount), 0) AS gross_amount,
+    COALESCE(SUM(oi.platform_commission), 0) AS commission,
+    COALESCE(SUM(rf.amount), 0) AS refunds,
+    COALESCE(SUM(oi.seller_amount), 0)
+    - COALESCE(SUM(oi.platform_commission), 0)
+    - COALESCE(SUM(rf.amount), 0) AS payable_amount
+FROM sellers s
+LEFT JOIN order_items oi
+    ON oi.seller_id = s.id
+LEFT JOIN returns r
+    ON r.order_item_id = oi.id
+   AND r.status = 'completed'
+LEFT JOIN refunds rf
+    ON rf.return_id = r.id
+   AND rf.status = 'completed'
+GROUP BY s.id, s.store_name;
+
+
+-- 40. عرض Seller الذي لديه أكبر عدد من Customers مختلفين
+SELECT
+    s.id,
+    s.store_name,
+    COUNT(DISTINCT o.customer_id) AS customers_count
+FROM sellers s
+JOIN order_items oi
+    ON oi.seller_id = s.id
+JOIN orders o
+    ON o.id = oi.order_id
+GROUP BY s.id, s.store_name
+ORDER BY customers_count DESC
+LIMIT 1;
+
+
+-- 41. عرض Seller الذي لديه أعلى Average Order Item Value
+SELECT
+    s.id,
+    s.store_name,
+    AVG(oi.unit_price * oi.quantity) AS average_order_item_value
+FROM sellers s
+JOIN order_items oi
+    ON oi.seller_id = s.id
+GROUP BY s.id, s.store_name
+ORDER BY average_order_item_value DESC
+LIMIT 1;
+
+
+-- 42. عرض المنتجات ذات أعلى Return Rate
+SELECT
+    p.id,
+    p.product_name,
+    COALESCE(SUM(r.quantity), 0) AS returned_quantity,
+    SUM(oi.quantity) AS sold_quantity,
+    ROUND(
+        COALESCE(SUM(r.quantity), 0)
+        / NULLIF(SUM(oi.quantity), 0) * 100,
+        2
+    ) AS return_rate
+FROM products p
+JOIN order_items oi
+    ON oi.product_id = p.id
+LEFT JOIN returns r
+    ON r.order_item_id = oi.id
+   AND r.status = 'completed'
+GROUP BY p.id, p.product_name
+ORDER BY return_rate DESC;
+
+
+-- 43. عرض Sellers ذوي أعلى Return Rate
+SELECT
+    s.id,
+    s.store_name,
+    COALESCE(SUM(r.quantity), 0) AS returned_quantity,
+    SUM(oi.quantity) AS sold_quantity,
+    ROUND(
+        COALESCE(SUM(r.quantity), 0)
+        / NULLIF(SUM(oi.quantity), 0) * 100,
+        2
+    ) AS return_rate
+FROM sellers s
+JOIN order_items oi
+    ON oi.seller_id = s.id
+LEFT JOIN returns r
+    ON r.order_item_id = oi.id
+   AND r.status = 'completed'
+GROUP BY s.id, s.store_name
+ORDER BY return_rate DESC;
+
+
+-- 44. عرض Customers الذين قاموا بعدد Returns أعلى من المتوسط
+SELECT
+    c.id,
+    c.full_name,
+    COUNT(r.id) AS returns_count
+FROM customers c
+JOIN orders o
+    ON o.customer_id = c.id
+JOIN order_items oi
+    ON oi.order_id = o.id
+JOIN returns r
+    ON r.order_item_id = oi.id
+GROUP BY c.id, c.full_name
+HAVING COUNT(r.id) >
+(
+    SELECT AVG(return_count)
+    FROM
+    (
+        SELECT
+            o.customer_id,
+            COUNT(r.id) AS return_count
+        FROM orders o
+        JOIN order_items oi
+            ON oi.order_id = o.id
+        JOIN returns r
+            ON r.order_item_id = oi.id
+        GROUP BY o.customer_id
+    ) x
+);
+
+
+-- 45. عرض المنتجات التي متوسط تقييمها أقل من 3
+SELECT
+    p.id,
+    p.product_name,
+    AVG(r.rating) AS average_rating
+FROM products p
+JOIN reviews r
+    ON r.product_id = p.id
+GROUP BY p.id, p.product_name
+HAVING AVG(r.rating) < 3;
+
+
+-- 46. حساب Average Rating لكل Product
+SELECT
+    p.id,
+    p.product_name,
+    ROUND(AVG(r.rating), 2) AS average_rating
+FROM products p
+LEFT JOIN reviews r
+    ON r.product_id = p.id
+GROUP BY p.id, p.product_name
+ORDER BY average_rating DESC;
+
+
+-- 47. عرض المنتجات التي لديها 10 Reviews على الأقل ومتوسط تقييم أعلى من 4
+SELECT
+    p.id,
+    p.product_name,
+    COUNT(r.id) AS reviews_count,
+    ROUND(AVG(r.rating), 2) AS average_rating
+FROM products p
+JOIN reviews r
+    ON r.product_id = p.id
+GROUP BY p.id, p.product_name
+HAVING COUNT(r.id) >= 10
+   AND AVG(r.rating) > 4;
+
+
+-- 48. عرض Customers الذين كتبوا Review بدون شراء المنتج
+SELECT
+    r.id AS review_id,
+    r.customer_id,
+    r.product_id,
+    r.order_item_id,
+    r.rating,
+    r.comment
+FROM reviews r
+JOIN order_items oi
+    ON oi.id = r.order_item_id
+JOIN orders o
+    ON o.id = oi.order_id
+WHERE r.customer_id <> o.customer_id;
+
+
+-- 49. عرض الـCoupons الأكثر استخدامًا
+SELECT
+    c.id,
+    c.code,
+    COUNT(o.id) AS usage_count
+FROM coupons c
+JOIN orders o
+    ON o.coupon_id = c.id
+GROUP BY c.id, c.code
+ORDER BY usage_count DESC;
+
+
+-- 50. حساب إجمالي قيمة الخصومات الناتجة عن كل Coupon
+SELECT
+    c.id,
+    c.code,
+    COALESCE(SUM(o.discount_amount), 0) AS total_discount
+FROM coupons c
+LEFT JOIN orders o
+    ON o.coupon_id = c.id
+GROUP BY c.id, c.code
+ORDER BY total_discount DESC;
 
 
 
