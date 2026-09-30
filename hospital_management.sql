@@ -1675,8 +1675,23 @@ WHERE patient_lab_tests.completed_at IS NOT NULL
 GROUP BY lab_tests.id, lab_tests.test_name, lab_tests.category 
 ORDER BY lab_tests.id ASC;
 
+-- عرض الفحوصات التي استغرقت أكثر من متوسط وقت التنفيذ
 
-
-
+SELECT 
+    patient_lab_tests.id, 
+    patient_lab_tests.visit_id, 
+    lab_tests.test_name, 
+    patient_lab_tests.ordered_at, 
+    patient_lab_tests.completed_at, 
+    TIMEDIFF(patient_lab_tests.completed_at, patient_lab_tests.ordered_at) AS time_taken 
+FROM patient_lab_tests 
+JOIN lab_tests ON patient_lab_tests.lab_test_id = lab_tests.id
+WHERE patient_lab_tests.completed_at IS NOT NULL 
+  AND TIMESTAMPDIFF(SECOND, patient_lab_tests.ordered_at, patient_lab_tests.completed_at) > (
+      SELECT AVG(TIMESTAMPDIFF(SECOND, ordered_at, completed_at)) 
+      FROM patient_lab_tests 
+      WHERE completed_at IS NOT NULL
+  )
+ORDER BY patient_lab_tests.id ASC;
 
 
