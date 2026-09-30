@@ -3335,3 +3335,296 @@ CHECK (stock_quantity >= 0);
 
 
 
+
+
+DROP PROCEDURE IF EXISTS create_order;
+
+DELIMITER $$
+
+CREATE PROCEDURE create_order(
+    IN p_customer_id INT,
+    IN p_cart_id INT,
+    IN p_coupon_code VARCHAR(100)
+)
+BEGIN
+    DECLARE v_address_id INT DEFAULT NULL;
+    DECLARE v_coupon_id INT DEFAULT NULL;
+    DECLARE v_discount DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_subtotal DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_total DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_order_id INT;
+    DECLARE v_order_number VARCHAR(100);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    /* Customer active */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM customers
+        WHERE id = p_customer_id
+          AND status = 'active'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer is not active';
+    END IF;
+
+    /* Active cart */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM carts
+        WHERE id = p_cart_id
+          AND customer_id = p_customer_id
+          AND status = 'active'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cart is not active or does not belong to customer';
+    END IF;
+
+    /* Default address */
+    SELECT id
+    INTO v_address_id
+    FROM customer_addresses
+    WHERE customer_id = p_customer_id
+      AND is_default = 1
+    LIMIT 1;
+
+    IF v_address_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer has no default address';
+    END IF;
+
+    /* Cart must contain products */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM cart_items
+        WHERE cart_id = p_cart_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cart is empty';
+    END IF;
+
+    /* Quantity must be positive */
+    IF EXISTS (
+        SELECT 1
+        FROM cart_items
+        WHERE cart_id = p_cart_id
+          AND quantity <= 0
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cart contains invalid quantity';
+    END IF;
+
+    /* Lock products before checking stock */
+    SELECT p.id
+    FROM products AS p
+    INNER JOIN cart_items AS ci
+        ON ci.product_id = p.id
+    WHERE ci.cart_id = p_cart_id
+    FOR UPDATE;
+
+    /* Products and sellers */
+    IF EXISTS (
+        SELECT 1
+        FROM cart_items AS ci
+        LEFT JOIN products AS p
+            ON p.id = ci.product_id
+        LEFT JOIN sellers AS s
+            ON s.id = p.seller_id
+        WHERE ci.cart_id = p_cart_id
+          AND (
+              p.id IS NULL
+              OR s.id IS NULL
+              OR p.status <> 'active'
+              OR s.status <> 'active'
+              OR p.stock_quantity < ci.quantity
+          )
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid product, seller or insufficient stock';
+    END IF;
+
+    /* Subtotal */
+    SELECT COALESCE(SUM(ci.quantity * p.price), 0)
+    INTO v_subtotal
+    FROM cart_items AS ci
+    INNER JOIN products AS p
+        ON p.id = ci.product_id
+    WHERE ci.cart_id = p_cart_id;
+
+    /* Coupon */
+    IF p_coupon_code IS NOT NULL THEN
+
+        SELECT id
+        INTO v_coupon_id
+        FROM coupons
+        WHERE code = p_coupon_code
+          AND status = 'active'
+          AND NOW() BETWEEN starts_at AND expires_at
+          AND used_count < usage_limit
+        LIMIT 1
+        FOR UPDATE;
+
+        IF v_coupon_id IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Invalid or expired coupon';
+        END IF;
+
+        SELECT
+            CASE
+                WHEN discount_type = 'percentage'
+                    THEN LEAST(
+                        v_subtotal * discount_value / 100,
+                        COALESCE(maximum_discount, v_subtotal)
+                    )
+                ELSE LEAST(discount_value, v_subtotal)
+            END
+        INTO v_discount
+        FROM coupons
+        WHERE id = v_coupon_id
+          AND v_subtotal >= minimum_order;
+
+        IF v_discount IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Minimum order amount not reached';
+        END IF;
+
+    END IF;
+
+    SET v_total = v_subtotal - v_discount;
+
+    /* Create Order */
+    SET v_order_number = CONCAT('ORD-', UUID());
+
+    INSERT INTO orders
+    (
+        order_number,
+        customer_id,
+        address_id,
+        coupon_id,
+        subtotal,
+        discount_amount,
+        shipping_cost,
+        total_amount,
+        status
+    )
+    VALUES
+    (
+        v_order_number,
+        p_customer_id,
+        v_address_id,
+        v_coupon_id,
+        v_subtotal,
+        v_discount,
+        0,
+        v_total,
+        'pending'
+    );
+
+    SET v_order_id = LAST_INSERT_ID();
+
+    /* Create Order Items */
+    INSERT INTO order_items
+    (
+        order_id,
+        product_id,
+        seller_id,
+        quantity,
+        unit_price,
+        discount_amount,
+        platform_commission,
+        seller_amount,
+        status
+    )
+    SELECT
+        v_order_id,
+        p.id,
+        p.seller_id,
+        ci.quantity,
+        p.price,
+
+        ROUND(
+            (ci.quantity * p.price / v_subtotal) * v_discount,
+            2
+        ),
+
+        ROUND(
+            (
+                (ci.quantity * p.price)
+                -
+                ((ci.quantity * p.price / v_subtotal) * v_discount)
+            ) * s.commission_rate / 100,
+            2
+        ),
+
+        ROUND(
+            (
+                (ci.quantity * p.price)
+                -
+                ((ci.quantity * p.price / v_subtotal) * v_discount)
+            )
+            -
+            (
+                (
+                    (ci.quantity * p.price)
+                    -
+                    ((ci.quantity * p.price / v_subtotal) * v_discount)
+                ) * s.commission_rate / 100
+            ),
+            2
+        ),
+
+        'active'
+
+    FROM cart_items AS ci
+    INNER JOIN products AS p
+        ON p.id = ci.product_id
+    INNER JOIN sellers AS s
+        ON s.id = p.seller_id
+    WHERE ci.cart_id = p_cart_id;
+
+    /* Decrease stock */
+    UPDATE products AS p
+    INNER JOIN cart_items AS ci
+        ON ci.product_id = p.id
+    SET p.stock_quantity = p.stock_quantity - ci.quantity
+    WHERE ci.cart_id = p_cart_id;
+
+    /* Update out of stock products */
+    UPDATE products
+    SET status = 'out_of_stock'
+    WHERE id IN (
+        SELECT product_id
+        FROM cart_items
+        WHERE cart_id = p_cart_id
+    )
+    AND stock_quantity = 0;
+
+    /* Update coupon usage */
+    IF v_coupon_id IS NOT NULL THEN
+        UPDATE coupons
+        SET used_count = used_count + 1
+        WHERE id = v_coupon_id;
+    END IF;
+
+    /* Cart converted */
+    UPDATE carts
+    SET status = 'converted'
+    WHERE id = p_cart_id;
+
+    COMMIT;
+
+    SELECT *
+    FROM orders
+    WHERE id = v_order_id;
+
+END$$
+
+DELIMITER ;
+
+
