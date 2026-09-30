@@ -1694,4 +1694,41 @@ WHERE patient_lab_tests.completed_at IS NOT NULL
   )
 ORDER BY patient_lab_tests.id ASC;
 
+--عرض الغرف المتاحة حاليًا
+
+SELECT 
+    r.id, 
+    r.department_id, 
+    r.room_number, 
+    r.room_type, 
+    r.floor_number, 
+    r.daily_price, 
+    r.status 
+FROM rooms r
+WHERE r.status = 'available'
+  AND r.id NOT IN (
+      SELECT room_id 
+      FROM admissions 
+      WHERE discharged_at IS NULL
+  )
+ORDER BY r.id ASC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
