@@ -1713,9 +1713,20 @@ WHERE r.status = 'available'
   )
 ORDER BY r.id ASC;
 
+-- عرض الغرف المستخدمة حاليًا مع اسم المريض
 
-
-
+SELECT 
+    r.id AS room_id, 
+    r.room_number, 
+    r.room_type, 
+    p.id AS patient_id, 
+    p.full_name AS patient_name 
+FROM rooms r
+JOIN admissions a ON r.id = a.room_id
+JOIN patients p ON a.patient_id = p.id
+WHERE r.status = 'occupied' 
+  AND a.discharged_at IS NULL
+ORDER BY r.id ASC;
 
 
 
