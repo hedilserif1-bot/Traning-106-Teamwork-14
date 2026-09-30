@@ -3924,3 +3924,60 @@ END$$
 DELIMITER ;
 
 
+-- Coupon Concurrency Challenge
+
+
+
+DROP PROCEDURE IF EXISTS use_coupon_safe;
+
+DELIMITER $$
+
+CREATE PROCEDURE use_coupon_safe(
+    IN p_coupon_id INT
+)
+BEGIN
+    DECLARE v_used_count INT DEFAULT NULL;
+    DECLARE v_usage_limit INT DEFAULT NULL;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    -- Coupon satırını kilitle
+    SELECT used_count, usage_limit
+    INTO v_used_count, v_usage_limit
+    FROM coupons
+    WHERE id = p_coupon_id
+    FOR UPDATE;
+
+    -- Coupon mevcut mu?
+    IF v_used_count IS NULL OR v_usage_limit IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Coupon not found';
+    END IF;
+
+    -- Kullanım hakkı kaldı mı?
+    IF v_used_count >= v_usage_limit THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Coupon usage limit reached';
+    END IF;
+
+    -- Kullanım sayısını artır
+    UPDATE coupons
+    SET used_count = used_count + 1
+    WHERE id = p_coupon_id;
+
+    COMMIT;
+
+    SELECT
+        p_coupon_id AS coupon_id,
+        v_used_count + 1 AS new_used_count;
+
+END$$
+
+DELIMITER ;
+
