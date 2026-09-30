@@ -3622,7 +3622,8 @@ BEGIN
     SELECT *
     FROM orders
     WHERE id = v_order_id;
-
+     END$$
+DELIMITER ;
 
 
 -- Overselling Challenge
@@ -3771,10 +3772,6 @@ BEGIN
         p_product_id AS product_id,
         p_quantity AS quantity,
         v_stock - p_quantity AS remaining_stock;
-
-END$$
-
-DELIMITER ;
 
 END$$
 
