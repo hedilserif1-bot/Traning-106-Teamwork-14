@@ -987,9 +987,132 @@ VALUES
 (40,500.00,'card','2026-02-16 12:00:00','TXN100040','successful');
 
 
+-- ============================================
+---- views----
+-- ============================================
 
+-- ============================================
+-- 1 . active_shipments_view---
+-- ============================================
+CREATE VIEW active_shipments_view AS
+SELECT
+    s.id,
+    s.tracking_number,
+    c.full_name AS customer_name,
+    ob.branch_name AS origin_branch,
+    db.branch_name AS destination_branch,
+    s.sender_name,
+    s.receiver_name,
+    s.receiver_city,
+    s.weight,
+    s.shipping_cost,
+    s.created_at,
+    s.expected_delivery_date,
+    s.payment_status,
+    s.shipment_status
+FROM shipments s
+JOIN customers c
+    ON s.customer_id = c.id
+JOIN branches ob
+    ON s.origin_branch_id = ob.id
+JOIN branches db
+    ON s.destination_branch_id = db.id
+WHERE s.shipment_status NOT IN ('delivered', 'cancelled', 'returned');
 
+-- ============================================
+---2 . driver_performance_view---
+-- ============================================
+CREATE VIEW driver_performance_view AS
+SELECT
+    d.id AS driver_id,
+    d.full_name AS driver_name,
 
+    COUNT(del.id) AS total_deliveries,
+
+    (
+        SELECT COUNT(*)
+        FROM deliveries d2
+        WHERE d2.driver_id = d.id
+        AND d2.delivery_status = 'completed'
+    ) AS successful_deliveries,
+
+    (
+        SELECT COUNT(*)
+        FROM deliveries d3
+        WHERE d3.driver_id = d.id
+        AND d3.delivery_status <> 'completed'
+    ) AS unsuccessful_deliveries,
+
+    (
+        SELECT SUM(s.shipping_cost)
+        FROM deliveries d4
+        JOIN shipments s
+            ON d4.shipment_id = s.id
+        WHERE d4.driver_id = d.id
+    ) AS total_shipment_value,
+
+    (
+        SELECT MAX(d5.completed_at)
+        FROM deliveries d5
+        WHERE d5.driver_id = d.id
+    ) AS last_delivery
+
+FROM drivers d
+
+LEFT JOIN deliveries del
+    ON d.id = del.driver_id
+
+GROUP BY
+    d.id,
+    d.full_name;
+-- ============================================
+--3 . customer_statistics_view---
+-- ============================================
+CREATE VIEW customer_statistics_view AS
+SELECT
+    c.id AS customer_id,
+    c.full_name AS customer_name,
+    c.email,
+    c.phone,
+    c.customer_type,
+    c.city,
+
+    COUNT(s.id) AS shipment_count,
+
+    SUM(s.shipping_cost) AS total_shipping_cost,
+
+    (
+        SELECT COUNT(*)
+        FROM shipments s2
+        WHERE s2.customer_id = c.id
+        AND s2.shipment_status = 'delivered'
+    ) AS completed_shipments,
+
+    (
+        SELECT COUNT(*)
+        FROM shipments s3
+        WHERE s3.customer_id = c.id
+        AND s3.shipment_status = 'cancelled'
+    ) AS cancelled_shipments,
+
+    (
+        SELECT MAX(s4.created_at)
+        FROM shipments s4
+        WHERE s4.customer_id = c.id
+    ) AS last_shipment
+
+FROM customers c
+
+LEFT JOIN shipments s
+    ON c.id = s.customer_id
+
+GROUP BY
+    c.id,
+    c.full_name,
+    c.email,
+    c.phone,
+    c.customer_type,
+    c.city;
 
 
 
