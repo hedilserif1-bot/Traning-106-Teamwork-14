@@ -1649,13 +1649,31 @@ GROUP BY patients.id, patients.full_name
 HAVING COUNT(patient_lab_tests.id) > 5 
 ORDER BY total_tests_count DESC;
 
+-- عرض الفحوصات التي لم يتم طلبها نهائيًا
 
+SELECT 
+    lab_tests.id, 
+    lab_tests.test_name, 
+    lab_tests.category, 
+    lab_tests.price, 
+    lab_tests.status 
+FROM lab_tests 
+LEFT JOIN patient_lab_tests ON lab_tests.id = patient_lab_tests.lab_test_id 
+WHERE patient_lab_tests.lab_test_id IS NULL 
+ORDER BY lab_tests.id ASC;
 
+-- حساب متوسط الوقت بين طلب الفحص واكتماله
 
-
-
-
-
+SELECT 
+    lab_tests.id, 
+    lab_tests.test_name, 
+    lab_tests.category, 
+    SEC_TO_TIME(AVG(TIME_TO_SEC(TIMEDIFF(patient_lab_tests.completed_at, patient_lab_tests.ordered_at)))) AS avg_time_taken 
+FROM patient_lab_tests 
+JOIN lab_tests ON patient_lab_tests.lab_test_id = lab_tests.id
+WHERE patient_lab_tests.completed_at IS NOT NULL 
+GROUP BY lab_tests.id, lab_tests.test_name, lab_tests.category 
+ORDER BY lab_tests.id ASC;
 
 
 
