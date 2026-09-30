@@ -2240,6 +2240,61 @@ WHERE i.payment_status IN ('unpaid', 'partially_paid')
 GROUP BY p.id, p.full_name
 ORDER BY p.id ASC;
 
+-- المرضى الذين مجموع ديونهم أعلى من 1000 
+
+SELECT 
+    p.id AS patient_id,
+    p.full_name AS patient_name,
+    ROUND(SUM(i.total_amount) - COALESCE(SUM(CASE WHEN pay.status = 'completed' THEN pay.amount ELSE 0 END), 0), 0) AS total_debt
+FROM patients p
+JOIN invoices i ON p.id = i.patient_id
+LEFT JOIN payments pay ON i.id = pay.invoice_id
+WHERE i.payment_status != 'cancelled'
+GROUP BY p.id, p.full_name
+HAVING total_debt > 1000
+ORDER BY p.id ASC;
+
+-- إجمالي الإيرادات لكل شهر
+
+SELECT 
+    DATE_FORMAT(p.paid_at, '%Y-%m') AS revenue_month,
+    ROUND(SUM(p.amount), 0) AS total_revenue
+FROM payments p
+WHERE p.status = 'completed'
+GROUP BY revenue_month
+ORDER BY revenue_month ASC;
+
+-- إجمالي الإيرادات لكل قسم
+
+SELECT 
+    d.department_name,
+    ROUND(SUM(p.amount), 0) AS total_revenue
+FROM payments p
+JOIN invoices i ON p.invoice_id = i.id
+JOIN medical_visits mv ON i.visit_id = mv.id
+JOIN doctors doc ON mv.doctor_id = doc.id
+JOIN departments d ON doc.department_id = d.id
+WHERE p.status = 'completed'
+GROUP BY d.id, d.department_name
+ORDER BY total_revenue DESC;
+
+-- إجمالي الإيرادات الناتجة عن كل طبيب
+
+SELECT 
+    doc.full_name AS doctor_name,
+    ROUND(SUM(p.amount), 0) AS total_revenue
+FROM payments p
+JOIN invoices i ON p.invoice_id = i.id
+JOIN medical_visits mv ON i.visit_id = mv.id
+JOIN doctors doc ON mv.doctor_id = doc.id
+WHERE p.status = 'completed'
+GROUP BY doc.id, doc.full_name
+ORDER BY total_revenue DESC;
+
+
+
+
+
 
 
 
