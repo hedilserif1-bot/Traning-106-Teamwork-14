@@ -2350,6 +2350,25 @@ GROUP BY i.id, i.payment_status, i.total_amount
 HAVING COALESCE(SUM(p.amount), 0) < i.total_amount
 ORDER BY i.id ASC;
 
+-- الفواتير المسجلة unpaid رغم وجود Payment ناجح
+
+SELECT DISTINCT
+    i.id AS invoice_id,
+    i.payment_status,
+    ROUND(i.total_amount, 0) AS invoice_amount
+FROM invoices i
+JOIN payments p ON i.id = p.invoice_id
+WHERE i.payment_status = 'unpaid' 
+  AND p.status = 'completed';
+
+
+
+
+
+
+
+
+
 
 
 
