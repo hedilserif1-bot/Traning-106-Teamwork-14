@@ -1594,6 +1594,52 @@ JOIN prescription_items ON medicines.id = prescription_items.medicine_id
 GROUP BY medicines.id, medicines.medicine_name, medicines.manufacturer 
 ORDER BY total_requested_quantity DESC;
 
+-- عرض الأدوية التي لم توصف لأي مريض
+
+SELECT 
+    medicines.id, 
+    medicines.medicine_name, 
+    medicines.manufacturer, 
+    medicines.stock_quantity, 
+    medicines.status 
+FROM medicines 
+LEFT JOIN prescription_items ON medicines.id = prescription_items.medicine_id 
+WHERE prescription_items.medicine_id IS NULL 
+ORDER BY medicines.id ASC;
+
+-- عرض المرضى الذين أخذوا نفس الدواء أكثر من مرة في زيارات مختلفة
+
+SELECT 
+    patients.id AS patient_id, 
+    patients.full_name, 
+    medicines.id AS medicine_id, 
+    medicines.medicine_name, 
+    COUNT(DISTINCT medical_visits.id) AS distinct_visits_count 
+FROM patients 
+JOIN medical_visits ON patients.id = medical_visits.patient_id
+JOIN prescriptions ON medical_visits.id = prescriptions.visit_id
+JOIN prescription_items ON prescriptions.id = prescription_items.prescription_id
+JOIN medicines ON prescription_items.medicine_id = medicines.id
+GROUP BY patients.id, patients.full_name, medicines.id, medicines.medicine_name 
+HAVING COUNT(DISTINCT medical_visits.id) > 1 
+ORDER BY patients.id ASC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
