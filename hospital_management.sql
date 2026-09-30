@@ -1318,12 +1318,6 @@ INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference,
 (74, 300.00, 'insurance', 'TXN-9100', '2027-01-08 11:00:00', 'completed');
 
 
--- بيانات إضافية لقاعدة المستشفى الحالية — شغّلي الملف مرة واحدة.
--- اختاري قاعدة المستشفى أولًا. لا يحذف الملف أي بيانات ولا يغيّر الأعمدة.
--- التواريخ محسوبة نسبةً إلى يوم تشغيل الملف.
--- المعرّفات تؤخذ من LAST_INSERT_ID()؛ لا تعتمد على بدء المعرّفات من 1.
--- إذا ظهر خطأ قبل COMMIT، نفذي ROLLBACK ولا تعيدي تشغيل الملف كاملًا قبل معالجة السبب.
-
 START TRANSACTION;
 SET @training_today = CURDATE();
 
