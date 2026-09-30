@@ -2877,3 +2877,455 @@ ORDER BY total_discount DESC;
 
 
 
+WITH RECURSIVE category_tree AS (
+   
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        category_name AS full_path,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE parent_id IS NULL
+    
+    UNION ALL
+    
+
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        ct.level + 1 AS level,
+        CONCAT(ct.full_path, ' > ', c.category_name) AS full_path,
+        CONCAT(ct.path_ids, ',', c.id) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_tree AS ct 
+        ON c.parent_id = ct.category_id
+    WHERE c.parent_id IS NOT NULL
+)
+SELECT 
+    category_id,
+    category_name,
+    parent_id,
+    level,
+    full_path,
+    status,
+    REPEAT('  ', level - 1) AS indent
+FROM category_tree
+ORDER BY path_ids;
+
+
+
+
+WITH RECURSIVE category_descendants AS (
+   
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        category_name AS full_path,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE id = 1 
+    
+    UNION ALL
+    
+  
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        cd.level + 1 AS level,
+        CONCAT(cd.full_path, ' > ', c.category_name) AS full_path,
+        CONCAT(cd.path_ids, ',', c.id) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_descendants AS cd 
+        ON c.parent_id = cd.category_id
+)
+SELECT 
+    category_id,
+    category_name,
+    parent_id,
+    level,
+    full_path,
+    status,
+    REPEAT('  ', level - 1) AS indent
+FROM category_descendants
+WHERE category_id != 1 
+ORDER BY path_ids;
+
+
+
+WITH RECURSIVE category_ancestors AS (
+    
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        category_name AS full_path,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE id = 10  
+    
+    UNION ALL
+    
+   
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        ca.level + 1 AS level,
+        CONCAT(c.category_name, ' > ', ca.full_path) AS full_path,
+        CONCAT(c.id, ',', ca.path_ids) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_ancestors AS ca 
+        ON c.id = ca.parent_id
+)
+SELECT 
+    category_id,
+    category_name,
+    parent_id,
+    level,
+    full_path,
+    status
+FROM category_ancestors
+ORDER BY level;
+
+
+
+WITH RECURSIVE category_tree AS (
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        category_name AS full_path,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE parent_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        ct.level + 1 AS level,
+        CONCAT(ct.full_path, ' > ', c.category_name) AS full_path,
+        CONCAT(ct.path_ids, ',', c.id) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_tree AS ct 
+        ON c.parent_id = ct.category_id
+)
+SELECT 
+    ct.category_id,
+    ct.category_name,
+    ct.parent_id,
+    ct.level,
+    ct.full_path,
+    ct.status,
+    COUNT(p.id) AS product_count,
+    COALESCE(SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END), 0) AS active_products,
+    REPEAT('  ', ct.level - 1) AS indent
+FROM category_tree AS ct
+LEFT JOIN products AS p ON p.category_id = ct.category_id
+GROUP BY 
+    ct.category_id,
+    ct.category_name,
+    ct.parent_id,
+    ct.level,
+    ct.full_path,
+    ct.status
+ORDER BY ct.path_ids;
+
+
+
+
+
+WITH RECURSIVE category_tree AS (
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        category_name AS full_path,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE parent_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        ct.level + 1 AS level,
+        CONCAT(ct.full_path, ' > ', c.category_name) AS full_path,
+        CONCAT(ct.path_ids, ',', c.id) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_tree AS ct 
+        ON c.parent_id = ct.category_id
+),
+leaf_categories AS (
+    SELECT ct.category_id, ct.category_name, ct.full_path
+    FROM category_tree AS ct
+    WHERE NOT EXISTS (
+        SELECT 1 FROM categories AS c WHERE c.parent_id = ct.category_id
+    )
+)
+SELECT 
+    lc.category_id,
+    lc.category_name,
+    lc.full_path,
+    p.id AS product_id,
+    p.product_name,
+    p.price,
+    p.stock_quantity,
+    p.status,
+    s.store_name
+FROM leaf_categories AS lc
+LEFT JOIN products AS p ON p.category_id = lc.category_id
+LEFT JOIN sellers AS s ON s.id = p.seller_id
+ORDER BY lc.category_id, p.id;
+
+
+
+WITH RECURSIVE category_depth AS (
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        1 AS depth
+    FROM categories
+    WHERE parent_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        cd.depth + 1 AS depth
+    FROM categories AS c
+    INNER JOIN category_depth AS cd 
+        ON c.parent_id = cd.category_id
+)
+SELECT 
+    'Maximum Category Depth' AS metric,
+    MAX(depth) AS value
+FROM category_depth
+
+UNION ALL
+
+SELECT 
+    'Total Categories' AS metric,
+    COUNT(DISTINCT category_id) AS value
+FROM category_depth
+
+UNION ALL
+
+SELECT 
+    'Root Categories (No Parent)' AS metric,
+    COUNT(*) AS value
+FROM categories
+WHERE parent_id IS NULL;
+
+
+
+
+
+WITH RECURSIVE category_tree AS (
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE parent_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        ct.level + 1 AS level,
+        CONCAT(ct.path_ids, ',', c.id) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_tree AS ct 
+        ON c.parent_id = ct.category_id
+)
+SELECT 
+    ct.category_id,
+    ct.category_name,
+    ct.parent_id,
+    ct.level,
+    ct.status
+FROM category_tree AS ct
+WHERE ct.parent_id = (
+    SELECT parent_id FROM categories WHERE id = 5 
+)
+ORDER BY ct.category_name;
+
+
+
+
+
+WITH RECURSIVE category_ancestors AS (
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        1 AS level,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE id = 15  
+    
+    UNION ALL
+    
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        ca.level + 1 AS level,
+        CONCAT(c.id, ',', ca.path_ids) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_ancestors AS ca 
+        ON c.id = ca.parent_id
+)
+SELECT 
+    category_id,
+    category_name,
+    ROW_NUMBER() OVER (ORDER BY level) AS breadcrumb_position
+FROM category_ancestors
+ORDER BY level DESC;
+
+
+
+
+
+WITH RECURSIVE category_tree AS (
+    SELECT 
+        id AS category_id,
+        category_name,
+        parent_id,
+        status,
+        1 AS level,
+        category_name AS full_path,
+        CAST(id AS CHAR(500)) AS path_ids
+    FROM categories
+    WHERE parent_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.id AS category_id,
+        c.category_name,
+        c.parent_id,
+        c.status,
+        ct.level + 1 AS level,
+        CONCAT(ct.full_path, ' > ', c.category_name) AS full_path,
+        CONCAT(ct.path_ids, ',', c.id) AS path_ids
+    FROM categories AS c
+    INNER JOIN category_tree AS ct 
+        ON c.parent_id = ct.category_id
+)
+SELECT 
+    ct.category_id,
+    ct.category_name,
+    ct.full_path,
+    ct.level,
+    COUNT(DISTINCT p.id) AS total_products,
+    COALESCE(ROUND(SUM(oi.quantity * oi.unit_price - oi.discount_amount), 2), 0) AS category_revenue,
+    COALESCE(SUM(
+        CASE 
+            WHEN EXISTS (
+                SELECT 1
+                FROM payments AS pay
+                WHERE pay.order_id = oi.order_id
+                  AND pay.status = 'paid'
+            )
+            THEN oi.quantity 
+            ELSE 0 
+        END
+    ), 0) AS units_sold
+FROM category_tree AS ct
+LEFT JOIN products AS p ON p.category_id = ct.category_id
+LEFT JOIN order_items AS oi ON oi.product_id = p.id
+GROUP BY 
+    ct.category_id,
+    ct.category_name,
+    ct.full_path,
+    ct.level
+ORDER BY ct.path_ids;
+
+
+
+
+
+
+WITH RECURSIVE circular_check AS (
+    SELECT 
+        id AS start_category_id,
+        id AS category_id,
+        parent_id,
+        CAST(id AS CHAR(500)) AS path,
+        1 AS depth,
+        0 AS cycle_found
+    FROM categories
+    WHERE parent_id IS NOT NULL
+
+    UNION ALL
+
+    SELECT 
+        cc.start_category_id,
+        c.id AS category_id,
+        c.parent_id,
+        CONCAT(cc.path, ',', c.id) AS path,
+        cc.depth + 1 AS depth,
+        CASE 
+            WHEN FIND_IN_SET(c.id, cc.path) > 0 THEN 1 
+            ELSE 0 
+        END AS cycle_found
+    FROM categories AS c
+    INNER JOIN circular_check AS cc 
+        ON c.id = cc.parent_id
+    WHERE cc.depth < 100
+)
+SELECT 
+    'Valid - No Circular References' AS validation_result
+WHERE NOT EXISTS (
+    SELECT 1 FROM circular_check 
+    WHERE cycle_found = 1
+)
+
+UNION ALL
+
+SELECT 
+    CONCAT('ERROR - Circular Reference: Category ', start_category_id, ' has circular parent chain') AS validation_result
+FROM circular_check 
+WHERE cycle_found = 1
+GROUP BY start_category_id;
+
+
+
+
+
+
+
