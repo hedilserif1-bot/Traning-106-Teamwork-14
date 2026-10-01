@@ -5256,7 +5256,289 @@ ORDER BY used_count DESC;
 
 
 
+-- Seller Settlements
 
+
+CREATE TABLE seller_settlement_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    settlement_id INT NOT NULL,
+    order_item_id INT NOT NULL,
+
+    seller_id INT NOT NULL,
+    gross_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    commission_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    refund_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    net_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+
+    FOREIGN KEY (settlement_id)
+        REFERENCES seller_settlements(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (order_item_id)
+        REFERENCES order_items(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (seller_id)
+        REFERENCES sellers(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    UNIQUE KEY uq_settlement_order_item (order_item_id),
+
+    INDEX idx_settlement_seller (seller_id),
+    INDEX idx_settlement_id (settlement_id)
+);
+
+
+
+
+
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS generate_seller_settlement$$
+
+CREATE PROCEDURE generate_seller_settlement(
+    IN p_seller_id INT,
+    IN p_period_start DATE,
+    IN p_period_end DATE
+)
+BEGIN
+
+    DECLARE v_settlement_id INT DEFAULT NULL;
+    DECLARE v_gross_sales DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_commission DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_refunds DECIMAL(12,2) DEFAULT 0;
+    DECLARE v_net_amount DECIMAL(12,2) DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    /* Tarih kontrolü */
+    IF p_period_end < p_period_start THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'period_end cannot be before period_start';
+    END IF;
+
+    /* Seller kontrolü ve kilitleme */
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sellers
+        WHERE id = p_seller_id
+        FOR UPDATE
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Seller does not exist';
+    END IF;
+
+    /* Aynı seller + dönem daha önce oluşturulmuş mu? */
+    SELECT id
+    INTO v_settlement_id
+    FROM seller_settlements
+    WHERE seller_id = p_seller_id
+      AND period_start = p_period_start
+      AND period_end = p_period_end
+    FOR UPDATE;
+
+    IF v_settlement_id IS NOT NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Settlement for this seller and period already exists';
+
+    END IF;
+
+
+
+    SELECT
+        COALESCE(
+            SUM(oi.quantity * oi.unit_price - oi.discount_amount),
+            0
+        ),
+        COALESCE(
+            SUM(oi.platform_commission),
+            0
+        )
+    INTO
+        v_gross_sales,
+        v_commission
+    FROM order_items oi
+    JOIN orders o
+        ON o.id = oi.order_id
+    WHERE oi.seller_id = p_seller_id
+      AND o.status IN ('delivered', 'partially_returned', 'returned')
+      AND o.ordered_at >= p_period_start
+      AND o.ordered_at < DATE_ADD(p_period_end, INTERVAL 1 DAY)
+      AND EXISTS (
+          SELECT 1
+          FROM payments p
+          WHERE p.order_id = o.id
+            AND p.status IN ('paid', 'partially_refunded', 'refunded')
+      )
+      AND NOT EXISTS (
+          SELECT 1
+          FROM seller_settlement_items ssi
+          WHERE ssi.order_item_id = oi.id
+      );
+
+    /*
+       Refund toplamı
+    */
+
+    SELECT
+        COALESCE(SUM(rf.amount), 0)
+    INTO v_refunds
+    FROM refunds rf
+    JOIN returns r
+        ON r.id = rf.return_id
+    JOIN order_items oi
+        ON oi.id = r.order_item_id
+    JOIN orders o
+        ON o.id = oi.order_id
+    WHERE oi.seller_id = p_seller_id
+      AND o.status IN ('delivered', 'partially_returned', 'returned')
+      AND o.ordered_at >= p_period_start
+      AND o.ordered_at < DATE_ADD(p_period_end, INTERVAL 1 DAY)
+      AND r.status = 'completed'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM seller_settlement_items ssi
+          WHERE ssi.order_item_id = oi.id
+      );
+
+    SET v_net_amount =
+        v_gross_sales
+        - v_commission
+        - v_refunds;
+
+    IF v_net_amount < 0 THEN
+        SET v_net_amount = 0;
+    END IF;
+
+    /*
+       Settlement oluştur
+    */
+
+    INSERT INTO seller_settlements
+    (
+        seller_id,
+        period_start,
+        period_end,
+        gross_sales,
+        commission_amount,
+        refund_amount,
+        net_amount,
+        status
+    )
+    VALUES
+    (
+        p_seller_id,
+        p_period_start,
+        p_period_end,
+        v_gross_sales,
+        v_commission,
+        v_refunds,
+        v_net_amount,
+        'pending'
+    );
+
+    SET v_settlement_id = LAST_INSERT_ID();
+
+    /*
+       Settlement'a Order Items ekle
+    */
+
+    INSERT INTO seller_settlement_items
+    (
+        settlement_id,
+        order_item_id,
+        seller_id,
+        gross_amount,
+        commission_amount,
+        refund_amount,
+        net_amount
+    )
+    SELECT
+        v_settlement_id,
+        oi.id,
+        oi.seller_id,
+
+        oi.quantity * oi.unit_price
+        - oi.discount_amount,
+
+        oi.platform_commission,
+
+        COALESCE(
+            (
+                SELECT SUM(rf.amount)
+                FROM refunds rf
+                JOIN returns r
+                    ON r.id = rf.return_id
+                WHERE r.order_item_id = oi.id
+                  AND r.status = 'completed'
+            ),
+            0
+        ),
+
+        (
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+            - oi.platform_commission
+            - COALESCE(
+                (
+                    SELECT SUM(rf.amount)
+                    FROM refunds rf
+                    JOIN returns r
+                        ON r.id = rf.return_id
+                    WHERE r.order_item_id = oi.id
+                      AND r.status = 'completed'
+                ),
+                0
+            )
+        )
+
+    FROM order_items oi
+
+    JOIN orders o
+        ON o.id = oi.order_id
+
+    WHERE oi.seller_id = p_seller_id
+      AND o.status IN ('delivered', 'partially_returned', 'returned')
+      AND o.ordered_at >= p_period_start
+      AND o.ordered_at < DATE_ADD(p_period_end, INTERVAL 1 DAY)
+
+      AND EXISTS (
+          SELECT 1
+          FROM payments p
+          WHERE p.order_id = o.id
+            AND p.status IN ('paid', 'partially_refunded', 'refunded')
+      )
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM seller_settlement_items ssi
+          WHERE ssi.order_item_id = oi.id
+      );
+
+    COMMIT;
+
+    /*
+       Oluşturulan settlement'ı göster
+    */
+
+    SELECT *
+    FROM seller_settlements
+    WHERE id = v_settlement_id;
+
+END$$
+
+DELIMITER ;
 
 
 
