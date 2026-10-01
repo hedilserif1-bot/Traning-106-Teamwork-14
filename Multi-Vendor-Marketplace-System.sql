@@ -5009,3 +5009,261 @@ WITH ranked_orders AS
 SELECT *
 FROM ranked_orders
 WHERE rn = 1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- CTE
+
+
+WITH customer_spending AS
+(
+    SELECT
+        c.id AS customer_id,
+        c.full_name,
+
+        COUNT(o.id) AS order_count,
+
+        COALESCE(SUM(o.total_amount), 0) AS total_spending
+
+    FROM customers c
+    LEFT JOIN orders o
+        ON o.customer_id = c.id
+       AND o.status <> 'cancelled'
+
+    GROUP BY
+        c.id,
+        c.full_name
+)
+
+SELECT *
+FROM customer_spending
+ORDER BY total_spending DESC;
+
+
+
+
+WITH seller_sales AS
+(
+    SELECT
+        s.id AS seller_id,
+        s.store_name,
+
+        COUNT(DISTINCT oi.order_id) AS order_count,
+
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue,
+
+        SUM(oi.platform_commission) AS commission,
+
+        SUM(oi.seller_amount) AS seller_earnings
+
+    FROM sellers s
+    JOIN order_items oi
+        ON oi.seller_id = s.id
+
+    JOIN orders o
+        ON o.id = oi.order_id
+       AND o.status <> 'cancelled'
+
+    GROUP BY
+        s.id,
+        s.store_name
+)
+
+SELECT *
+FROM seller_sales
+ORDER BY revenue DESC;
+
+
+
+
+WITH product_sales AS
+(
+    SELECT
+        p.id AS product_id,
+        p.product_name,
+
+        SUM(oi.quantity) AS units_sold,
+
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue
+
+    FROM products p
+    JOIN order_items oi
+        ON oi.product_id = p.id
+
+    JOIN orders o
+        ON o.id = oi.order_id
+       AND o.status <> 'cancelled'
+
+    GROUP BY
+        p.id,
+        p.product_name
+)
+
+SELECT *
+FROM product_sales
+ORDER BY revenue DESC;
+
+
+
+
+WITH monthly_revenue AS
+(
+    SELECT
+        DATE_FORMAT(o.ordered_at, '%Y-%m') AS month,
+
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue,
+
+        COUNT(DISTINCT o.id) AS order_count
+
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+
+    WHERE o.status <> 'cancelled'
+
+    GROUP BY
+        DATE_FORMAT(o.ordered_at, '%Y-%m')
+)
+
+SELECT *
+FROM monthly_revenue
+ORDER BY month;
+
+
+
+
+WITH return_data AS
+(
+    SELECT
+        r.id AS return_id,
+        r.order_item_id,
+        r.quantity,
+        r.status,
+        r.requested_at,
+
+        oi.product_id,
+        oi.unit_price,
+
+        r.quantity * oi.unit_price AS refund_value
+
+    FROM returns r
+    JOIN order_items oi
+        ON oi.id = r.order_item_id
+)
+
+SELECT
+    return_id,
+    order_item_id,
+    product_id,
+    quantity,
+    refund_value,
+    status,
+    requested_at
+FROM return_data
+ORDER BY requested_at DESC;
+
+
+
+
+
+WITH inventory AS
+(
+    SELECT
+        p.id AS product_id,
+        p.product_name,
+        p.stock_quantity,
+        p.minimum_stock,
+
+        CASE
+            WHEN p.stock_quantity = 0
+                THEN 'OUT_OF_STOCK'
+
+            WHEN p.stock_quantity <= p.minimum_stock
+                THEN 'LOW_STOCK'
+
+            ELSE 'NORMAL'
+        END AS stock_status
+
+    FROM products p
+)
+
+SELECT *
+FROM inventory
+ORDER BY stock_quantity;
+
+
+
+
+
+
+WITH coupon_performance AS
+(
+    SELECT
+        c.id,
+        c.code,
+        c.usage_limit,
+        c.used_count,
+
+        COUNT(o.id) AS order_count,
+
+        COALESCE(SUM(o.discount_amount), 0)
+            AS total_discount
+
+    FROM coupons c
+
+    LEFT JOIN orders o
+        ON o.coupon_id = c.id
+       AND o.status <> 'cancelled'
+
+    GROUP BY
+        c.id,
+        c.code,
+        c.usage_limit,
+        c.used_count
+)
+
+SELECT
+    *,
+    ROUND(
+        used_count / NULLIF(usage_limit, 0) * 100,
+        2
+    ) AS usage_percent
+FROM coupon_performance
+ORDER BY used_count DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
