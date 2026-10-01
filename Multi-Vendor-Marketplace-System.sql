@@ -4660,3 +4660,352 @@ HAVING ss.net_amount <>
            - ss.refund_amount
        );
 
+
+
+
+
+
+-- Window Functions
+
+
+SELECT
+    p.id,
+    p.product_name,
+    SUM(oi.quantity * oi.unit_price - oi.discount_amount) AS revenue,
+
+    ROW_NUMBER() OVER (
+        ORDER BY
+            SUM(oi.quantity * oi.unit_price - oi.discount_amount) DESC
+    ) AS revenue_row
+
+FROM products p
+JOIN order_items oi
+    ON oi.product_id = p.id
+JOIN orders o
+    ON o.id = oi.order_id
+WHERE o.status <> 'cancelled'
+GROUP BY
+    p.id,
+    p.product_name;
+
+
+
+
+SELECT
+    p.category_id,
+    p.id,
+    p.product_name,
+
+    SUM(
+        oi.quantity * oi.unit_price
+        - oi.discount_amount
+    ) AS revenue,
+
+    RANK() OVER (
+        PARTITION BY p.category_id
+        ORDER BY
+            SUM(
+                oi.quantity * oi.unit_price
+                - oi.discount_amount
+            ) DESC
+    ) AS category_rank
+
+FROM products p
+JOIN order_items oi
+    ON oi.product_id = p.id
+JOIN orders o
+    ON o.id = oi.order_id
+WHERE o.status <> 'cancelled'
+GROUP BY
+    p.category_id,
+    p.id,
+    p.product_name;
+
+
+
+
+
+WITH ranked_products AS
+(
+    SELECT
+        p.category_id,
+        p.id,
+        p.product_name,
+
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue,
+
+        DENSE_RANK() OVER (
+            PARTITION BY p.category_id
+            ORDER BY
+                SUM(
+                    oi.quantity * oi.unit_price
+                    - oi.discount_amount
+                ) DESC
+        ) AS rnk
+
+    FROM products p
+    JOIN order_items oi
+        ON oi.product_id = p.id
+    JOIN orders o
+        ON o.id = oi.order_id
+    WHERE o.status <> 'cancelled'
+
+    GROUP BY
+        p.category_id,
+        p.id,
+        p.product_name
+)
+
+SELECT *
+FROM ranked_products
+WHERE rnk <= 3;
+
+
+
+
+SELECT
+    s.id,
+    s.store_name,
+
+    SUM(
+        oi.quantity * oi.unit_price
+        - oi.discount_amount
+    ) AS revenue,
+
+    ROW_NUMBER() OVER (
+        ORDER BY
+            SUM(
+                oi.quantity * oi.unit_price
+                - oi.discount_amount
+            ) DESC
+    ) AS revenue_rank
+
+FROM sellers s
+JOIN order_items oi
+    ON oi.seller_id = s.id
+JOIN orders o
+    ON o.id = oi.order_id
+WHERE o.status <> 'cancelled'
+
+GROUP BY
+    s.id,
+    s.store_name;
+
+
+
+
+
+SELECT
+    product_id,
+    changed_at,
+    old_price,
+    new_price,
+
+    LAG(new_price) OVER (
+        PARTITION BY product_id
+        ORDER BY changed_at
+    ) AS previous_price
+
+FROM product_price_history;
+
+
+
+
+
+SELECT
+    product_id,
+    changed_at,
+    old_price,
+    new_price,
+
+    LAG(new_price) OVER (
+        PARTITION BY product_id
+        ORDER BY changed_at
+    ) AS previous_price,
+
+    ROUND(
+        (
+            new_price
+            -
+            LAG(new_price) OVER (
+                PARTITION BY product_id
+                ORDER BY changed_at
+            )
+        )
+        /
+        NULLIF(
+            LAG(new_price) OVER (
+                PARTITION BY product_id
+                ORDER BY changed_at
+            ),
+            0
+        ) * 100,
+        2
+    ) AS change_percent
+
+FROM product_price_history;
+
+
+
+
+
+WITH monthly AS
+(
+    SELECT
+        DATE_FORMAT(o.ordered_at, '%Y-%m') AS month,
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    WHERE o.status <> 'cancelled'
+    GROUP BY
+        DATE_FORMAT(o.ordered_at, '%Y-%m')
+)
+
+SELECT
+    month,
+    revenue,
+
+    LAG(revenue) OVER (
+        ORDER BY month
+    ) AS previous_month_revenue,
+
+    revenue -
+    LAG(revenue) OVER (
+        ORDER BY month
+    ) AS revenue_difference
+
+FROM monthly
+ORDER BY month;
+
+
+
+
+
+
+WITH daily AS
+(
+    SELECT
+        DATE(o.ordered_at) AS order_date,
+
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue
+
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+
+    WHERE o.status <> 'cancelled'
+
+    GROUP BY DATE(o.ordered_at)
+)
+
+SELECT
+    order_date,
+    revenue,
+
+    SUM(revenue) OVER (
+        ORDER BY order_date
+        ROWS BETWEEN UNBOUNDED PRECEDING
+        AND CURRENT ROW
+    ) AS running_revenue
+
+FROM daily
+ORDER BY order_date;
+
+
+
+
+
+WITH seller_daily AS
+(
+    SELECT
+        oi.seller_id,
+        DATE(o.ordered_at) AS sale_date,
+
+        SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) AS revenue
+
+    FROM order_items oi
+    JOIN orders o
+        ON o.id = oi.order_id
+
+    WHERE o.status <> 'cancelled'
+
+    GROUP BY
+        oi.seller_id,
+        DATE(o.ordered_at)
+)
+
+SELECT
+    seller_id,
+    sale_date,
+    revenue,
+
+    SUM(revenue) OVER (
+        PARTITION BY seller_id
+        ORDER BY sale_date
+        ROWS BETWEEN UNBOUNDED PRECEDING
+        AND CURRENT ROW
+    ) AS running_seller_revenue
+
+FROM seller_daily
+ORDER BY
+    seller_id,
+    sale_date;
+
+
+
+
+SELECT
+    c.id,
+    c.full_name,
+
+    SUM(o.total_amount) AS spending,
+
+    DENSE_RANK() OVER (
+        ORDER BY SUM(o.total_amount) DESC
+    ) AS spending_rank
+
+FROM customers c
+JOIN orders o
+    ON o.customer_id = c.id
+
+WHERE o.status <> 'cancelled'
+
+GROUP BY
+    c.id,
+    c.full_name;
+
+
+
+
+
+
+WITH ranked_orders AS
+(
+    SELECT
+        o.*,
+
+        ROW_NUMBER() OVER (
+            PARTITION BY customer_id
+            ORDER BY ordered_at DESC
+        ) AS rn
+
+    FROM orders o
+    WHERE o.status <> 'cancelled'
+)
+
+SELECT *
+FROM ranked_orders
+WHERE rn = 1;
