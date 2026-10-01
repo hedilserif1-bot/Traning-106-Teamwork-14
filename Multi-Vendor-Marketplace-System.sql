@@ -5808,3 +5808,1363 @@ ORDER BY sp.net_revenue DESC;
 TRUNCATE TABLE seller_performance_summary;
 
 
+
+
+
+
+
+
+
+-- Partitioning-
+
+
+SELECT *
+FROM orders
+WHERE ordered_at >= '2026-01-01'
+  AND ordered_at < '2027-01-01';
+
+
+
+
+SELECT *
+FROM orders
+WHERE customer_id = 10;
+
+
+
+
+SELECT *
+FROM orders
+WHERE customer_id = 10
+  AND ordered_at >= '2026-01-01'
+  AND ordered_at < '2027-01-01';
+
+
+
+
+
+
+
+
+
+-- Isolation Levels-
+
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+START TRANSACTION;
+
+UPDATE products
+SET stock_quantity = 0
+WHERE id = 10;
+
+
+
+
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+START TRANSACTION;
+
+SELECT stock_quantity
+FROM products
+WHERE id = 10;
+
+
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+START TRANSACTION;
+
+SELECT stock_quantity
+FROM products
+WHERE id = 10;
+
+
+
+START TRANSACTION;
+
+UPDATE products
+SET stock_quantity = 8
+WHERE id = 10;
+
+COMMIT;
+
+
+
+
+
+SELECT stock_quantity
+FROM products
+WHERE id = 10;
+
+
+
+
+START TRANSACTION;
+
+SELECT COUNT(*)
+FROM orders
+WHERE status = 'pending';
+
+
+
+START TRANSACTION;
+
+SELECT stock_quantity
+FROM products
+WHERE id = 10;
+
+
+
+
+
+UPDATE products
+SET stock_quantity = stock_quantity - 1
+WHERE id = 10
+  AND stock_quantity >= 1;
+
+
+
+
+
+-- Savepoint
+
+
+START TRANSACTION;
+
+INSERT INTO order_items
+(
+    order_id,
+    product_id,
+    seller_id,
+    quantity,
+    unit_price,
+    discount_amount,
+    platform_commission,
+    seller_amount
+)
+VALUES
+(1, 10, 1, 2, 100, 0, 10, 190);
+
+SAVEPOINT seller1_done;
+
+
+INSERT INTO order_items
+(
+    order_id,
+    product_id,
+    seller_id,
+    quantity,
+    unit_price,
+    discount_amount,
+    platform_commission,
+    seller_amount
+)
+VALUES
+(1, 20, 2, 1, 200, 0, 20, 180);
+
+
+
+
+
+
+-- Data Integrity Challenge-
+
+
+
+SELECT id, product_name, stock_quantity
+FROM products
+WHERE stock_quantity < 0;
+
+
+
+UPDATE products
+SET stock_quantity = stock_quantity - 2
+WHERE id = 1
+  AND stock_quantity >= 2;
+
+
+
+SELECT id, code
+FROM coupons
+WHERE id = 1
+  AND status = 'active'
+  AND starts_at <= NOW()
+  AND expires_at > NOW()
+  AND used_count < usage_limit;
+
+
+
+
+START TRANSACTION;
+
+UPDATE coupons
+SET used_count = used_count + 1
+WHERE id = 1
+  AND status = 'active'
+  AND starts_at <= NOW()
+  AND expires_at > NOW()
+  AND used_count < usage_limit;
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE use_coupon(IN p_coupon_id INT)
+BEGIN
+
+    START TRANSACTION;
+
+    UPDATE coupons
+    SET used_count = used_count + 1
+    WHERE id = p_coupon_id
+      AND status = 'active'
+      AND starts_at <= NOW()
+      AND expires_at > NOW()
+      AND used_count < usage_limit;
+
+    IF ROW_COUNT() = 1 THEN
+        COMMIT;
+    ELSE
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Coupon is not available or usage limit reached';
+    END IF;
+
+END//
+
+DELIMITER ;
+
+
+SELECT
+    r.payment_id,
+    SUM(r.amount) AS total_refunded,
+    p.amount AS payment_amount
+FROM refunds r
+JOIN payments p
+    ON p.id = r.payment_id
+GROUP BY r.payment_id, p.amount
+HAVING SUM(r.amount) > p.amount;
+
+
+SELECT
+    r.order_item_id,
+    oi.quantity AS purchased_quantity,
+    SUM(r.quantity) AS returned_quantity
+FROM returns r
+JOIN order_items oi
+    ON oi.id = r.order_item_id
+GROUP BY r.order_item_id, oi.quantity
+HAVING SUM(r.quantity) > oi.quantity;
+
+
+
+
+SELECT
+    r.id,
+    r.customer_id,
+    r.product_id,
+    r.order_item_id
+FROM reviews r
+JOIN order_items oi
+    ON oi.id = r.order_item_id
+JOIN orders o
+    ON o.id = oi.order_id
+WHERE r.customer_id <> o.customer_id;
+
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE add_review(
+    IN p_customer_id INT,
+    IN p_product_id INT,
+    IN p_order_item_id INT,
+    IN p_rating INT,
+    IN p_comment TEXT
+)
+BEGIN
+
+    DECLARE v_customer_id INT;
+    DECLARE v_product_id INT;
+    DECLARE v_order_status VARCHAR(30);
+
+    SELECT
+        o.customer_id,
+        oi.product_id,
+        o.status
+    INTO
+        v_customer_id,
+        v_product_id,
+        v_order_status
+    FROM order_items oi
+    JOIN orders o
+        ON o.id = oi.order_id
+    WHERE oi.id = p_order_item_id;
+
+    IF v_customer_id IS NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Order item does not exist';
+
+    ELSEIF v_customer_id <> p_customer_id THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer did not purchase this product';
+
+    ELSEIF v_product_id <> p_product_id THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product does not match order item';
+
+    ELSEIF v_order_status <> 'delivered' THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Only delivered orders can be reviewed';
+
+    ELSE
+
+        INSERT INTO reviews
+        (
+            customer_id,
+            product_id,
+            order_item_id,
+            rating,
+            comment
+        )
+        VALUES
+        (
+            p_customer_id,
+            p_product_id,
+            p_order_item_id,
+            p_rating,
+            p_comment
+        );
+
+    END IF;
+
+END//
+
+DELIMITER ;
+
+
+
+SELECT
+    payment_reference,
+    COUNT(*) AS payment_count
+FROM payments
+GROUP BY payment_reference
+HAVING COUNT(*) > 1;
+
+
+
+INSERT INTO payments
+(
+    order_id,
+    payment_reference,
+    amount,
+    payment_method,
+    status
+)
+VALUES
+(
+    1,
+    'PAY-TEST-001',
+    100.00,
+    'card',
+    'paid'
+);
+
+
+
+SELECT
+    seller_id,
+    period_start,
+    period_end,
+    COUNT(*) AS settlement_count
+FROM seller_settlements
+GROUP BY
+    seller_id,
+    period_start,
+    period_end
+HAVING COUNT(*) > 1;
+
+
+
+
+SELECT
+    o.id,
+    o.order_number
+FROM orders o
+LEFT JOIN shipments s
+    ON s.order_id = o.id
+WHERE o.status = 'delivered'
+  AND s.id IS NULL;
+
+
+
+
+
+SELECT
+    oi.id,
+    oi.order_id,
+    oi.product_id,
+    p.product_name,
+    p.status
+FROM order_items oi
+JOIN products p
+    ON p.id = oi.product_id
+WHERE p.status <> 'active';
+
+
+
+
+SELECT id, product_name
+FROM products
+WHERE id = 1
+  AND status = 'active'
+  AND stock_quantity >= 1;
+
+
+SELECT
+    oi.id,
+    oi.order_id,
+    oi.seller_id,
+    s.store_name,
+    s.status
+FROM order_items oi
+JOIN sellers s
+    ON s.id = oi.seller_id
+WHERE s.status <> 'active';
+
+
+
+SELECT id, store_name
+FROM sellers
+WHERE id = 1
+  AND status = 'active';
+
+
+
+
+
+-- NORMALIZATION
+
+CREATE TABLE bad_orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    products VARCHAR(500)
+);
+
+INSERT INTO bad_orders (order_id, products)
+VALUES
+(1, 'Laptop, Mouse, Keyboard'),
+(2, 'Phone, Charger, Phone Case'),
+(3, 'Headphones, Speaker'),
+(4, 'Monitor, HDMI Cable, Mouse'),
+(5, 'Tablet, Stylus, Tablet Case'),
+(6, 'Keyboard, Mouse Pad'),
+(7, 'Camera, Memory Card, Tripod'),
+(8, 'Smartwatch, Charger'),
+(9, 'Laptop, Headphones, USB Cable'),
+(10, 'Printer, Ink, Paper');
+
+SELECT
+    o.id AS order_id,
+    oi.product_id,
+    oi.quantity
+FROM orders o
+JOIN order_items oi
+    ON oi.order_id = o.id;
+
+SELECT
+    id,
+    order_id,
+    product_id,
+    quantity,
+    unit_price,
+    discount_amount,
+    platform_commission,
+    seller_amount
+FROM order_items;
+
+SELECT
+    o.id,
+    c.full_name
+FROM orders o
+JOIN customers c
+    ON c.id = o.customer_id;
+
+SELECT
+    id,
+    full_name,
+    email,
+    phone,
+    registered_at,
+    status
+FROM customers;
+
+SELECT
+    id,
+    seller_id,
+    category_id,
+    sku,
+    product_name,
+    price,
+    cost_price,
+    stock_quantity,
+    minimum_stock,
+    status
+FROM products;
+
+SELECT
+    p.id AS product_id,
+    p.product_name,
+    s.id AS seller_id,
+    s.store_name,
+    s.email
+FROM products p
+JOIN sellers s
+    ON s.id = p.seller_id;
+
+SELECT
+    ca.id,
+    ca.customer_id,
+    ca.title,
+    ca.city,
+    ca.district,
+    ca.street,
+    ca.postal_code
+FROM customer_addresses ca;
+
+SELECT
+    o.order_number,
+    oi.product_id,
+    oi.quantity,
+    oi.unit_price
+FROM orders o
+JOIN order_items oi
+    ON oi.order_id = o.id
+ORDER BY o.id;
+
+SELECT
+    product_id,
+    old_price,
+    new_price,
+    changed_at
+FROM product_price_history
+ORDER BY product_id, changed_at;
+
+SELECT
+    oi.order_id,
+    oi.product_id,
+    oi.unit_price,
+    p.price AS current_price
+FROM order_items oi
+JOIN products p
+    ON p.id = oi.product_id;
+
+SELECT
+    r.id AS return_id,
+    r.order_item_id,
+    r.quantity,
+    r.reason,
+    r.status
+FROM returns r;
+
+SELECT
+    rf.id,
+    rf.return_id,
+    rf.payment_id,
+    rf.amount,
+    rf.status
+FROM refunds rf;
+
+SELECT
+    o.id AS order_id,
+    o.order_number,
+    c.id AS customer_id,
+    c.full_name,
+    c.email,
+    p.id AS product_id,
+    p.product_name,
+    s.id AS seller_id,
+    s.store_name,
+    oi.quantity,
+    oi.unit_price,
+    oi.discount_amount
+FROM orders o
+JOIN customers c
+    ON c.id = o.customer_id
+JOIN order_items oi
+    ON oi.order_id = o.id
+JOIN products p
+    ON p.id = oi.product_id
+JOIN sellers s
+    ON s.id = oi.seller_id
+ORDER BY o.id, oi.id;
+
+SELECT
+    email,
+    COUNT(*) AS count_email
+FROM customers
+GROUP BY email
+HAVING COUNT(*) > 1;
+
+SELECT
+    sku,
+    COUNT(*) AS count_sku
+FROM products
+GROUP BY sku
+HAVING COUNT(*) > 1;
+
+SELECT
+    code,
+    COUNT(*) AS count_code
+FROM coupons
+GROUP BY code
+HAVING COUNT(*) > 1;
+
+SELECT
+    order_number,
+    COUNT(*) AS count_order
+FROM orders
+GROUP BY order_number
+HAVING COUNT(*) > 1;
+
+SELECT
+    payment_reference,
+    COUNT(*) AS count_reference
+FROM payments
+GROUP BY payment_reference
+HAVING COUNT(*) > 1;
+
+SELECT
+    tracking_number,
+    COUNT(*) AS count_tracking
+FROM shipments
+GROUP BY tracking_number
+HAVING COUNT(*) > 1;
+
+
+
+-- historical data challenge
+
+UPDATE products
+SET price = 100
+WHERE id = 1;
+
+
+
+UPDATE products
+SET price = 150
+WHERE id = 1;
+
+
+
+SELECT
+    oi.order_id,
+    oi.product_id,
+    oi.unit_price AS historical_price,
+    p.price AS current_price
+FROM order_items oi
+JOIN products p
+    ON p.id = oi.product_id
+WHERE oi.product_id = 1;
+
+
+
+SELECT
+    oi.order_id,
+    oi.platform_commission AS historical_commission_rate,
+    s.commission_rate AS current_commission_rate
+FROM order_items oi
+JOIN sellers s
+    ON s.id = oi.seller_id;
+
+
+
+SELECT
+    oi.order_id,
+    oi.product_id,
+    oi.unit_price,
+    oi.discount_amount
+FROM order_items oi;
+
+
+
+
+
+
+WITH
+product_stats AS
+(
+    SELECT
+        seller_id,
+        COUNT(*) AS total_products,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_products,
+        COALESCE(SUM(stock_quantity * cost_price), 0) AS current_stock_value
+    FROM products
+    GROUP BY seller_id
+),
+
+sales_stats AS
+(
+    SELECT
+        oi.seller_id,
+        COUNT(DISTINCT oi.order_id) AS total_orders,
+        SUM(oi.quantity) AS total_items_sold,
+        COUNT(DISTINCT o.customer_id) AS unique_customers,
+        ROUND(
+            SUM(
+                (oi.quantity * oi.unit_price)
+                - oi.discount_amount
+            ),
+            2
+        ) AS gross_sales,
+        ROUND(SUM(oi.platform_commission), 2) AS total_commission,
+        MAX(o.ordered_at) AS last_sale_date
+    FROM order_items oi
+    JOIN orders o
+        ON o.id = oi.order_id
+    WHERE o.status <> 'cancelled'
+    GROUP BY oi.seller_id
+),
+
+refund_stats AS
+(
+    SELECT
+        oi.seller_id,
+        ROUND(SUM(rf.amount), 2) AS total_refunds
+    FROM refunds rf
+    JOIN returns r
+        ON r.id = rf.return_id
+    JOIN order_items oi
+        ON oi.id = r.order_item_id
+    WHERE rf.status = 'completed'
+    GROUP BY oi.seller_id
+),
+
+rating_stats AS
+(
+    SELECT
+        p.seller_id,
+        ROUND(AVG(rv.rating), 2) AS average_product_rating
+    FROM products p
+    LEFT JOIN reviews rv
+        ON rv.product_id = p.id
+    GROUP BY p.seller_id
+),
+
+return_stats AS
+(
+    SELECT
+        oi.seller_id,
+        SUM(r.quantity) AS returned_quantity
+    FROM returns r
+    JOIN order_items oi
+        ON oi.id = r.order_item_id
+    WHERE r.status IN ('approved', 'completed')
+    GROUP BY oi.seller_id
+),
+
+best_products AS
+(
+    SELECT
+        seller_id,
+        product_name,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY seller_id
+            ORDER BY units_sold DESC, product_id
+        ) AS rn
+    FROM
+    (
+        SELECT
+            oi.seller_id,
+            p.id AS product_id,
+            p.product_name,
+            SUM(oi.quantity) AS units_sold
+        FROM order_items oi
+        JOIN products p
+            ON p.id = oi.product_id
+        JOIN orders o
+            ON o.id = oi.order_id
+        WHERE o.status <> 'cancelled'
+        GROUP BY
+            oi.seller_id,
+            p.id,
+            p.product_name
+    ) x
+)
+
+SELECT
+    s.id AS seller_id,
+    s.store_name,
+
+    COALESCE(ps.total_products, 0) AS total_products,
+    COALESCE(ps.active_products, 0) AS active_products,
+
+    COALESCE(ss.total_orders, 0) AS total_orders,
+    COALESCE(ss.total_items_sold, 0) AS total_items_sold,
+    COALESCE(ss.unique_customers, 0) AS unique_customers,
+
+    COALESCE(ss.gross_sales, 0) AS gross_sales,
+    COALESCE(ss.total_commission, 0) AS total_commission,
+    COALESCE(rs.total_refunds, 0) AS total_refunds,
+
+    ROUND(
+        COALESCE(ss.gross_sales, 0)
+        - COALESCE(ss.total_commission, 0)
+        - COALESCE(rs.total_refunds, 0),
+        2
+    ) AS net_sales,
+
+    CASE
+        WHEN COALESCE(ss.total_orders, 0) = 0 THEN 0
+        ELSE ROUND(
+            ss.gross_sales / ss.total_orders,
+            2
+        )
+    END AS average_order_value,
+
+    COALESCE(rating_stats.average_product_rating, 0)
+        AS average_product_rating,
+
+    CASE
+        WHEN COALESCE(ss.total_items_sold, 0) = 0 THEN 0
+        ELSE ROUND(
+            COALESCE(ret.returned_quantity, 0)
+            / ss.total_items_sold * 100,
+            2
+        )
+    END AS return_rate,
+
+    COALESCE(bp.product_name, 'No Sales')
+        AS best_selling_product,
+
+    ss.last_sale_date,
+
+    COALESCE(ps.current_stock_value, 0)
+        AS current_stock_value
+
+FROM sellers s
+
+LEFT JOIN product_stats ps
+    ON ps.seller_id = s.id
+
+LEFT JOIN sales_stats ss
+    ON ss.seller_id = s.id
+
+LEFT JOIN refund_stats rs
+    ON rs.seller_id = s.id
+
+LEFT JOIN rating_stats
+    ON rating_stats.seller_id = s.id
+
+LEFT JOIN return_stats ret
+    ON ret.seller_id = s.id
+
+LEFT JOIN best_products bp
+    ON bp.seller_id = s.id
+    AND bp.rn = 1
+
+ORDER BY s.id;
+
+
+
+
+
+
+
+
+
+
+
+UPDATE products
+SET stock_quantity = stock_quantity - 1
+WHERE id = 1
+  AND stock_quantity >= 1;
+
+UPDATE products
+SET stock_quantity = 100
+WHERE id = 1;
+
+
+SELECT
+    id,
+    product_name,
+    stock_quantity
+FROM products
+WHERE id = 1;
+
+
+DELIMITER //
+
+DROP PROCEDURE IF EXISTS stress_test_purchase//
+
+CREATE PROCEDURE stress_test_purchase(
+    IN p_product_id INT,
+    IN p_quantity INT
+)
+BEGIN
+    DECLARE v_stock INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT stock_quantity
+    INTO v_stock
+    FROM products
+    WHERE id = p_product_id
+    FOR UPDATE;
+
+    IF v_stock IS NULL THEN
+
+        ROLLBACK;
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product not found';
+
+    END IF;
+
+    IF v_stock < p_quantity THEN
+
+        ROLLBACK;
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Insufficient stock';
+
+    END IF;
+
+    UPDATE products
+    SET stock_quantity = stock_quantity - p_quantity
+    WHERE id = p_product_id;
+
+    COMMIT;
+END//
+
+DELIMITER ;
+
+
+CALL stress_test_purchase(1, 1);
+
+
+SELECT
+    id,
+    product_name,
+    stock_quantity
+FROM products
+WHERE id = 1;
+
+
+
+SELECT stock_quantity
+FROM products
+WHERE id = 1;
+
+SELECT
+    id,
+    product_name,
+    stock_quantity
+FROM products
+WHERE stock_quantity < 0;
+
+SELECT
+    o.id,
+    o.order_number,
+    o.total_amount,
+    COALESCE(SUM(p.amount), 0) AS total_paid
+FROM orders o
+LEFT JOIN payments p
+    ON p.order_id = o.id
+    AND p.status = 'paid'
+GROUP BY
+    o.id,
+    o.order_number,
+    o.total_amount
+HAVING COALESCE(SUM(p.amount), 0) > o.total_amount;
+
+
+SELECT
+    oi.id AS order_item_id,
+    oi.quantity AS purchased_quantity,
+    COALESCE(SUM(r.quantity), 0) AS returned_quantity
+FROM order_items oi
+LEFT JOIN returns r
+    ON r.order_item_id = oi.id
+    AND r.status IN ('approved', 'completed')
+GROUP BY
+    oi.id,
+    oi.quantity
+HAVING COALESCE(SUM(r.quantity), 0) > oi.quantity;
+
+
+
+SELECT
+    p.id AS payment_id,
+    p.amount AS payment_amount,
+    COALESCE(SUM(rf.amount), 0) AS refunded_amount
+FROM payments p
+LEFT JOIN refunds rf
+    ON rf.payment_id = p.id
+    AND rf.status = 'completed'
+GROUP BY
+    p.id,
+    p.amount
+HAVING COALESCE(SUM(rf.amount), 0) > p.amount;
+
+
+
+SELECT
+    id,
+    order_id,
+    seller_id,
+    quantity,
+    unit_price,
+    discount_amount,
+    platform_commission,
+    seller_amount
+FROM order_items
+WHERE ROUND(
+          (quantity * unit_price)
+          - discount_amount
+          - platform_commission,
+          2
+      )
+      <> ROUND(seller_amount, 2);
+
+
+
+SELECT
+    payment_reference,
+    COUNT(*) AS duplicate_count
+FROM payments
+GROUP BY payment_reference
+HAVING COUNT(*) > 1;
+
+
+
+SELECT
+    tracking_number,
+    COUNT(*) AS duplicate_count
+FROM shipments
+GROUP BY tracking_number
+HAVING COUNT(*) > 1;
+
+
+SELECT
+    seller_id,
+    period_start,
+    period_end,
+    COUNT(*) AS settlement_count
+FROM seller_settlements
+GROUP BY
+    seller_id,
+    period_start,
+    period_end
+HAVING COUNT(*) > 1;
+
+
+
+SELECT
+    id,
+    code,
+    used_count,
+    usage_limit
+FROM coupons
+WHERE used_count > usage_limit;
+
+
+
+SELECT
+    'Negative Stock' AS check_name,
+    COUNT(*) AS error_count
+FROM products
+WHERE stock_quantity < 0
+
+UNION ALL
+
+SELECT
+    'Returns Exceed Purchased Quantity',
+    COUNT(*)
+FROM
+(
+    SELECT
+        oi.id
+    FROM order_items oi
+    LEFT JOIN returns r
+        ON r.order_item_id = oi.id
+        AND r.status IN ('approved', 'completed')
+    GROUP BY oi.id, oi.quantity
+    HAVING COALESCE(SUM(r.quantity), 0) > oi.quantity
+) x
+
+UNION ALL
+
+SELECT
+    'Refunds Exceed Payment',
+    COUNT(*)
+FROM
+(
+    SELECT
+        p.id
+    FROM payments p
+    LEFT JOIN refunds rf
+        ON rf.payment_id = p.id
+        AND rf.status = 'completed'
+    GROUP BY p.id, p.amount
+    HAVING COALESCE(SUM(rf.amount), 0) > p.amount
+) y
+
+UNION ALL
+
+SELECT
+    'Duplicate Payment References',
+    COUNT(*)
+FROM
+(
+    SELECT payment_reference
+    FROM payments
+    GROUP BY payment_reference
+    HAVING COUNT(*) > 1
+) z
+
+UNION ALL
+
+SELECT
+    'Coupon Usage Limit Exceeded',
+    COUNT(*)
+FROM coupons
+WHERE used_count > usage_limit;
+
+
+
+
+WITH order_stats AS
+(
+    SELECT
+        customer_id,
+        COUNT(*) AS total_orders,
+
+        SUM(
+            CASE
+                WHEN status = 'delivered' THEN 1
+                ELSE 0
+            END
+        ) AS completed_orders,
+
+        SUM(
+            CASE
+                WHEN status = 'cancelled' THEN 1
+                ELSE 0
+            END
+        ) AS cancelled_orders,
+
+        SUM(
+            CASE
+                WHEN status <> 'cancelled'
+                THEN total_amount
+                ELSE 0
+            END
+        ) AS total_spent,
+
+        SUM(
+            CASE
+                WHEN status <> 'cancelled'
+                THEN discount_amount
+                ELSE 0
+            END
+        ) AS total_discount_received,
+
+        AVG(
+            CASE
+                WHEN status <> 'cancelled'
+                THEN total_amount
+            END
+        ) AS average_order_value,
+
+        MAX(ordered_at) AS last_order_date
+
+    FROM orders
+    GROUP BY customer_id
+),
+
+purchase_stats AS
+(
+    SELECT
+        o.customer_id,
+        COUNT(DISTINCT oi.product_id) AS unique_products_purchased,
+        COUNT(DISTINCT oi.seller_id) AS unique_sellers
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    WHERE o.status <> 'cancelled'
+    GROUP BY o.customer_id
+),
+
+return_stats AS
+(
+    SELECT
+        o.customer_id,
+        SUM(r.quantity) AS total_returns
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    JOIN returns r
+        ON r.order_item_id = oi.id
+    WHERE r.status IN ('approved', 'completed')
+    GROUP BY o.customer_id
+),
+
+refund_stats AS
+(
+    SELECT
+        o.customer_id,
+        SUM(rf.amount) AS total_refunds
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    JOIN returns r
+        ON r.order_item_id = oi.id
+    JOIN refunds rf
+        ON rf.return_id = r.id
+    WHERE rf.status = 'completed'
+    GROUP BY o.customer_id
+),
+
+category_stats AS
+(
+    SELECT
+        o.customer_id,
+        c.category_name,
+        SUM(oi.quantity) AS quantity_sold,
+
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY o.customer_id
+            ORDER BY SUM(oi.quantity) DESC
+        ) AS rn
+
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    JOIN products p
+        ON p.id = oi.product_id
+    JOIN categories c
+        ON c.id = p.category_id
+
+    WHERE o.status <> 'cancelled'
+
+    GROUP BY
+        o.customer_id,
+        c.id,
+        c.category_name
+),
+
+seller_stats AS
+(
+    SELECT
+        o.customer_id,
+        s.store_name,
+        SUM(oi.quantity) AS quantity_sold,
+
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY o.customer_id
+            ORDER BY SUM(oi.quantity) DESC
+        ) AS rn
+
+    FROM orders o
+    JOIN order_items oi
+        ON oi.order_id = o.id
+    JOIN sellers s
+        ON s.id = oi.seller_id
+
+    WHERE o.status <> 'cancelled'
+
+    GROUP BY
+        o.customer_id,
+        s.id,
+        s.store_name
+)
+
+SELECT
+    c.full_name AS customer,
+
+    COALESCE(os.total_orders, 0) AS total_orders,
+
+    COALESCE(os.completed_orders, 0) AS completed_orders,
+
+    COALESCE(os.cancelled_orders, 0) AS cancelled_orders,
+
+    COALESCE(ROUND(os.total_spent, 2), 0) AS total_spent,
+
+    COALESCE(
+        ROUND(os.total_discount_received, 2),
+        0
+    ) AS total_discount_received,
+
+    COALESCE(ps.unique_products_purchased, 0)
+        AS unique_products_purchased,
+
+    COALESCE(ps.unique_sellers, 0)
+        AS unique_sellers,
+
+    COALESCE(rs.total_returns, 0)
+        AS total_returns,
+
+    COALESCE(
+        ROUND(rfs.total_refunds, 2),
+        0
+    ) AS total_refunds,
+
+    COALESCE(
+        ROUND(os.average_order_value, 2),
+        0
+    ) AS average_order_value,
+
+    COALESCE(
+        cs.category_name,
+        'No Purchase'
+    ) AS favorite_category,
+
+    COALESCE(
+        ss.store_name,
+        'No Purchase'
+    ) AS favorite_seller,
+
+    os.last_order_date
+
+FROM customers c
+
+LEFT JOIN order_stats os
+    ON os.customer_id = c.id
+
+LEFT JOIN purchase_stats ps
+    ON ps.customer_id = c.id
+
+LEFT JOIN return_stats rs
+    ON rs.customer_id = c.id
+
+LEFT JOIN refund_stats rfs
+    ON rfs.customer_id = c.id
+
+LEFT JOIN category_stats cs
+    ON cs.customer_id = c.id
+    AND cs.rn = 1
+
+LEFT JOIN seller_stats ss
+    ON ss.customer_id = c.id
+    AND ss.rn = 1
+
+ORDER BY c.id;
+
+
+-- ===========================================END=======================================
