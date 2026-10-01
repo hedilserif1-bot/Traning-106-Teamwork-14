@@ -1997,78 +1997,261 @@ FROM loans;
 
 
 /*customer_financial_summary view*/
+DROP VIEW IF EXISTS customer_financial_summary;
+
 CREATE VIEW customer_financial_summary AS
 SELECT
-c.id AS customer,
-COUNT(a.id) AS number_of_accounts,
-SUM(a.balance) AS total_balance,
-SUM(t.amount) AS total_transfers_sent,
-SUM(t.amount) AS total_transfers_received,
-SUM(l.total_amount) AS total_loans,
-MAX(t.created_at) AS last_transaction
+    c.id AS customer,
+    c.customer_number,
+    c.full_name,
+
+    COALESCE(a.number_of_accounts, 0) AS number_of_accounts,
+    COALESCE(a.total_balance, 0) AS total_balance,
+
+    COALESCE(s.transfers_sent, 0) AS total_transfers_sent,
+    COALESCE(s.sent_amount, 0) AS total_sent_amount,
+
+    COALESCE(r.transfers_received, 0) AS total_transfers_received,
+    COALESCE(r.received_amount, 0) AS total_received_amount,
+
+    COALESCE(l.total_loans, 0) AS total_loans,
+    COALESCE(l.total_loan_amount, 0) AS total_loan_amount,
+
+    t.last_transaction
+
 FROM customers c
-LEFT JOIN accounts a ON c.id = a.customer_id
-LEFT JOIN transfers t ON a.id = t.from_account_id
-LEFT JOIN loans l ON c.id = l.customer_id
-GROUP BY c.id;
+
+LEFT JOIN
+(
+    SELECT
+        customer_id,
+        COUNT(*) AS number_of_accounts,
+        SUM(balance) AS total_balance
+    FROM accounts
+    GROUP BY customer_id
+) a
+ON c.id = a.customer_id
+
+LEFT JOIN
+(
+    SELECT
+        a.customer_id,
+        COUNT(t.id) AS transfers_sent,
+        SUM(t.amount) AS sent_amount
+    FROM accounts a
+    JOIN transfers t
+        ON t.from_account_id = a.id
+    WHERE t.status = 'completed'
+    GROUP BY a.customer_id
+) s
+ON c.id = s.customer_id
+
+LEFT JOIN
+(
+    SELECT
+        a.customer_id,
+        COUNT(t.id) AS transfers_received,
+        SUM(t.amount) AS received_amount
+    FROM accounts a
+    JOIN transfers t
+        ON t.to_account_id = a.id
+    WHERE t.status = 'completed'
+    GROUP BY a.customer_id
+) r
+ON c.id = r.customer_id
+
+LEFT JOIN
+(
+    SELECT
+        customer_id,
+        COUNT(*) AS total_loans,
+        SUM(total_amount) AS total_loan_amount
+    FROM loans
+    GROUP BY customer_id
+) l
+ON c.id = l.customer_id
+
+LEFT JOIN
+(
+    SELECT
+        a.customer_id,
+        MAX(t.created_at) AS last_transaction
+    FROM accounts a
+    JOIN transactions t
+        ON t.account_id = a.id
+    GROUP BY a.customer_id
+) t
+ON c.id = t.customer_id;
 
 /*account_activity_view*/
+
+DROP VIEW IF EXISTS account_activity_view;
+
 CREATE VIEW account_activity_view AS
 SELECT
-a.id AS account,
-a.customer_id AS customer,
-a.balance,
-SUM(t.amount) AS deposits,
-SUM(t.amount) AS withdrawals,
-COUNT(t.id) AS transaction_count,
-MAX(t.created_at) AS last_transaction
+    a.id AS account,
+    a.account_number,
+    a.customer_id AS customer,
+    a.balance,
+
+    COALESCE(
+        SUM(
+            CASE
+                WHEN t.transaction_type = 'deposit'
+                THEN t.amount
+                ELSE 0
+            END
+        ), 0
+    ) AS deposits,
+
+    COALESCE(
+        SUM(
+            CASE
+                WHEN t.transaction_type = 'withdrawal'
+                THEN t.amount
+                ELSE 0
+            END
+        ), 0
+    ) AS withdrawals,
+
+    COUNT(t.id) AS transaction_count,
+    MAX(t.created_at) AS last_transaction
+
 FROM accounts a
-LEFT JOIN transactions t ON a.id = t.account_id
-GROUP BY a.id;
+LEFT JOIN transactions t
+    ON a.id = t.account_id
+GROUP BY
+    a.id,
+    a.account_number,
+    a.customer_id,
+    a.balance;
 
 
 /*loan_status_view*/
-CREATE VIEW loan_status_view AS
-SELECT
-l.id AS loan,
-l.customer_id AS customer,
-l.principal_amount AS principal,
-l.total_amount,
-SUM(li.paid_amount) AS paid_amount,
-l.total_amount - SUM(li.paid_amount) AS remaining_amount,
-COUNT(li.id) AS total_installments
-FROM loans l
-LEFT JOIN loan_installments li ON l.id = li.loan_id
-GROUP BY l.id;
-
 
 USE banking_system;
 
+DROP VIEW IF EXISTS loan_status_view;
+
+CREATE VIEW loan_status_view AS
+SELECT
+    l.id AS loan,
+    l.loan_number,
+    l.customer_id AS customer,
+    l.principal_amount AS principal,
+    l.total_amount,
+
+    COALESCE(SUM(li.paid_amount), 0) AS paid_amount,
+
+    l.total_amount
+        - COALESCE(SUM(li.paid_amount), 0)
+        AS remaining_amount,
+
+    COUNT(li.id) AS total_installments,
+
+    COALESCE(
+        SUM(
+            CASE
+                WHEN li.status = 'overdue'
+                THEN 1
+                ELSE 0
+            END
+        ), 0
+    ) AS overdue_installments
+
+FROM loans l
+LEFT JOIN loan_installments li
+    ON l.id = li.loan_id
+
+GROUP BY
+    l.id,
+    l.loan_number,
+    l.customer_id,
+    l.principal_amount,
+    l.total_amount;
+
 -- ========================================
 /*deposit_money procedure*/
+USE banking_system;
+
 DROP PROCEDURE IF EXISTS deposit_money;
+
 DELIMITER //
 
 CREATE PROCEDURE deposit_money(
-IN acc_id INT,
-IN money DECIMAL(15,2)
+    IN acc_id INT,
+    IN money DECIMAL(15,2)
 )
 BEGIN
-START TRANSACTION;
+    DECLARE v_count INT DEFAULT 0;
+    DECLARE v_before DECIMAL(15,2);
+    DECLARE v_after DECIMAL(15,2);
+    DECLARE v_status VARCHAR(20);
 
-UPDATE accounts
-SET balance = balance + money
-WHERE id = acc_id;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
-INSERT INTO transactions
-(account_id, transaction_type, amount,
-balance_before, balance_after, description)
-SELECT id, 'deposit', money,
-balance - money, balance, 'Deposit'
-FROM accounts
-WHERE id = acc_id;
+    IF money <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Deposit amount must be greater than zero';
+    END IF;
 
-COMMIT;
+    SELECT COUNT(*)
+    INTO v_count
+    FROM accounts
+    WHERE id = acc_id;
+
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Account does not exist';
+    END IF;
+
+    START TRANSACTION;
+
+    SELECT balance, status
+    INTO v_before, v_status
+    FROM accounts
+    WHERE id = acc_id
+    FOR UPDATE;
+
+    IF v_status <> 'active' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Account is not active';
+    END IF;
+
+    SET v_after = v_before + money;
+
+    UPDATE accounts
+    SET balance = v_after
+    WHERE id = acc_id;
+
+    INSERT INTO transactions
+    (
+        account_id,
+        transfer_id,
+        transaction_type,
+        amount,
+        balance_before,
+        balance_after,
+        description,
+        status
+    )
+    VALUES
+    (
+        acc_id,
+        NULL,
+        'deposit',
+        money,
+        v_before,
+        v_after,
+        'Deposit',
+        'completed'
+    );
+
+    COMMIT;
 END //
 
 DELIMITER ;
@@ -2078,35 +2261,92 @@ CALL deposit_money(1, 500);
 
 -- ====================================
 /*withdraw_money procedure*/
-DROP PROCEDURE IF EXISTS  withdraw_money;
+DROP PROCEDURE IF EXISTS withdraw_money;
 
 DELIMITER //
 
 CREATE PROCEDURE withdraw_money(
-IN acc_id INT,
-IN money DECIMAL(15,2)
+    IN acc_id INT,
+    IN money DECIMAL(15,2)
 )
 BEGIN
-START TRANSACTION;
+    DECLARE v_count INT DEFAULT 0;
+    DECLARE v_before DECIMAL(15,2);
+    DECLARE v_after DECIMAL(15,2);
+    DECLARE v_status VARCHAR(20);
 
-UPDATE accounts
-SET balance = balance - money
-WHERE id = acc_id
-AND balance >= money;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
-INSERT INTO transactions
-(account_id, transaction_type, amount,
-balance_before, balance_after, description)
-SELECT id, 'withdrawal', money,
-balance + money, balance, 'Withdrawal'
-FROM accounts
-WHERE id = acc_id;
+    IF money <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Withdrawal amount must be greater than zero';
+    END IF;
 
-COMMIT;
+    SELECT COUNT(*)
+    INTO v_count
+    FROM accounts
+    WHERE id = acc_id;
+
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Account does not exist';
+    END IF;
+
+    START TRANSACTION;
+
+    SELECT balance, status
+    INTO v_before, v_status
+    FROM accounts
+    WHERE id = acc_id
+    FOR UPDATE;
+
+    IF v_status <> 'active' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Account is not active';
+    END IF;
+
+    IF v_before < money THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Insufficient balance';
+    END IF;
+
+    SET v_after = v_before - money;
+
+    UPDATE accounts
+    SET balance = v_after
+    WHERE id = acc_id;
+
+    INSERT INTO transactions
+    (
+        account_id,
+        transfer_id,
+        transaction_type,
+        amount,
+        balance_before,
+        balance_after,
+        description,
+        status
+    )
+    VALUES
+    (
+        acc_id,
+        NULL,
+        'withdrawal',
+        money,
+        v_before,
+        v_after,
+        'Withdrawal',
+        'completed'
+    );
+
+    COMMIT;
 END //
 
 DELIMITER ;
-
 /*run withdraw_money procedure*/
 CALL withdraw_money(1, 200);
 
@@ -2121,23 +2361,73 @@ CREATE PROCEDURE pay_loan_installment(
     IN money DECIMAL(15,2)
 )
 BEGIN
+    DECLARE v_count INT DEFAULT 0;
+    DECLARE v_amount DECIMAL(15,2);
+    DECLARE v_paid DECIMAL(15,2);
+    DECLARE v_due_date DATE;
+    DECLARE v_new_paid DECIMAL(15,2);
+    DECLARE v_new_status VARCHAR(20);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    IF money <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Payment amount must be greater than zero';
+    END IF;
+
+    SELECT COUNT(*)
+    INTO v_count
+    FROM loan_installments
+    WHERE id = inst_id;
+
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Installment does not exist';
+    END IF;
 
     START TRANSACTION;
 
-    UPDATE loan_installments
-    SET paid_amount = paid_amount + money,
-        paid_at = NOW(),
-        status = 'paid'
+    SELECT amount, paid_amount, due_date
+    INTO v_amount, v_paid, v_due_date
+    FROM loan_installments
     WHERE id = inst_id
-      AND paid_amount + money <= amount
-      AND status <> 'paid';
+    FOR UPDATE;
+
+    IF v_paid >= v_amount THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Installment is already fully paid';
+    END IF;
+
+    IF v_paid + money > v_amount THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Payment exceeds installment amount';
+    END IF;
+
+    SET v_new_paid = v_paid + money;
+
+    IF v_new_paid = v_amount THEN
+        SET v_new_status = 'paid';
+    ELSEIF v_due_date < CURDATE() THEN
+        SET v_new_status = 'overdue';
+    ELSE
+        SET v_new_status = 'partially_paid';
+    END IF;
+
+    UPDATE loan_installments
+    SET
+        paid_amount = v_new_paid,
+        paid_at = NOW(),
+        status = v_new_status
+    WHERE id = inst_id;
 
     COMMIT;
-
 END //
 
 DELIMITER ;
-
 /*run pay_loan_installment procedure*/
 CALL pay_loan_installment(1, 500);
 
@@ -2162,3 +2452,2381 @@ DELIMITER ;
 /*run block_account procedure*/
 CALL block_account(1);
 
+-- ====================================
+/*transfer transaction*/
+
+ALTER TABLE transfers
+ADD COLUMN idempotency_key VARCHAR(100) NULL
+AFTER reference_number;
+
+ALTER TABLE transfers
+ADD CONSTRAINT uq_transfers_idempotency_key
+UNIQUE (idempotency_key);
+
+-- ====================================
+/*Transfer Money Core*/
+
+DROP PROCEDURE IF EXISTS transfer_money_core;
+
+DELIMITER //
+
+CREATE PROCEDURE transfer_money_core(
+    IN p_request_id VARCHAR(100),
+    IN p_from_account INT,
+    IN p_to_account INT,
+    IN p_amount DECIMAL(15,2),
+    IN p_description VARCHAR(255)
+)
+main_block:
+BEGIN
+    DECLARE v_count INT DEFAULT 0;
+    DECLARE v_existing_id INT DEFAULT 0;
+
+    DECLARE v_from_balance DECIMAL(15,2);
+    DECLARE v_to_balance DECIMAL(15,2);
+
+    DECLARE v_from_currency VARCHAR(3);
+    DECLARE v_to_currency VARCHAR(3);
+
+    DECLARE v_from_status VARCHAR(20);
+    DECLARE v_to_status VARCHAR(20);
+
+    DECLARE v_from_after DECIMAL(15,2);
+    DECLARE v_to_after DECIMAL(15,2);
+
+    DECLARE v_fee DECIMAL(15,2) DEFAULT 0.00;
+    DECLARE v_reference VARCHAR(50);
+    DECLARE v_request VARCHAR(100);
+
+    DECLARE v_existing_from INT;
+    DECLARE v_existing_to INT;
+    DECLARE v_existing_amount DECIMAL(15,2);
+    DECLARE v_existing_description VARCHAR(255);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    IF p_from_account = p_to_account THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Source and destination accounts must differ';
+    END IF;
+
+    IF p_amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transfer amount must be greater than zero';
+    END IF;
+
+    SET v_request = COALESCE(
+        NULLIF(TRIM(p_request_id), ''),
+        UUID()
+    );
+
+    START TRANSACTION;
+
+    /* =========================================
+       IDEMPOTENCY CHECK
+       ========================================= */
+
+    SELECT COALESCE(MAX(id), 0)
+    INTO v_existing_id
+    FROM transfers
+    WHERE idempotency_key = v_request;
+
+    IF v_existing_id > 0 THEN
+
+        SELECT
+            from_account_id,
+            to_account_id,
+            amount,
+            description
+        INTO
+            v_existing_from,
+            v_existing_to,
+            v_existing_amount,
+            v_existing_description
+        FROM transfers
+        WHERE id = v_existing_id;
+
+        IF v_existing_from <> p_from_account
+           OR v_existing_to <> p_to_account
+           OR v_existing_amount <> p_amount
+           OR NOT (v_existing_description <=> p_description)
+        THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+                'Idempotency key already belongs to another request';
+        END IF;
+
+        COMMIT;
+
+        SELECT
+            id AS transfer_id,
+            reference_number,
+            idempotency_key,
+            status,
+            'Already processed' AS result
+        FROM transfers
+        WHERE id = v_existing_id;
+
+    ELSE
+
+        /* =========================================
+           CHECK BOTH ACCOUNTS EXIST
+           ========================================= */
+
+        SELECT COUNT(*)
+        INTO v_count
+        FROM accounts
+        WHERE id IN (p_from_account, p_to_account);
+
+        IF v_count <> 2 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'One or both accounts do not exist';
+        END IF;
+
+        /* =========================================
+           DETERMINISTIC LOCK ORDER
+           ========================================= */
+
+        IF p_from_account < p_to_account THEN
+
+            SELECT balance, currency, status
+            INTO v_from_balance, v_from_currency, v_from_status
+            FROM accounts
+            WHERE id = p_from_account
+            FOR UPDATE;
+
+            SELECT balance, currency, status
+            INTO v_to_balance, v_to_currency, v_to_status
+            FROM accounts
+            WHERE id = p_to_account
+            FOR UPDATE;
+
+        ELSE
+
+            SELECT balance, currency, status
+            INTO v_to_balance, v_to_currency, v_to_status
+            FROM accounts
+            WHERE id = p_to_account
+            FOR UPDATE;
+
+            SELECT balance, currency, status
+            INTO v_from_balance, v_from_currency, v_from_status
+            FROM accounts
+            WHERE id = p_from_account
+            FOR UPDATE;
+
+        END IF;
+
+        /* =========================================
+           VALIDATIONS
+           ========================================= */
+
+        IF v_from_status <> 'active' THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Source account is not active';
+        END IF;
+
+        IF v_to_status <> 'active' THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Destination account is not active';
+        END IF;
+
+        IF v_from_currency <> v_to_currency THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+                'Currency mismatch: conversion is not configured';
+        END IF;
+
+        IF v_from_balance < p_amount THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Insufficient balance';
+        END IF;
+
+        /* No transfer limit exists in current schema. */
+
+        SET v_from_after = v_from_balance - p_amount;
+        SET v_to_after = v_to_balance + p_amount;
+
+        SET v_reference =
+            CONCAT(
+                'TR-',
+                REPLACE(UUID(), '-', '')
+            );
+
+        /* =========================================
+           CREATE TRANSFER
+           ========================================= */
+
+        INSERT INTO transfers
+        (
+            reference_number,
+            idempotency_key,
+            from_account_id,
+            to_account_id,
+            amount,
+            transfer_fee,
+            description,
+            created_at,
+            status
+        )
+        VALUES
+        (
+            v_reference,
+            v_request,
+            p_from_account,
+            p_to_account,
+            p_amount,
+            v_fee,
+            p_description,
+            NOW(),
+            'processing'
+        );
+
+        /* =========================================
+           UPDATE BALANCES
+           ========================================= */
+
+        UPDATE accounts
+        SET balance = v_from_after
+        WHERE id = p_from_account;
+
+        UPDATE accounts
+        SET balance = v_to_after
+        WHERE id = p_to_account;
+
+        /* =========================================
+           TRANSFER OUT
+           ========================================= */
+
+        INSERT INTO transactions
+        (
+            account_id,
+            transfer_id,
+            transaction_type,
+            amount,
+            balance_before,
+            balance_after,
+            description,
+            created_at,
+            status
+        )
+        VALUES
+        (
+            p_from_account,
+            LAST_INSERT_ID(),
+            'transfer_out',
+            p_amount,
+            v_from_balance,
+            v_from_after,
+            COALESCE(p_description, 'Transfer out'),
+            NOW(),
+            'completed'
+        );
+
+        /* =========================================
+           TRANSFER IN
+           ========================================= */
+
+        INSERT INTO transactions
+        (
+            account_id,
+            transfer_id,
+            transaction_type,
+            amount,
+            balance_before,
+            balance_after,
+            description,
+            created_at,
+            status
+        )
+        SELECT
+            p_to_account,
+            id,
+            'transfer_in',
+            p_amount,
+            v_to_balance,
+            v_to_after,
+            COALESCE(p_description, 'Transfer in'),
+            NOW(),
+            'completed'
+        FROM transfers
+        WHERE reference_number = v_reference;
+
+        /* =========================================
+           FEE, IF THERE IS ONE
+           ========================================= */
+
+        IF v_fee > 0 THEN
+
+            INSERT INTO transactions
+            (
+                account_id,
+                transfer_id,
+                transaction_type,
+                amount,
+                balance_before,
+                balance_after,
+                description,
+                created_at,
+                status
+            )
+            VALUES
+            (
+                p_from_account,
+                (
+                    SELECT id
+                    FROM transfers
+                    WHERE reference_number = v_reference
+                ),
+                'fee',
+                v_fee,
+                v_from_after,
+                v_from_after - v_fee,
+                'Transfer fee',
+                NOW(),
+                'completed'
+            );
+
+            UPDATE accounts
+            SET balance = balance - v_fee
+            WHERE id = p_from_account;
+
+        END IF;
+
+        /* =========================================
+           COMPLETE TRANSFER
+           ========================================= */
+
+        UPDATE transfers
+        SET
+            status = 'completed',
+            completed_at = NOW()
+        WHERE reference_number = v_reference;
+
+        COMMIT;
+
+        SELECT
+            id AS transfer_id,
+            reference_number,
+            idempotency_key,
+            status,
+            'Transfer completed' AS result
+        FROM transfers
+        WHERE reference_number = v_reference;
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Transfer Money*/
+
+USE banking_system;
+
+DROP PROCEDURE IF EXISTS transfer_money;
+
+DELIMITER //
+
+CREATE PROCEDURE transfer_money(
+    IN p_from_account INT,
+    IN p_to_account INT,
+    IN p_amount DECIMAL(15,2),
+    IN p_description VARCHAR(255)
+)
+BEGIN
+
+    CALL transfer_money_core(
+        UUID(),
+        p_from_account,
+        p_to_account,
+        p_amount,
+        p_description
+    );
+
+END //
+
+CALL transfer_money(1, 3,  500.00, 'Family support');
+
+DELIMITER ;
+
+-- ====================================
+/*Network-safe Idempotent Transfer*/
+
+DROP PROCEDURE IF EXISTS transfer_money_request;
+
+DELIMITER //
+
+CREATE PROCEDURE transfer_money_request(
+    IN p_request_id VARCHAR(100),
+    IN p_from_account INT,
+    IN p_to_account INT,
+    IN p_amount DECIMAL(15,2),
+    IN p_description VARCHAR(255)
+)
+BEGIN
+
+    IF p_request_id IS NULL
+       OR TRIM(p_request_id) = ''
+    THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Request ID is required';
+    END IF;
+
+    CALL transfer_money_core(
+        p_request_id,
+        p_from_account,
+        p_to_account,
+        p_amount,
+        p_description
+    );
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Double Execution Challenge*/
+
+SELECT
+    id,
+    reference_number,
+    idempotency_key,
+    from_account_id,
+    to_account_id,
+    amount,
+    status
+FROM transfers
+WHERE idempotency_key = 'REQ-10001';
+
+-- ====================================
+
+SELECT
+    t.id,
+    t.transfer_id,
+    t.account_id,
+    t.transaction_type,
+    t.amount,
+    t.balance_before,
+    t.balance_after
+FROM transactions t
+JOIN transfers tr
+    ON tr.id = t.transfer_id
+WHERE tr.idempotency_key = 'REQ-10001';
+
+-- ====================================
+/*Concurrency Challenge*/
+
+SELECT balance FROM accounts;
+
+-- ====================================
+
+UPDATE accounts
+SET balance = balance - 800
+WHERE id = 1
+AND balance >= 800;
+
+-- ====================================
+
+UPDATE accounts
+SET balance = balance - 700
+WHERE id = 1
+AND balance >= 700;
+
+-- ====================================
+/*Balance Integrity*/
+
+WITH ordered_transactions AS
+(
+    SELECT
+        t.*,
+
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY t.account_id
+            ORDER BY t.created_at, t.id
+        ) AS rn,
+
+        CASE
+            WHEN t.transaction_type IN
+            (
+                'deposit',
+                'transfer_in',
+                'refund'
+            )
+            THEN t.amount
+
+            WHEN t.transaction_type IN
+            (
+                'withdrawal',
+                'transfer_out',
+                'fee',
+                'loan_payment'
+            )
+            THEN -t.amount
+
+            ELSE 0
+        END AS signed_amount
+
+    FROM transactions t
+    WHERE t.status = 'completed'
+),
+
+calculated AS
+(
+    SELECT
+        account_id,
+
+        MAX(
+            CASE
+                WHEN rn = 1
+                THEN balance_before
+            END
+        ) AS opening_balance,
+
+        SUM(signed_amount) AS net_change,
+
+        MAX(
+            CASE
+                WHEN rn = 1
+                THEN balance_before
+            END
+        ) + SUM(signed_amount)
+        AS calculated_balance
+
+    FROM ordered_transactions
+    GROUP BY account_id
+)
+
+SELECT
+    a.id AS account_id,
+    a.account_number,
+    a.balance AS stored_balance,
+    c.opening_balance,
+    c.net_change,
+    c.calculated_balance,
+
+    a.balance - c.calculated_balance
+    AS difference
+
+FROM accounts a
+JOIN calculated c
+    ON c.account_id = a.id
+
+WHERE a.balance <> c.calculated_balance
+
+ORDER BY ABS(a.balance - c.calculated_balance) DESC; 
+
+-- ====================================
+/*Balance Integrity - control*/
+
+WITH ordered AS
+(
+    SELECT
+        t.*,
+
+        LEAD(balance_before) OVER
+        (
+            PARTITION BY account_id
+            ORDER BY created_at, id
+        ) AS next_balance_before
+
+    FROM transactions t
+)
+
+SELECT
+    id,
+    account_id,
+    balance_after,
+    next_balance_before
+
+FROM ordered
+
+WHERE next_balance_before IS NOT NULL
+  AND balance_after <> next_balance_before;
+
+-- ====================================
+/*Window Functions*/
+
+SELECT
+    c.id,
+    c.full_name,
+    SUM(a.balance) AS total_balance,
+
+    ROW_NUMBER() OVER
+    (
+        ORDER BY SUM(a.balance) DESC
+    ) AS row_number_rank,
+
+    RANK() OVER
+    (
+        ORDER BY SUM(a.balance) DESC
+    ) AS rank_position,
+
+    DENSE_RANK() OVER
+    (
+        ORDER BY SUM(a.balance) DESC
+    ) AS dense_rank_position
+
+FROM customers c
+JOIN accounts a
+    ON c.id = a.customer_id
+
+GROUP BY c.id, c.full_name;
+
+-- ====================================
+
+SELECT
+    a.branch_id,
+    a.account_number,
+    a.balance,
+
+    ROW_NUMBER() OVER
+    (
+        PARTITION BY a.branch_id
+        ORDER BY a.balance DESC
+    ) AS row_number_position,
+
+    RANK() OVER
+    (
+        PARTITION BY a.branch_id
+        ORDER BY a.balance DESC
+    ) AS rank_position,
+
+    DENSE_RANK() OVER
+    (
+        PARTITION BY a.branch_id
+        ORDER BY a.balance DESC
+    ) AS dense_rank_position
+
+FROM accounts a;
+
+-- ====================================
+/*her branchte Top 3 account */
+
+WITH ranked_accounts AS
+(
+    SELECT
+        a.*,
+
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY branch_id
+            ORDER BY balance DESC
+        ) AS rn
+
+    FROM accounts a
+)
+
+SELECT
+    id,
+    account_number,
+    branch_id,
+    balance
+
+FROM ranked_accounts
+
+WHERE rn <= 3
+
+ORDER BY branch_id, balance DESC;
+
+-- ====================================
+/*transaction sıralama*/
+
+SELECT
+    account_id,
+    id,
+    transaction_type,
+    amount,
+    created_at,
+
+    ROW_NUMBER() OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+    ) AS transaction_number
+
+FROM transactions;
+
+-- ====================================
+/*previous transaction*/
+
+SELECT
+    account_id,
+    id,
+    transaction_type,
+    amount,
+    created_at,
+
+    LAG(amount) OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+    ) AS previous_amount
+
+FROM transactions;
+
+-- ====================================
+/*Next transaction*/
+
+SELECT
+    account_id,
+    id,
+    transaction_type,
+    amount,
+    created_at,
+
+    LEAD(amount) OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+    ) AS next_amount
+
+FROM transactions;
+
+-- ====================================
+/*balance farkı*/
+
+SELECT
+    account_id,
+    id,
+    created_at,
+    balance_after,
+
+    LAG(balance_after) OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+    ) AS previous_balance_after,
+
+    balance_after
+    -
+    LAG(balance_after) OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+    ) AS balance_difference
+
+FROM transactions
+
+ORDER BY account_id, created_at, id;
+
+-- ====================================
+/*running balance*/
+
+WITH tx AS
+(
+    SELECT
+        t.*,
+
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY account_id
+            ORDER BY created_at, id
+        ) AS rn,
+
+        CASE
+            WHEN transaction_type IN
+            ('deposit', 'transfer_in', 'refund')
+                THEN amount
+
+            WHEN transaction_type IN
+            ('withdrawal', 'transfer_out', 'fee', 'loan_payment')
+                THEN -amount
+
+            ELSE 0
+        END AS signed_amount
+
+    FROM transactions t
+    WHERE status = 'completed'
+)
+
+SELECT
+    account_id,
+    id,
+    transaction_type,
+    amount,
+    created_at,
+
+    FIRST_VALUE(balance_before) OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+    )
+    +
+
+    SUM(signed_amount) OVER
+    (
+        PARTITION BY account_id
+        ORDER BY created_at, id
+        ROWS BETWEEN UNBOUNDED PRECEDING
+        AND CURRENT ROW
+    )
+    AS running_balance
+
+FROM tx
+
+ORDER BY account_id, created_at, id;
+
+-- ====================================
+/*Monthly running total transfers*/
+
+WITH monthly_transfers AS
+(
+    SELECT
+        DATE_FORMAT(created_at, '%Y-%m') AS transfer_month,
+        SUM(amount) AS monthly_total
+
+    FROM transfers
+
+    WHERE status = 'completed'
+
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+)
+
+SELECT
+    transfer_month,
+    monthly_total,
+
+    SUM(monthly_total) OVER
+    (
+        ORDER BY transfer_month
+        ROWS BETWEEN UNBOUNDED PRECEDING
+        AND CURRENT ROW
+    ) AS running_total
+
+FROM monthly_transfers
+
+ORDER BY transfer_month;
+
+-- ====================================
+/*bu ay ile önceki ayı karşılaştırma */
+
+WITH monthly_transfers AS
+(
+    SELECT
+        DATE_FORMAT(created_at, '%Y-%m') AS transfer_month,
+        SUM(amount) AS monthly_total
+
+    FROM transfers
+
+    WHERE status = 'completed'
+
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+)
+
+SELECT
+    transfer_month,
+    monthly_total,
+
+    SUM(monthly_total) OVER
+    (
+        ORDER BY transfer_month
+        ROWS BETWEEN UNBOUNDED PRECEDING
+        AND CURRENT ROW
+    ) AS running_total
+
+FROM monthly_transfers
+
+ORDER BY transfer_month;
+
+-- ====================================
+/*müşterinin transfer katkısı*/
+
+WITH customer_transfers AS
+(
+    SELECT
+        a.customer_id,
+        SUM(t.amount) AS sent_amount
+
+    FROM accounts a
+
+    JOIN transfers t
+        ON t.from_account_id = a.id
+
+    WHERE t.status = 'completed'
+
+    GROUP BY a.customer_id
+)
+
+SELECT
+    customer_id,
+    sent_amount,
+
+    ROUND(
+        100 * sent_amount /
+        NULLIF(SUM(sent_amount) OVER (), 0),
+        2
+    ) AS contribution_percent
+
+FROM customer_transfers
+
+ORDER BY contribution_percent DESC;
+
+-- ====================================
+/*CTE*/
+
+WITH customer_balances AS
+(
+    SELECT
+        c.id,
+        c.full_name,
+        COALESCE(SUM(a.balance), 0) AS total_balance
+
+    FROM customers c
+
+    LEFT JOIN accounts a
+        ON c.id = a.customer_id
+
+    GROUP BY c.id, c.full_name
+),
+
+average_balance AS
+(
+    SELECT AVG(total_balance) AS avg_balance
+    FROM customer_balances
+)
+
+SELECT
+    cb.id,
+    cb.full_name,
+    cb.total_balance,
+    ab.avg_balance
+
+FROM customer_balances cb
+CROSS JOIN average_balance ab
+
+WHERE cb.total_balance > ab.avg_balance; 
+
+-- ====================================
+/*CTE - account activity*/
+
+WITH account_activity AS
+(
+    SELECT
+        a.id AS account_id,
+        a.account_number,
+        a.customer_id,
+
+        COUNT(t.id) AS transaction_count,
+
+        COALESCE(SUM(t.amount), 0) AS transaction_value,
+
+        MAX(t.created_at) AS last_transaction
+
+    FROM accounts a
+
+    LEFT JOIN transactions t
+        ON a.id = t.account_id
+
+    GROUP BY
+        a.id,
+        a.account_number,
+        a.customer_id
+)
+
+SELECT *
+FROM account_activity
+
+ORDER BY transaction_count DESC;
+
+-- ====================================
+/*En aktif müşteriler*/
+
+WITH customer_activity AS
+(
+    SELECT
+        c.id,
+        c.full_name,
+        COUNT(t.id) AS transaction_count
+
+    FROM customers c
+
+    LEFT JOIN accounts a
+        ON c.id = a.customer_id
+
+    LEFT JOIN transactions t
+        ON a.id = t.account_id
+
+    GROUP BY c.id, c.full_name
+)
+
+SELECT *
+FROM customer_activity
+
+ORDER BY transaction_count DESC
+LIMIT 10;
+
+-- ====================================
+/*Overdue installment analysis*/
+
+WITH overdue AS
+(
+    SELECT
+        l.customer_id,
+        l.loan_number,
+        li.id AS installment_id,
+        li.amount,
+        li.paid_amount,
+        li.due_date
+
+    FROM loans l
+
+    JOIN loan_installments li
+        ON l.id = li.loan_id
+
+    WHERE li.status = 'overdue'
+)
+
+SELECT
+    customer_id,
+    COUNT(*) AS overdue_count,
+    SUM(amount - paid_amount) AS overdue_amount
+
+FROM overdue
+
+GROUP BY customer_id
+
+ORDER BY overdue_amount DESC;
+
+-- ====================================
+/*Branch performance*/
+
+WITH branch_accounts AS
+(
+    SELECT
+        branch_id,
+        COUNT(*) AS account_count,
+        SUM(balance) AS total_balance,
+        AVG(balance) AS average_balance
+
+    FROM accounts
+
+    GROUP BY branch_id
+),
+
+branch_transactions AS
+(
+    SELECT
+        a.branch_id,
+        COUNT(t.id) AS transaction_count,
+        COALESCE(SUM(t.amount), 0) AS transaction_volume
+
+    FROM accounts a
+
+    LEFT JOIN transactions t
+        ON a.id = t.account_id
+
+    GROUP BY a.branch_id
+)
+
+SELECT
+    b.id AS branch_id,
+    b.branch_name,
+
+    COALESCE(ba.account_count, 0) AS account_count,
+    COALESCE(ba.total_balance, 0) AS total_balance,
+    COALESCE(ba.average_balance, 0) AS average_balance,
+
+    COALESCE(bt.transaction_count, 0) AS transaction_count,
+    COALESCE(bt.transaction_volume, 0) AS transaction_volume
+
+FROM branches b
+
+LEFT JOIN branch_accounts ba
+    ON b.id = ba.branch_id
+
+LEFT JOIN branch_transactions bt
+    ON b.id = bt.branch_id
+
+ORDER BY transaction_volume DESC;
+
+-- ====================================
+/*Şüpheli balance hesapları*/
+
+WITH calculated AS
+(
+    SELECT
+        account_id,
+
+        MAX(
+            CASE
+                WHEN rn = 1
+                THEN balance_before
+            END
+        ) AS opening_balance,
+
+        SUM(signed_amount) AS net_change
+
+    FROM
+    (
+        SELECT
+            t.*,
+
+            ROW_NUMBER() OVER
+            (
+                PARTITION BY account_id
+                ORDER BY created_at, id
+            ) AS rn,
+
+            CASE
+                WHEN transaction_type IN
+                ('deposit', 'transfer_in', 'refund')
+                    THEN amount
+
+                WHEN transaction_type IN
+                ('withdrawal', 'transfer_out', 'fee', 'loan_payment')
+                    THEN -amount
+
+                ELSE 0
+            END AS signed_amount
+
+        FROM transactions t
+
+        WHERE status = 'completed'
+    ) x
+
+    GROUP BY account_id
+)
+
+SELECT
+    a.id,
+    a.account_number,
+    a.balance AS stored_balance,
+
+    c.opening_balance + c.net_change
+    AS calculated_balance,
+
+    a.balance -
+    (c.opening_balance + c.net_change)
+    AS difference
+
+FROM accounts a
+
+JOIN calculated c
+    ON a.id = c.account_id
+
+WHERE a.balance <>
+      (c.opening_balance + c.net_change);
+
+-- ====================================
+/*trigers*/
+
+DROP TRIGGER IF EXISTS trg_transactions_before_insert;
+DROP TRIGGER IF EXISTS trg_transactions_before_delete;
+DROP TRIGGER IF EXISTS trg_transactions_before_update;
+DROP TRIGGER IF EXISTS trg_accounts_before_delete;
+DROP TRIGGER IF EXISTS trg_accounts_after_update;
+DROP TRIGGER IF EXISTS trg_customers_after_update;
+DROP TRIGGER IF EXISTS trg_transfers_after_insert;
+DROP TRIGGER IF EXISTS trg_transfers_after_update;
+DROP TRIGGER IF EXISTS trg_loans_after_update;
+DROP TRIGGER IF EXISTS trg_installments_before_update;
+DROP TRIGGER IF EXISTS trg_installments_after_update;
+
+-- ====================================
+
+DELIMITER //
+
+CREATE TRIGGER trg_transactions_before_insert
+BEFORE INSERT ON transactions
+FOR EACH ROW
+BEGIN
+
+    IF NEW.amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Financial transaction amount must be greater than zero';
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Completed transaction remove*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_transactions_before_delete
+BEFORE DELETE ON transactions
+FOR EACH ROW
+BEGIN
+
+    IF OLD.status = 'completed' THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Completed financial transactions cannot be deleted';
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*acount silme koruması*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_accounts_before_delete
+BEFORE DELETE ON accounts
+FOR EACH ROW
+BEGIN
+    DECLARE v_transactions INT DEFAULT 0;
+    DECLARE v_transfers INT DEFAULT 0;
+
+    SELECT COUNT(*)
+    INTO v_transactions
+    FROM transactions
+    WHERE account_id = OLD.id;
+
+    SELECT COUNT(*)
+    INTO v_transfers
+    FROM transfers
+    WHERE from_account_id = OLD.id
+       OR to_account_id = OLD.id;
+
+    IF v_transactions > 0
+       OR v_transfers > 0
+    THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Account with financial history cannot be deleted';
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Balance before/after değiştirmeyi engelle*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_transactions_before_update
+BEFORE UPDATE ON transactions
+FOR EACH ROW
+BEGIN
+
+    IF OLD.status = 'completed'
+       AND (
+            NEW.balance_before <> OLD.balance_before
+            OR
+            NEW.balance_after <> OLD.balance_after
+       )
+    THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+            'Balance history of completed transaction is immutable';
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*acount değişikleri "audit_log"a yazılsın*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_accounts_after_update
+AFTER UPDATE ON accounts
+FOR EACH ROW
+BEGIN
+
+    IF OLD.balance <> NEW.balance THEN
+
+        INSERT INTO audit_logs
+        (
+            customer_id,
+            account_id,
+            action_type,
+            table_name,
+            record_id,
+            old_value,
+            new_value
+        )
+        VALUES
+        (
+            NEW.customer_id,
+            NEW.id,
+            'UPDATE',
+            'accounts',
+            NEW.id,
+            CONCAT('balance=', OLD.balance),
+            CONCAT('balance=', NEW.balance)
+        );
+
+    END IF;
+
+    IF OLD.status <> NEW.status THEN
+
+        INSERT INTO audit_logs
+        (
+            customer_id,
+            account_id,
+            action_type,
+            table_name,
+            record_id,
+            old_value,
+            new_value
+        )
+        VALUES
+        (
+            NEW.customer_id,
+            NEW.id,
+            'UPDATE',
+            'accounts',
+            NEW.id,
+            CONCAT('status=', OLD.status),
+            CONCAT('status=', NEW.status)
+        );
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*costumer değişikliğini audit et*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_customers_after_update
+AFTER UPDATE ON customers
+FOR EACH ROW
+BEGIN
+
+    IF NOT (OLD.status <=> NEW.status) THEN
+
+        INSERT INTO audit_logs
+        (
+            customer_id,
+            action_type,
+            table_name,
+            record_id,
+            old_value,
+            new_value
+        )
+        VALUES
+        (
+            NEW.id,
+            'UPDATE',
+            'customers',
+            NEW.id,
+            CONCAT('status=', OLD.status),
+            CONCAT('status=', NEW.status)
+        );
+
+    END IF;
+
+    IF NOT (OLD.email <=> NEW.email) THEN
+
+        INSERT INTO audit_logs
+        (
+            customer_id,
+            action_type,
+            table_name,
+            record_id,
+            old_value,
+            new_value
+        )
+        VALUES
+        (
+            NEW.id,
+            'UPDATE',
+            'customers',
+            NEW.id,
+            CONCAT('email=', OLD.email),
+            CONCAT('email=', NEW.email)
+        );
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Transfer audit*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_transfers_after_insert
+AFTER INSERT ON transfers
+FOR EACH ROW
+BEGIN
+
+    INSERT INTO audit_logs
+    (
+        account_id,
+        action_type,
+        table_name,
+        record_id,
+        old_value,
+        new_value
+    )
+    VALUES
+    (
+        NEW.from_account_id,
+        'CREATE',
+        'transfers',
+        NEW.id,
+        NULL,
+        CONCAT(
+            'Transfer created: ',
+            NEW.reference_number,
+            ', amount=',
+            NEW.amount
+        )
+    );
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Installment status trigger*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_installments_before_update
+BEFORE UPDATE ON loan_installments
+FOR EACH ROW
+BEGIN
+
+    IF NEW.paid_amount >= NEW.amount THEN
+
+        SET NEW.paid_amount = NEW.amount;
+        SET NEW.status = 'paid';
+
+        IF NEW.paid_at IS NULL THEN
+            SET NEW.paid_at = NOW();
+        END IF;
+
+    ELSEIF NEW.paid_amount > 0 THEN
+
+        SET NEW.status = 'partially_paid';
+
+    ELSEIF NEW.due_date < CURDATE() THEN
+
+        SET NEW.status = 'overdue';
+
+    ELSE
+
+        SET NEW.status = 'pending';
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Tüm installment'lar ödendiyse Loan = paid*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_installments_after_update
+AFTER UPDATE ON loan_installments
+FOR EACH ROW
+BEGIN
+    DECLARE v_total INT DEFAULT 0;
+    DECLARE v_paid INT DEFAULT 0;
+
+    SELECT COUNT(*)
+    INTO v_total
+    FROM loan_installments
+    WHERE loan_id = NEW.loan_id;
+
+    SELECT COUNT(*)
+    INTO v_paid
+    FROM loan_installments
+    WHERE loan_id = NEW.loan_id
+      AND status = 'paid';
+
+    IF v_total > 0 AND v_total = v_paid THEN
+
+        UPDATE loans
+        SET status = 'paid'
+        WHERE id = NEW.loan_id
+          AND status <> 'cancelled';
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Loan status audit*/
+
+DELIMITER //
+
+CREATE TRIGGER trg_loans_after_update
+AFTER UPDATE ON loans
+FOR EACH ROW
+BEGIN
+
+    IF OLD.status <> NEW.status THEN
+
+        INSERT INTO audit_logs
+        (
+            customer_id,
+            action_type,
+            table_name,
+            record_id,
+            old_value,
+            new_value
+        )
+        VALUES
+        (
+            NEW.customer_id,
+            'UPDATE',
+            'loans',
+            NEW.id,
+            CONCAT('status=', OLD.status),
+            CONCAT('status=', NEW.status)
+        );
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- ====================================
+/*Fraud Detection*/
+
+SELECT
+    t1.from_account_id AS account_id,
+    t1.created_at AS window_start,
+    COUNT(t2.id) AS transfer_count
+
+FROM transfers t1
+
+JOIN transfers t2
+    ON t2.from_account_id = t1.from_account_id
+    AND t2.status = 'completed'
+    AND t2.created_at BETWEEN
+        t1.created_at
+        AND DATE_ADD(t1.created_at, INTERVAL 1 HOUR)
+
+WHERE t1.status = 'completed'
+
+GROUP BY
+    t1.from_account_id,
+    t1.created_at
+
+HAVING COUNT(t2.id) > 10
+
+ORDER BY transfer_count DESC;
+
+-- ====================================
+/*Suspicious Transfer Frequency*/
+
+SELECT
+    t1.from_account_id AS account_id,
+    t1.created_at AS window_start,
+    COUNT(t2.id) AS transfer_count
+
+FROM transfers t1
+
+JOIN transfers t2
+    ON t2.from_account_id = t1.from_account_id
+    AND t2.status = 'completed'
+    AND t2.created_at BETWEEN
+        t1.created_at
+        AND DATE_ADD(t1.created_at, INTERVAL 1 HOUR)
+
+WHERE t1.status = 'completed'
+
+GROUP BY
+    t1.from_account_id,
+    t1.created_at
+
+HAVING COUNT(t2.id) > 10
+
+ORDER BY transfer_count DESC;
+
+-- ====================================
+/*Multiple Senders to One Account*/
+
+SELECT
+    to_account_id,
+    DATE(created_at) AS transfer_date,
+    COUNT(DISTINCT from_account_id) AS unique_senders,
+    SUM(amount) AS received_amount
+
+FROM transfers
+
+WHERE status = 'completed'
+
+GROUP BY
+    to_account_id,
+    DATE(created_at)
+
+HAVING COUNT(DISTINCT from_account_id) > 15
+
+ORDER BY unique_senders DESC;
+
+-- ====================================
+/*Unusually Large Transfer*/
+
+WITH customer_average AS
+(
+    SELECT
+        a.customer_id,
+        AVG(t.amount) AS average_transfer
+
+    FROM accounts a
+
+    JOIN transfers t
+        ON a.id = t.from_account_id
+
+    WHERE t.status = 'completed'
+
+    GROUP BY a.customer_id
+)
+
+SELECT
+    t.id,
+    t.reference_number,
+    a.customer_id,
+    t.amount,
+    ca.average_transfer
+
+FROM transfers t
+
+JOIN accounts a
+    ON t.from_account_id = a.id
+
+JOIN customer_average ca
+    ON a.customer_id = ca.customer_id
+
+WHERE t.status = 'completed'
+  AND t.amount > 3 * ca.average_transfer;
+
+-- ====================================
+/*90 gün pasif kaldıktan sonra büyük transfer*/
+
+WITH previous_activity AS
+(
+    SELECT
+        t.id,
+        t.from_account_id,
+        t.amount,
+        t.created_at,
+
+        (
+            SELECT MAX(t2.created_at)
+            FROM transactions t2
+            WHERE t2.account_id = t.from_account_id
+              AND t2.created_at < t.created_at
+              AND t2.status = 'completed'
+        ) AS last_activity
+
+    FROM transfers t
+
+    WHERE t.status = 'completed'
+)
+
+SELECT
+    id,
+    from_account_id,
+    amount,
+    created_at,
+    last_activity,
+    DATEDIFF(created_at, last_activity) AS inactive_days
+
+FROM previous_activity
+
+WHERE last_activity IS NOT NULL
+  AND DATEDIFF(created_at, last_activity) >= 90
+
+  AND amount >
+      (
+          SELECT AVG(t3.amount) * 3
+          FROM transfers t3
+          WHERE t3.from_account_id =
+                previous_activity.from_account_id
+            AND t3.status = 'completed'
+      );
+
+-- ====================================
+/*Kısa sürede birçok card transaction*/
+
+SELECT
+    c1.card_id,
+    c1.transaction_date AS window_start,
+    COUNT(c2.id) AS transaction_count
+
+FROM card_transactions c1
+
+JOIN card_transactions c2
+    ON c2.card_id = c1.card_id
+    AND c2.transaction_date BETWEEN
+        c1.transaction_date
+        AND DATE_ADD(c1.transaction_date, INTERVAL 10 MINUTE)
+
+GROUP BY
+    c1.card_id,
+    c1.transaction_date
+
+HAVING COUNT(c2.id) >= 4;
+
+-- ====================================
+/*Kısa sürede farklı merchant'lar*/
+
+  c1.card_id,
+    c1.transaction_date,
+    COUNT(DISTINCT c2.merchant_name) AS merchant_count
+
+FROM card_transactions c1
+
+JOIN card_transactions c2
+    ON c2.card_id = c1.card_id
+    AND c2.transaction_date BETWEEN
+        c1.transaction_date
+        AND DATE_ADD(c1.transaction_date, INTERVAL 30 MINUTE)
+
+GROUP BY
+    c1.card_id,
+    c1.transaction_date
+
+HAVING COUNT(DISTINCT c2.merchant_name) >= 3;
+
+-- ====================================
+/*refund orjinal işlemden büyüktür*/
+
+ALTER TABLE transactions
+ADD COLUMN original_transaction_id INT NULL
+AFTER transfer_id;
+
+ALTER TABLE transactions
+ADD CONSTRAINT fk_transactions_original
+FOREIGN KEY (original_transaction_id)
+REFERENCES transactions(id);
+
+-- ====================================
+
+SELECT
+    refund.id AS refund_id,
+    refund.amount AS refund_amount,
+    original.id AS original_id,
+    original.amount AS original_amount
+
+FROM transactions refund
+
+JOIN transactions original
+    ON refund.original_transaction_id = original.id
+
+WHERE refund.transaction_type = 'refund'
+  AND refund.amount > original.amount;
+
+-- ====================================
+/*İNDEXSİNG*/
+
+CREATE INDEX idx_accounts_customer_balance
+ON accounts(customer_id, balance);
+
+CREATE INDEX idx_transfers_status_created
+ON transfers(status, created_at);
+
+CREATE INDEX idx_transfers_from_created
+ON transfers(from_account_id, created_at);
+
+CREATE INDEX idx_transfers_to_created
+ON transfers(to_account_id, created_at);
+
+CREATE INDEX idx_transactions_account_created
+ON transactions(account_id, created_at, id);
+
+CREATE INDEX idx_transactions_type_created
+ON transactions(transaction_type, created_at);
+
+CREATE INDEX idx_loans_status_start
+ON loans(status, start_date);
+
+CREATE INDEX idx_installments_status_due
+ON loan_installments(status, due_date);
+
+CREATE INDEX idx_card_transactions_card_date
+ON card_transactions(card_id, transaction_date);
+
+-- ====================================
+/*EXPLAIN Before*/
+
+EXPLAIN
+SELECT *
+FROM transfers
+WHERE status = 'completed'
+  AND created_at >= '2024-01-01'
+  AND created_at < '2024-02-01';
+
+-- ====================================
+
+
+EXPLAIN
+SELECT *
+FROM transactions
+WHERE account_id = 1
+ORDER BY created_at DESC;
+
+/*! index oluşturulduktan sonra sorguları tekrarla !*/
+
+-- ====================================
+/*Isolation Levels*/
+
+/*A;*/
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+START TRANSACTION;
+
+UPDATE accounts
+SET balance = balance - 500
+WHERE id = 1;
+
+-- ====================================
+
+/*B;*/
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+START TRANSACTION;
+
+SELECT balance
+FROM accounts
+WHERE id = 1;
+
+COMMIT;
+
+/*A da commit yok ama B de var*/
+
+-- ====================================
+/*read commited ile dirty Read*/
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+START TRANSACTION;
+
+SELECT balance
+FROM accounts
+WHERE id = 1;
+
+-- ====================================
+non-repeatable read
+
+/*A;*/
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+START TRANSACTION;
+
+SELECT balance
+FROM accounts
+WHERE id = 1;
+
+-- ====================================
+
+/*B;*/
+START TRANSACTION;
+
+UPDATE accounts
+SET balance = balance + 500
+WHERE id = 1;
+
+COMMIT;
+
+-- ====================================
+/*REPEATABLE READ*/
+
+/*A;*/
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+START TRANSACTION;
+
+SELECT balance
+FROM accounts
+WHERE id = 1;
+
+-- ====================================
+
+/*B;*/
+START TRANSACTION;
+
+UPDATE accounts
+SET balance = balance + 500
+WHERE id = 1;
+
+COMMIT;
+
+-- ====================================
+/*phantom read*/
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+START TRANSACTION;
+
+SELECT *
+FROM transactions
+WHERE amount > 5000;
+
+-- ====================================
+
+START TRANSACTION;
+
+INSERT INTO transactions
+(
+    account_id,
+    transaction_type,
+    amount,
+    balance_before,
+    balance_after,
+    description,
+    status
+)
+VALUES
+(
+    1,
+    'deposit',
+    9000,
+    10000,
+    19000,
+    'Phantom test',
+    'completed'
+);
+
+COMMIT;
+
+-- ====================================
+/*serıalızable */
+
+START TRANSACTION;
+
+INSERT INTO transactions
+(
+    account_id,
+    transaction_type,
+    amount,
+    balance_before,
+    balance_after,
+    description,
+    status
+)
+VALUES
+(
+    1,
+    'deposit',
+    9000,
+    10000,
+    19000,
+    'Phantom test',
+    'completed'
+);
+
+COMMIT;
+
+-- ====================================
+
+START TRANSACTION;
+
+SELECT balance
+FROM accounts
+WHERE id = 1
+FOR UPDATE;
+
+UPDATE accounts
+SET balance = balance - 100
+WHERE id = 1;
+
+COMMIT;
+
+-- ====================================
+/*FINAL REPORT */
+
+WITH account_summary AS
+(
+    SELECT
+        customer_id,
+        COUNT(*) AS number_of_accounts,
+        COALESCE(SUM(balance), 0) AS total_balance
+    FROM accounts
+    GROUP BY customer_id
+),
+
+sent_summary AS
+(
+    SELECT
+        a.customer_id,
+        COUNT(t.id) AS transfers_sent,
+        COALESCE(SUM(t.amount), 0) AS sent_amount
+    FROM accounts a
+    JOIN transfers t
+        ON t.from_account_id = a.id
+    WHERE t.status = 'completed'
+    GROUP BY a.customer_id
+),
+
+received_summary AS
+(
+    SELECT
+        a.customer_id,
+        COUNT(t.id) AS transfers_received,
+        COALESCE(SUM(t.amount), 0) AS received_amount
+    FROM accounts a
+    JOIN transfers t
+        ON t.to_account_id = a.id
+    WHERE t.status = 'completed'
+    GROUP BY a.customer_id
+),
+
+card_summary AS
+(
+    SELECT
+        a.customer_id,
+        COUNT(DISTINCT c.id) AS number_of_cards,
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN ct.status = 'approved'
+                    THEN ct.amount
+                    ELSE 0
+                END
+            ),
+            0
+        ) AS card_spending
+    FROM accounts a
+    LEFT JOIN cards c
+        ON a.id = c.account_id
+    LEFT JOIN card_transactions ct
+        ON c.id = ct.card_id
+    GROUP BY a.customer_id
+),
+
+loan_summary AS
+(
+    SELECT
+        customer_id,
+        COUNT(*) AS total_loans,
+        COALESCE(SUM(principal_amount), 0) AS total_borrowed,
+        COALESCE(SUM(total_amount), 0) AS total_loan_value
+    FROM loans
+    GROUP BY customer_id
+),
+
+loan_payment_summary AS
+(
+    SELECT
+        l.customer_id,
+        COALESCE(SUM(li.paid_amount), 0) AS total_loan_paid,
+
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN li.status = 'overdue'
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+            0
+        ) AS overdue_installments
+
+    FROM loans l
+
+    LEFT JOIN loan_installments li
+        ON l.id = li.loan_id
+
+    GROUP BY l.customer_id
+),
+
+transaction_summary AS
+(
+    SELECT
+        a.customer_id,
+        MAX(t.created_at) AS last_transaction_date
+
+    FROM accounts a
+
+    LEFT JOIN transactions t
+        ON a.id = t.account_id
+
+    GROUP BY a.customer_id
+),
+
+account_usage_base AS
+(
+    SELECT
+        a.customer_id,
+        a.id AS account_id,
+        a.account_number,
+        COUNT(t.id) AS transaction_count
+
+    FROM accounts a
+
+    LEFT JOIN transactions t
+        ON a.id = t.account_id
+
+    GROUP BY
+        a.customer_id,
+        a.id,
+        a.account_number
+),
+
+account_usage_ranked AS
+(
+    SELECT
+        *,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY customer_id
+            ORDER BY transaction_count DESC, account_id
+        ) AS rn
+
+    FROM account_usage_base
+),
+
+most_used_account AS
+(
+    SELECT
+        customer_id,
+        account_number
+    FROM account_usage_ranked
+    WHERE rn = 1
+)
+
+SELECT
+    c.customer_number,
+    c.full_name AS customer_name,
+
+    COALESCE(a.number_of_accounts, 0)
+        AS number_of_accounts,
+
+    COALESCE(a.total_balance, 0)
+        AS total_balance,
+
+    COALESCE(
+        (
+            SELECT SUM(t.amount)
+            FROM transactions t
+            JOIN accounts acc
+                ON t.account_id = acc.id
+            WHERE acc.customer_id = c.id
+              AND t.transaction_type = 'deposit'
+              AND t.status = 'completed'
+        ),
+        0
+    ) AS total_deposits,
+
+    COALESCE(
+        (
+            SELECT SUM(t.amount)
+            FROM transactions t
+            JOIN accounts acc
+                ON t.account_id = acc.id
+            WHERE acc.customer_id = c.id
+              AND t.transaction_type = 'withdrawal'
+              AND t.status = 'completed'
+        ),
+        0
+    ) AS total_withdrawals,
+
+    COALESCE(s.transfers_sent, 0)
+        AS transfers_sent,
+
+    COALESCE(s.sent_amount, 0)
+        AS sent_amount,
+
+    COALESCE(r.transfers_received, 0)
+        AS transfers_received,
+
+    COALESCE(r.received_amount, 0)
+        AS received_amount,
+
+    COALESCE(cs.number_of_cards, 0)
+        AS number_of_cards,
+
+    COALESCE(cs.card_spending, 0)
+        AS card_spending,
+
+    COALESCE(ls.total_loans, 0)
+        AS total_loans,
+
+    COALESCE(ls.total_borrowed, 0)
+        AS total_borrowed,
+
+    COALESCE(lp.total_loan_paid, 0)
+        AS total_loan_paid,
+
+    COALESCE(ls.total_loan_value, 0)
+        - COALESCE(lp.total_loan_paid, 0)
+        AS remaining_debt,
+
+    COALESCE(lp.overdue_installments, 0)
+        AS overdue_installments,
+
+    ts.last_transaction_date,
+
+    mua.account_number
+        AS most_used_account
+
+FROM customers c
+
+LEFT JOIN account_summary a
+    ON c.id = a.customer_id
+
+LEFT JOIN sent_summary s
+    ON c.id = s.customer_id
+
+LEFT JOIN received_summary r
+    ON c.id = r.customer_id
+
+LEFT JOIN card_summary cs
+    ON c.id = cs.customer_id
+
+LEFT JOIN loan_summary ls
+    ON c.id = ls.customer_id
+
+LEFT JOIN loan_payment_summary lp
+    ON c.id = lp.customer_id
+
+LEFT JOIN transaction_summary ts
+    ON c.id = ts.customer_id
+
+LEFT JOIN most_used_account mua
+    ON c.id = mua.customer_id
+
+ORDER BY c.id;
+
+-- ====================================
+
+INSERT INTO accounts
+(
+    account_number,
+    customer_id,
+    branch_id,
+    account_type,
+    currency,
+    balance,
+    status
+)
+SELECT
+    'STRESS001',
+    1,
+    1,
+    'checking',
+    'SAR',
+    10000.00,
+    'active'
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM accounts
+    WHERE account_number = 'STRESS001'
+);
+
+-- ====================================
+
+SET @stress_account_id =
+(
+    SELECT id
+    FROM accounts
+    WHERE account_number = 'STRESS001'
+);
+
+-- ====================================
+
+SELECT
+    id,
+    account_number,
+    balance
+FROM accounts
+WHERE id = @stress_account_id;
+
+-- ====================================
+
+SELECT
+    account_number,
+    balance AS final_balance
+FROM accounts
+WHERE id = @stress_account_id;
+
+-- ====================================
+/*stress testi transactionstan yeniden hesapla */
+
+WITH ordered_transactions AS
+(
+    SELECT
+        t.*,
+
+        ROW_NUMBER() OVER
+        (
+            ORDER BY t.created_at, t.id
+        ) AS rn,
+
+        CASE
+            WHEN t.transaction_type IN
+            ('deposit', 'transfer_in', 'refund')
+                THEN t.amount
+
+            WHEN t.transaction_type IN
+            ('withdrawal', 'transfer_out', 'fee', 'loan_payment')
+                THEN -t.amount
+
+            ELSE 0
+        END AS signed_amount
+
+    FROM transactions t
+    WHERE t.account_id = @stress_account_id
+      AND t.status = 'completed'
+),
+
+rebuilt AS
+(
+    SELECT
+        @stress_account_id AS account_id,
+
+        MAX(
+            CASE
+                WHEN rn = 1
+                THEN balance_before
+            END
+        )
+        +
+        SUM(signed_amount)
+        AS calculated_balance
+
+    FROM ordered_transactions
+)
+
+SELECT
+    a.account_number,
+
+    a.balance AS stored_balance,
+
+    r.calculated_balance,
+
+    a.balance - r.calculated_balance
+        AS difference,
+
+    CASE
+        WHEN a.balance = r.calculated_balance
+            THEN 'BALANCE OK'
+        ELSE 'BALANCE MISMATCH'
+    END AS integrity_status
+
+FROM accounts a
+
+JOIN rebuilt r
+    ON a.id = r.account_id;
