@@ -3121,13 +3121,90 @@ CALL book_appointment(
     'Routine checkup'
 );
 
+-- كود إنشاء Procedures التي إسمها ( admit_patient )
 
+DELIMITER //
 
+CREATE PROCEDURE admit_patient(
+    IN p_patient_id INT,
+    IN p_doctor_id INT,
+    IN p_room_id INT,
+    IN p_admission_reason VARCHAR(255)
+)
+BEGIN
+    DECLARE v_doctor_status VARCHAR(20);
+    DECLARE v_room_status VARCHAR(20);
+    
+    IF EXISTS (
+        SELECT 1 FROM admissions 
+        WHERE patient_id = p_patient_id 
+          AND discharged_at IS NULL 
+          AND status != 'cancelled'
+    ) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: المريض موجود بالفعل في تنويم نشط حالياً.';
+    END IF;
 
+    SELECT status INTO v_doctor_status 
+    FROM doctors 
+    WHERE id = p_doctor_id;
+    
+    IF v_doctor_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الطبيب غير موجود في النظام.';
+    ELSEIF v_doctor_status != 'active' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الطبيب غير نشط حالياً.';
+    END IF;
 
+    SELECT status INTO v_room_status 
+    FROM rooms 
+    WHERE id = p_room_id;
+    
+    IF v_room_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الغرفة غير موجودة في النظام.';
+    ELSEIF v_room_status = 'maintenance' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الغرفة تحت الصيانة ولا يمكن التنويم فيها.';
+    ELSEIF v_room_status != 'available' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الغرفة غير متاحة حالياً (مشغولة).';
+    END IF;
+   
+    INSERT INTO admissions (
+        patient_id, 
+        room_id, 
+        doctor_id, 
+        admitted_at, 
+        admission_reason, 
+        status
+    ) 
+    VALUES (
+        p_patient_id, 
+        p_room_id, 
+        p_doctor_id, 
+        NOW(), 
+        p_admission_reason, 
+        'admitted'
+    );
 
+    UPDATE rooms 
+    SET status = 'occupied' 
+    WHERE id = p_room_id;
 
+END //
 
+DELIMITER ;
+
+-- كود تجربة Procedures التي إسمها ( admit_patient ) الحالة الصحيحة منها 
+
+CALL admit_patient(
+    1,    
+    1,       
+    1,   
+    'Severe Respiratory Infection' 
+);
 
 
 
