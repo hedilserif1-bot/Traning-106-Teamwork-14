@@ -3298,13 +3298,88 @@ DELIMITER ;
 
 CALL discharge_patient(8);
 
+-- كود إنشاء Procedures التي إسمها ( pay_invoice )
 
+DELIMITER //
 
+CREATE PROCEDURE pay_invoice(
+    IN p_invoice_id INT,
+    IN p_amount DECIMAL(10,2),
+    IN p_payment_method VARCHAR(50),
+    IN p_transaction_reference VARCHAR(100)
+)
+BEGIN
+    DECLARE v_total_invoice_amount DECIMAL(10,2);
+    DECLARE v_total_paid_amount DECIMAL(10,2);
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
+    START TRANSACTION;
 
+    SELECT total_amount INTO v_total_invoice_amount
+    FROM invoices
+    WHERE id = p_invoice_id;
 
+    IF v_total_invoice_amount IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: رقم الفاتورة غير موجود في النظام.';
+    END IF;
 
+    INSERT INTO payments (
+        invoice_id, 
+        amount, 
+        payment_method, 
+        transaction_reference, 
+        paid_at, 
+        status
+    ) 
+    VALUES (
+        p_invoice_id, 
+        p_amount, 
+        p_payment_method, 
+        p_transaction_reference, 
+        NOW(), 
+        'completed'
+    );
 
+    SELECT COALESCE(SUM(amount), 0.00) INTO v_total_paid_amount
+    FROM payments
+    WHERE invoice_id = p_invoice_id 
+      AND status = 'completed';
+
+    IF v_total_paid_amount >= v_total_invoice_amount THEN
+        UPDATE invoices 
+        SET payment_status = 'paid' 
+        WHERE id = p_invoice_id;
+        
+    ELSEIF v_total_paid_amount > 0 THEN
+        UPDATE invoices 
+        SET payment_status = 'partially_paid' 
+        WHERE id = p_invoice_id;
+        
+    ELSE
+        UPDATE invoices 
+        SET payment_status = 'unpaid' 
+        WHERE id = p_invoice_id;
+    END IF;
+
+    COMMIT;
+
+END //
+
+DELIMITER ;
+
+-- كود تجربة ال ( pay_invoice ) بطريقة صحيحة 
+
+CALL pay_invoice(
+    1,
+    100.00,
+    'card',
+    'TXN-TEST-1001'
+);
 
 
 
