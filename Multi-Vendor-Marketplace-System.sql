@@ -5549,3 +5549,111 @@ DELIMITER ;
 
 
 
+-- Reviews Integrity
+
+
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS create_review$$
+
+CREATE PROCEDURE create_review(
+    IN p_customer_id INT,
+    IN p_product_id INT,
+    IN p_order_item_id INT,
+    IN p_rating INT,
+    IN p_comment TEXT
+)
+BEGIN
+
+    DECLARE v_order_id INT DEFAULT NULL;
+    DECLARE v_item_product_id INT;
+    DECLARE v_order_customer_id INT;
+    DECLARE v_order_status VARCHAR(30);
+
+    /* Rating kontrolü */
+    IF p_rating < 1 OR p_rating > 5 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rating must be between 1 and 5';
+    END IF;
+
+    /* Order Item bilgilerini al */
+    SELECT
+        oi.order_id,
+        oi.product_id,
+        o.customer_id,
+        o.status
+    INTO
+        v_order_id,
+        v_item_product_id,
+        v_order_customer_id,
+        v_order_status
+    FROM order_items oi
+    JOIN orders o
+        ON o.id = oi.order_id
+    WHERE oi.id = p_order_item_id;
+
+    /* Order Item var mı? */
+    IF v_order_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Order item does not exist';
+    END IF;
+
+    /* Customer gerçekten bu order'ın sahibi mi? */
+    IF v_order_customer_id <> p_customer_id THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer did not purchase this item';
+    END IF;
+
+    /* Product gerçekten Order Item'a ait mi? */
+    IF v_item_product_id <> p_product_id THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product does not belong to this order item';
+    END IF;
+
+    /* Order delivered olmalı */
+    IF v_order_status <> 'delivered' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Only delivered orders can be reviewed';
+    END IF;
+
+    /* Daha önce review var mı? */
+    IF EXISTS (
+        SELECT 1
+        FROM reviews
+        WHERE customer_id = p_customer_id
+          AND order_item_id = p_order_item_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Customer already reviewed this order item';
+    END IF;
+
+    /* Review oluştur */
+    INSERT INTO reviews
+    (
+        customer_id,
+        product_id,
+        order_item_id,
+        rating,
+        comment,
+        status
+    )
+    VALUES
+    (
+        p_customer_id,
+        p_product_id,
+        p_order_item_id,
+        p_rating,
+        p_comment,
+        'active'
+    );
+
+END$$
+
+DELIMITER ;
+
+
+
+
+
+
+
