@@ -3033,6 +3033,103 @@ SELECT
 FROM DepartmentHierarchy
 ORDER BY department_path;
 
+-- من هنا تبدا أكواد ال ( Stored Procedures )
+
+-- كود إنشاء Procedures بأسم ( book_appointment )
+
+DELIMITER //
+
+CREATE PROCEDURE book_appointment(
+    IN p_patient_id INT,
+    IN p_doctor_id INT,
+    IN p_appointment_date DATE,
+    IN p_appointment_time TIME,
+    IN p_reason VARCHAR(255)
+)
+BEGIN
+    DECLARE v_doctor_status VARCHAR(20);
+    
+    SELECT status INTO v_doctor_status 
+    FROM doctors 
+    WHERE id = p_doctor_id;
+    
+    IF v_doctor_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الطبيب غير موجود في النظام.';
+    ELSEIF v_doctor_status != 'active' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الطبيب غير نشط حالياً ولا يمكن حجز موعد معه.';
+    END IF;
+
+    IF p_appointment_date < CURDATE() THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن حجز موعد في تاريخ قديم أو في الماضي.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM appointments 
+        WHERE doctor_id = p_doctor_id 
+          AND appointment_date = p_appointment_date 
+          AND appointment_time = p_appointment_time 
+          AND status NOT IN ('cancelled')
+    ) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الطبيب لديه موعد محجوز مسبقاً في نفس التاريخ والوقت.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM appointments 
+        WHERE patient_id = p_patient_id 
+          AND appointment_date = p_appointment_date 
+          AND appointment_time = p_appointment_time 
+          AND status NOT IN ('cancelled')
+    ) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: المريض لديه موعد آخر محجوز في نفس التاريخ والوقت تماماً.';
+    END IF;
+    
+    INSERT INTO appointments (
+        patient_id, 
+        doctor_id, 
+        appointment_date, 
+        appointment_time, 
+        reason, 
+        status, 
+        created_at
+    ) 
+    VALUES (
+        p_patient_id, 
+        p_doctor_id, 
+        p_appointment_date, 
+        p_appointment_time, 
+        p_reason, 
+        'scheduled', 
+        NOW()
+    );
+
+END //
+
+DELIMITER ;
+
+-- كود تجربة الحالة الصحيحة من Procedures التي إسمها ( book_appointment )
+
+CALL book_appointment(
+    3,   
+    2, 
+    '2026-10-15', 
+    '10:30:00',
+    'Routine checkup'
+);
+
+
+
+
+
+
+
+
+
+
 
 
 
