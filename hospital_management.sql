@@ -2717,7 +2717,7 @@ ORDER BY
 
 -- هنا بدا كود ال ( Views )
 
--- ال ( Views ) كاملة مع كل التفاصيل 
+-- إستعلام لأنشاء view ال ( patient_summary_view )
 
 CREATE VIEW patient_summary_view AS
 SELECT 
@@ -2763,9 +2763,67 @@ LEFT JOIN (
     GROUP BY i.patient_id
 ) pay ON p.id = pay.patient_id;
 
--- كود إستدعائها كلها لتجربتها 
+-- كود إستعلام ال ( patient_summary_view ) لتجربتها
 
 SELECT * FROM patient_summary_view;
+
+-- كود إنشاء ال view ( doctor_performance_view )
+
+CREATE OR REPLACE VIEW doctor_performance_view AS
+SELECT 
+    d.full_name AS doctor,
+    dep.department_name AS department,
+    COALESCE(app_stats.total_appointments, 0) AS total_appointments,
+    COALESCE(app_stats.completed_appointments, 0) AS completed_appointments,
+    COALESCE(app_stats.cancelled_appointments, 0) AS cancelled_appointments,
+    COALESCE(app_stats.no_show_appointments, 0) AS no_show_appointments,
+    COALESCE(app_stats.unique_patients, 0) AS unique_patients,
+    COALESCE(rev_stats.total_revenue, 0.00) AS total_revenue
+FROM doctors d
+JOIN departments dep ON d.department_id = dep.id
+LEFT JOIN (
+    SELECT 
+        doctor_id,
+        COUNT(id) AS total_appointments,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_appointments,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_appointments,
+        SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) AS no_show_appointments,
+        COUNT(DISTINCT patient_id) AS unique_patients
+    FROM appointments
+    GROUP BY doctor_id
+) app_stats ON d.id = app_stats.doctor_id
+LEFT JOIN (
+    SELECT 
+        mv.doctor_id,
+        SUM(i.total_amount) AS total_revenue
+    FROM invoices i
+    JOIN medical_visits mv ON i.visit_id = mv.id
+    GROUP BY mv.doctor_id
+) rev_stats ON d.id = rev_stats.doctor_id;
+
+-- كود لأستعلام view ال ( doctor_performance_view ) و تجربتها
+
+SELECT * FROM doctor_performance_view;
+
+-- كود إنشاء view ال ( room_status_view )
+
+CREATE OR REPLACE VIEW room_status_view AS
+SELECT 
+    r.id AS room_id,
+    r.room_number,
+    r.room_type,
+    r.floor_number,
+    r.daily_price,
+    r.status AS room_status,
+    p.full_name AS current_patient_name,
+    a.admitted_at AS admission_date
+FROM rooms r
+LEFT JOIN admissions a ON r.id = a.room_id AND a.discharged_at IS NULL
+LEFT JOIN patients p ON a.patient_id = p.id;
+
+-- كود إستدعاء و تجربة view ال ( room_status_view )
+
+SELECT * FROM room_status_view;
 
 -- من هنا تبدا إستعلامات ال ( CTE )
 
