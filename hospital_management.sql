@@ -11,13 +11,13 @@ USE hospital_management;
 
 CREATE TABLE departments (
     id INT PRIMARY KEY AUTO_INCREMENT,
+    parent_id INT NOT NULL DEFAULT 0,
     department_name VARCHAR(100) NOT NULL CHECK (TRIM(department_name) <> ''),
     floor_number INT NOT NULL CHECK (floor_number > 0),
     phone VARCHAR(20) NOT NULL CHECK (TRIM(phone) <> ''),
-    status VARCHAR(20) NOT NULL DEFAULT 'active'
+    status VARCHAR(20) NOT NULL DEFAULT 'active' 
         CHECK (status IN ('active', 'inactive', 'maintenance'))
 );
-
 
 -- كود إضافة فهرس على عمودي اسم القسم ورقم الطابق
 
