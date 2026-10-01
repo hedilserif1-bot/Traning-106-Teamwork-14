@@ -3206,6 +3206,105 @@ CALL admit_patient(
     'Severe Respiratory Infection' 
 );
 
+-- كود إنشاء Procedures التي إسمها ( discharge_patient )
+
+DELIMITER //
+CREATE PROCEDURE discharge_patient(
+    IN p_admission_id INT
+)
+BEGIN
+    DECLARE v_patient_id INT;
+    DECLARE v_room_id INT;
+    DECLARE v_admitted_at DATETIME;
+    DECLARE v_visit_id INT;
+    DECLARE v_daily_price DECIMAL(10,2);
+    DECLARE v_stay_days INT;
+    DECLARE v_subtotal DECIMAL(10,2);
+    DECLARE v_insurance_discount DECIMAL(10,2) DEFAULT 0.00;
+    DECLARE v_total_amount DECIMAL(10,2);
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT patient_id, room_id, admitted_at 
+    INTO v_patient_id, v_room_id, v_admitted_at
+    FROM admissions 
+    WHERE id = p_admission_id AND discharged_at IS NULL;
+
+    IF v_patient_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: رقم التنويم غير موجود أو أن المريض تم تخريجه مسبقاً.';
+    END IF;
+
+    SELECT id INTO v_visit_id
+    FROM medical_visits
+    WHERE patient_id = v_patient_id
+    ORDER BY id DESC
+    LIMIT 1;
+
+    SELECT daily_price INTO v_daily_price
+    FROM rooms
+    WHERE id = v_room_id;
+
+    SET v_stay_days = GREATEST(1, TIMESTAMPDIFF(DAY, v_admitted_at, NOW()));
+    SET v_subtotal = v_stay_days * v_daily_price;
+    SET v_total_amount = v_subtotal - v_insurance_discount;
+
+    UPDATE admissions 
+    SET discharged_at = NOW(), 
+        status = 'discharged'
+    WHERE id = p_admission_id;
+
+    UPDATE rooms 
+    SET status = 'available' 
+    WHERE id = v_room_id;
+ 
+    INSERT INTO invoices (
+        patient_id, 
+        visit_id,
+        admission_id, 
+        subtotal, 
+        insurance_discount, 
+        total_amount, 
+        issued_at, 
+        due_date, 
+        payment_status
+    ) 
+    VALUES (
+        v_patient_id, 
+        v_visit_id,
+        p_admission_id, 
+        v_subtotal, 
+        v_insurance_discount, 
+        v_total_amount, 
+        NOW(), 
+        DATE_ADD(NOW(), INTERVAL 15 DAY), 
+        'unpaid'
+    );
+
+    COMMIT;
+
+END //
+
+DELIMITER ;
+
+-- كود تجربة Procedures التي إسمها ( discharge_patient )
+
+-- ملاحظة يجب أن تكود قيمة العمود ( discharged_at ) NULL في الاسطر اتي تملك ال id الخاص بالمريض الذي نريد ان نخرجه مثل ال id ( 8 )
+
+CALL discharge_patient(8);
+
+
+
+
+
+
+
+
 
 
 
