@@ -2769,6 +2769,175 @@ LEFT JOIN (
 
 SELECT * FROM patient_summary_view;
 
+-- من هنا تبدا إستعلامات ال ( CTE )
+
+-- حساب إجمالي ديون كل مريض ثم عرض المرضى الأعلى من المتوسط
+
+WITH PatientDebtSummary AS (
+    SELECT 
+        p.id AS patient_id,
+        p.full_name,
+        SUM(i.total_amount - COALESCE(paid.total_paid, 0)) AS total_debt
+    FROM patients p
+    JOIN invoices i ON p.id = i.patient_id
+    LEFT JOIN (
+        SELECT invoice_id, SUM(amount) AS total_paid
+        FROM payments
+        WHERE status = 'completed'
+        GROUP BY invoice_id
+    ) paid ON i.id = paid.invoice_id
+    GROUP BY p.id, p.full_name
+    HAVING SUM(i.total_amount - COALESCE(paid.total_paid, 0)) > 0
+),
+AverageDebt AS (
+    SELECT AVG(total_debt) AS avg_debt
+    FROM PatientDebtSummary
+)
+SELECT 
+    pds.patient_id,
+    pds.full_name,
+    pds.total_debt,
+    ROUND(ad.avg_debt, 2) AS general_average_debt
+FROM PatientDebtSummary pds
+CROSS JOIN AverageDebt ad
+WHERE pds.total_debt > ad.avg_debt;
+
+-- تحليل أداء الأطباء
+
+WITH DoctorAppointments AS (
+    SELECT doctor_id, COUNT(*) AS total_appointments
+    FROM appointments
+    GROUP BY doctor_id
+),
+DoctorVisits AS (
+    SELECT doctor_id, COUNT(*) AS total_visits
+    FROM medical_visits
+    GROUP BY doctor_id
+),
+DoctorAdmissions AS (
+    SELECT doctor_id, COUNT(*) AS total_admissions
+    FROM admissions
+    GROUP BY doctor_id
+),
+DoctorRevenue AS (
+    SELECT d_id AS doctor_id, SUM(total_amount) AS total_revenue
+    FROM (
+        SELECT mv.doctor_id AS d_id, i.total_amount
+        FROM invoices i
+        JOIN medical_visits mv ON i.visit_id = mv.id
+        UNION ALL
+        SELECT a.doctor_id AS d_id, i.total_amount
+        FROM invoices i
+        JOIN admissions a ON i.admission_id = a.id
+    ) combined_invoices
+    GROUP BY d_id
+)
+SELECT 
+    doc.id AS doctor_id,
+    doc.full_name AS doctor_name,
+    dep.department_name,
+    doc.specialization,
+    COALESCE(da.total_appointments, 0) AS total_appointments,
+    COALESCE(dv.total_visits, 0) AS total_visits,
+    COALESCE(dadm.total_admissions, 0) AS total_admissions,
+    COALESCE(drev.total_revenue, 0.00) AS total_revenue
+FROM doctors doc
+LEFT JOIN departments dep ON doc.department_id = dep.id
+LEFT JOIN DoctorAppointments da ON doc.id = da.doctor_id
+LEFT JOIN DoctorVisits dv ON doc.id = dv.doctor_id
+LEFT JOIN DoctorAdmissions dadm ON doc.id = dadm.doctor_id
+LEFT JOIN DoctorRevenue drev ON doc.id = drev.doctor_id;
+
+-- حساب إيرادات الأقسام
+
+WITH InvoiceDepartmentMapping AS (
+    SELECT i.id AS invoice_id, i.total_amount, doc.department_id
+    FROM invoices i
+    JOIN medical_visits mv ON i.visit_id = mv.id
+    JOIN doctors doc ON mv.doctor_id = doc.id
+    
+    UNION ALL
+    
+    SELECT i.id AS invoice_id, i.total_amount, doc.department_id
+    FROM invoices i
+    JOIN admissions a ON i.admission_id = a.id
+    JOIN doctors doc ON a.doctor_id = doc.id
+),
+DepartmentSummary AS (
+    SELECT 
+        department_id,
+        COUNT(invoice_id) AS total_invoices,
+        SUM(total_amount) AS total_revenue
+    FROM InvoiceDepartmentMapping
+    GROUP BY department_id
+)
+SELECT 
+    dep.id AS department_id,
+    dep.department_name,
+    COALESCE(ds.total_invoices, 0) AS total_invoices,
+    COALESCE(ds.total_revenue, 0.00) AS total_revenue
+FROM departments dep
+LEFT JOIN DepartmentSummary ds ON dep.id = ds.department_id
+ORDER BY total_revenue DESC;
+
+-- استخراج المرضى ذوي الاستخدام المرتفع لخدمات المستشفى
+
+WITH PatientAppointments AS (
+    SELECT patient_id, COUNT(*) AS total_appointments
+    FROM appointments
+    GROUP BY patient_id
+),
+PatientVisits AS (
+    SELECT patient_id, COUNT(*) AS total_visits
+    FROM medical_visits
+    GROUP BY patient_id
+),
+PatientAdmissions AS (
+    SELECT patient_id, COUNT(*) AS total_admissions
+    FROM admissions
+    GROUP BY patient_id
+),
+PatientSpending AS (
+    SELECT patient_id, SUM(total_amount) AS total_spent
+    FROM invoices
+    GROUP BY patient_id
+)
+SELECT 
+    p.id AS patient_id,
+    p.full_name,
+    COALESCE(pa.total_appointments, 0) AS total_appointments,
+    COALESCE(pv.total_visits, 0) AS total_visits,
+    COALESCE(pad.total_admissions, 0) AS total_admissions,
+    COALESCE(ps.total_spent, 0.00) AS total_spent,
+    (COALESCE(pa.total_appointments, 0) + COALESCE(pv.total_visits, 0) + COALESCE(pad.total_admissions, 0)) AS total_hospital_interactions
+FROM patients p
+LEFT JOIN PatientAppointments pa ON p.id = pa.patient_id
+LEFT JOIN PatientVisits pv ON p.id = pv.patient_id
+LEFT JOIN PatientAdmissions pad ON p.id = pad.patient_id
+LEFT JOIN PatientSpending ps ON p.id = ps.patient_id
+ORDER BY total_hospital_interactions DESC, total_spent DESC;
+
+-- استخراج الأدوية الأكثر استهلاكًا
+
+WITH MedicineConsumption AS (
+    SELECT 
+        medicine_id,
+        SUM(quantity) AS total_quantity_consumed,
+        COUNT(prescription_id) AS total_times_prescribed
+    FROM prescription_items
+    GROUP BY medicine_id
+)
+SELECT 
+    m.id AS medicine_id,
+    m.medicine_name,
+    m.manufacturer,
+    m.unit_price,
+    m.stock_quantity,
+    COALESCE(mc.total_quantity_consumed, 0) AS total_quantity_consumed,
+    COALESCE(mc.total_times_prescribed, 0) AS total_times_prescribed
+FROM medicines m
+LEFT JOIN MedicineConsumption mc ON m.id = mc.medicine_id
+ORDER BY total_quantity_consumed DESC;
 
 
 
