@@ -2717,6 +2717,62 @@ FROM
 ORDER BY 
     dept_revenue DESC;
 
+-- هنا بدا كود ال ( Views )
+
+-- ال ( Views ) كاملة مع كل التفاصيل 
+
+CREATE VIEW patient_summary_view AS
+SELECT 
+    p.id AS patient_id,
+    p.full_name,
+    p.national_id,
+    p.gender,
+    p.phone,
+    p.email,
+    COALESCE(app.total_appointments, 0) AS total_appointments,
+    COALESCE(mv.total_visits, 0) AS total_visits,
+    COALESCE(adm.total_admissions, 0) AS total_admissions,
+    COALESCE(inv.total_invoices, 0) AS total_invoices,
+    COALESCE(pay.total_paid, 0) AS total_paid,
+    (COALESCE(inv.total_invoices, 0) - COALESCE(pay.total_paid, 0)) AS outstanding_balance,
+    mv.last_visit
+FROM patients p
+LEFT JOIN (
+    SELECT patient_id, COUNT(*) AS total_appointments
+    FROM appointments
+    GROUP BY patient_id
+) app ON p.id = app.patient_id
+LEFT JOIN (
+    SELECT patient_id, COUNT(*) AS total_visits, MAX(visit_date) AS last_visit
+    FROM medical_visits
+    GROUP BY patient_id
+) mv ON p.id = mv.patient_id
+LEFT JOIN (
+    SELECT patient_id, COUNT(*) AS total_admissions
+    FROM admissions
+    GROUP BY patient_id
+) adm ON p.id = adm.patient_id
+LEFT JOIN (
+    SELECT patient_id, SUM(total_amount) AS total_invoices
+    FROM invoices
+    GROUP BY patient_id
+) inv ON p.id = inv.patient_id
+LEFT JOIN (
+    SELECT i.patient_id, SUM(p.amount) AS total_paid
+    FROM payments p
+    JOIN invoices i ON p.invoice_id = i.id
+    WHERE p.status = 'completed'
+    GROUP BY i.patient_id
+) pay ON p.id = pay.patient_id;
+
+-- كود إستدعائها كلها لتجربتها 
+
+SELECT * FROM patient_summary_view;
+
+
+
+
+
 
 
 
