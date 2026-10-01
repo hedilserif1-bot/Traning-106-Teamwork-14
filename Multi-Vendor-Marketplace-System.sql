@@ -3278,8 +3278,6 @@ ORDER BY ct.path_ids;
 
 
 
-
-
 WITH RECURSIVE circular_check AS (
     SELECT 
         id AS start_category_id,
@@ -3310,6 +3308,7 @@ WITH RECURSIVE circular_check AS (
 )
 SELECT 
     'Valid - No Circular References' AS validation_result
+FROM DUAL                          
 WHERE NOT EXISTS (
     SELECT 1 FROM circular_check 
     WHERE cycle_found = 1
@@ -3332,6 +3331,7 @@ CHECK (price > 0);
 ALTER TABLE products
 ADD CONSTRAINT chk_products_stock_nonnegative
 CHECK (stock_quantity >= 0);
+
 
 
 
@@ -3986,7 +3986,7 @@ DELIMITER ;
 
 
 
-CALL use_coupon_safe(1);
+
 
 
 -- Idempotency
@@ -4083,12 +4083,7 @@ DELIMITER ;
 
 
 
-CALL create_payment(
-    1,
-    500.00,
-    'card',
-    'PAYMENT-ABC-001'
-);
+
 
 SELECT *
 FROM payments
@@ -4207,7 +4202,7 @@ END$$
 DELIMITER ;
 
 
--Complete Return-
+-- Complete Return
 
 
 DROP PROCEDURE IF EXISTS complete_return;
@@ -5844,12 +5839,10 @@ WHERE customer_id = 10
 
 
 
+-- Isolation Levels
 
 
-
--- Isolation Levels-
-
-
+-- Block 1: uncommitted write (demo) — نتراجع عنه حتى لا يلوث البيانات
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 START TRANSACTION;
@@ -5858,10 +5851,13 @@ UPDATE products
 SET stock_quantity = 0
 WHERE id = 10;
 
+ROLLBACK;                       
 
 
 
 
+
+-- Block 2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 START TRANSACTION;
@@ -5870,8 +5866,13 @@ SELECT stock_quantity
 FROM products
 WHERE id = 10;
 
+COMMIT;                            
 
 
+
+
+
+-- Block 3
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
@@ -5879,6 +5880,10 @@ START TRANSACTION;
 SELECT stock_quantity
 FROM products
 WHERE id = 10;
+
+COMMIT;                            
+
+
 
 
 
@@ -5888,7 +5893,7 @@ UPDATE products
 SET stock_quantity = 8
 WHERE id = 10;
 
-COMMIT;
+COMMIT;                            
 
 
 
@@ -5897,6 +5902,7 @@ COMMIT;
 SELECT stock_quantity
 FROM products
 WHERE id = 10;
+
 
 
 
@@ -5907,6 +5913,9 @@ SELECT COUNT(*)
 FROM orders
 WHERE status = 'pending';
 
+COMMIT;                            
+
+
 
 
 START TRANSACTION;
@@ -5915,6 +5924,7 @@ SELECT stock_quantity
 FROM products
 WHERE id = 10;
 
+COMMIT;                            
 
 
 
@@ -5923,8 +5933,6 @@ UPDATE products
 SET stock_quantity = stock_quantity - 1
 WHERE id = 10
   AND stock_quantity >= 1;
-
-
 
 
 
@@ -5964,8 +5972,9 @@ INSERT INTO order_items
 VALUES
 (1, 20, 2, 1, 200, 0, 20, 180);
 
+ROLLBACK TO SAVEPOINT seller1_done;   
 
-
+ROLLBACK;                             
 
 
 
@@ -6006,7 +6015,7 @@ WHERE id = 1
   AND starts_at <= NOW()
   AND expires_at > NOW()
   AND used_count < usage_limit;
-
+COMMIT;  
 
 
 DELIMITER //
@@ -6753,7 +6762,7 @@ END//
 DELIMITER ;
 
 
-CALL stress_test_purchase(1, 1);
+
 
 
 SELECT
