@@ -2937,9 +2937,43 @@ FROM medicines m
 LEFT JOIN MedicineConsumption mc ON m.id = mc.medicine_id
 ORDER BY total_quantity_consumed DESC;
 
+-- استخدم Recursive CTE في مشكلة مناسبة داخل النظام، ويجب شرح سبب استخدام Recursion
 
+-- ملاحظة ل رين هذا الاستعلام ( DepartmentHierarchy ) صحيح تماما ولكن حتى يعمل يجب تعديل جدول ال ( departments )
 
+-- و إضافة عليه عمود ( parent_id ) و أقسام فرعية و إدخال البيانات بشكل صحيح
 
+WITH RECURSIVE DepartmentHierarchy AS (
+    SELECT 
+        id,
+        department_name,
+        parent_id,
+        0 AS hierarchy_level,
+        CAST(department_name AS CHAR(1000)) AS department_path
+    FROM departments
+    WHERE id = parent_id
+    
+    UNION ALL
+    
+    SELECT 
+        d.id,
+        d.department_name,
+        d.parent_id,
+        dh.hierarchy_level + 1,
+        CONCAT(dh.department_path, ' -> ', d.department_name) AS department_path
+    FROM departments d
+    JOIN DepartmentHierarchy dh ON d.parent_id = dh.id
+    WHERE d.id <> d.parent_id
+)
+
+SELECT 
+    id,
+    department_name,
+    parent_id,
+    hierarchy_level,
+    department_path
+FROM DepartmentHierarchy
+ORDER BY department_path;
 
 
 
