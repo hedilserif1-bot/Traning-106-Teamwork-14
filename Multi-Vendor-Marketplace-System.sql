@@ -4480,3 +4480,183 @@ END$$
 DELIMITER ;
 
 
+
+-- Financial Integrity
+
+
+SELECT
+    o.id,
+    o.order_number,
+    o.total_amount,
+    ROUND(
+        COALESCE(SUM(
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ), 0)
+        - o.discount_amount
+        + o.shipping_cost,
+        2
+    ) AS calculated_total
+FROM orders o
+LEFT JOIN order_items oi
+    ON oi.order_id = o.id
+GROUP BY
+    o.id,
+    o.order_number,
+    o.total_amount,
+    o.discount_amount,
+    o.shipping_cost
+HAVING o.total_amount <> calculated_total;
+
+
+
+SELECT
+    oi.id,
+    oi.order_id,
+    oi.seller_id,
+    oi.seller_amount,
+    ROUND(
+        (
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) - oi.platform_commission,
+        2
+    ) AS expected_seller_amount
+FROM order_items oi
+WHERE oi.seller_amount <>
+      ROUND(
+          (
+              oi.quantity * oi.unit_price
+              - oi.discount_amount
+          ) - oi.platform_commission,
+          2
+      );
+
+
+
+SELECT
+    oi.id,
+    oi.seller_id,
+    oi.platform_commission,
+    s.commission_rate,
+    ROUND(
+        (
+            oi.quantity * oi.unit_price
+            - oi.discount_amount
+        ) * s.commission_rate / 100,
+        2
+    ) AS expected_commission
+FROM order_items oi
+JOIN sellers s
+    ON s.id = oi.seller_id
+WHERE oi.platform_commission <>
+      ROUND(
+          (
+              oi.quantity * oi.unit_price
+              - oi.discount_amount
+          ) * s.commission_rate / 100,
+          2
+      );
+
+
+
+
+SELECT
+    o.id,
+    o.order_number,
+    o.total_amount,
+    SUM(
+        CASE
+            WHEN p.status IN ('paid', 'partially_refunded', 'refunded')
+            THEN p.amount
+            ELSE 0
+        END
+    ) AS payment_total
+FROM orders o
+JOIN payments p
+    ON p.order_id = o.id
+GROUP BY
+    o.id,
+    o.order_number,
+    o.total_amount
+HAVING payment_total > o.total_amount;
+
+
+
+
+SELECT
+    p.id AS payment_id,
+    p.amount AS payment_amount,
+    COALESCE(SUM(r.amount), 0) AS refund_amount
+FROM payments p
+LEFT JOIN refunds r
+    ON r.payment_id = p.id
+GROUP BY
+    p.id,
+    p.amount
+HAVING refund_amount > payment_amount;
+
+
+
+
+SELECT
+    oi.id AS order_item_id,
+    oi.quantity AS purchased_quantity,
+    COALESCE(SUM(r.quantity), 0) AS returned_quantity
+FROM order_items oi
+LEFT JOIN returns r
+    ON r.order_item_id = oi.id
+   AND r.status IN ('approved', 'completed')
+GROUP BY
+    oi.id,
+    oi.quantity
+HAVING returned_quantity > purchased_quantity;
+
+
+
+
+SELECT
+    id,
+    product_name,
+    stock_quantity
+FROM products
+WHERE stock_quantity < 0;
+
+
+
+SELECT
+    ss.id,
+    ss.seller_id,
+    ss.period_start,
+    ss.period_end,
+    ss.net_amount AS settlement_amount,
+
+    COALESCE(SUM(oi.seller_amount), 0)
+    - ss.refund_amount AS actual_amount
+
+FROM seller_settlements ss
+
+LEFT JOIN order_items oi
+    ON oi.seller_id = ss.seller_id
+   AND EXISTS (
+       SELECT 1
+       FROM orders o
+       WHERE o.id = oi.order_id
+         AND DATE(o.ordered_at)
+             BETWEEN ss.period_start AND ss.period_end
+   )
+
+GROUP BY
+    ss.id,
+    ss.seller_id,
+    ss.period_start,
+    ss.period_end,
+    ss.net_amount,
+    ss.refund_amount
+
+HAVING ss.net_amount <>
+       (
+           COALESCE(SUM(oi.seller_amount), 0)
+           - ss.refund_amount
+       );
+
