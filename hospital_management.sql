@@ -11,13 +11,11 @@ USE hospital_management;
 
 CREATE TABLE departments (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    parent_id INT NOT NULL DEFAULT 0,
     department_name VARCHAR(100) NOT NULL CHECK (TRIM(department_name) <> ''),
     floor_number INT NOT NULL CHECK (floor_number > 0),
     phone VARCHAR(20) NOT NULL CHECK (TRIM(phone) <> ''),
-    status VARCHAR(20) NOT NULL DEFAULT 'active' 
+    status VARCHAR(20) NOT NULL DEFAULT 'active'
         CHECK (status IN ('active', 'inactive', 'maintenance'))
-    FOREIGN KEY (parent_id) REFERENCES departments(id) ON UPDATE CASCADE ON DELETE RESTRICT,
 );
 
 -- كود إضافة فهرس على عمودي اسم القسم ورقم الطابق
@@ -402,17 +400,15 @@ CREATE INDEX idx_payments_method ON payments (payment_method);
 
 -- من هنا تبدا أكواد إدخال البيانات 
 
-INSERT INTO departments (id, parent_id, department_name, floor_number, phone, status) VALUES
-(1, 1, 'Emergency Department', 1, '+1-555-0101', 'active'),
-(3, 3, 'Pediatrics', 3, '+1-555-0103', 'active'),
-(5, 5, 'Neurology', 4, '+1-555-0105', 'active'),
-(7, 7, 'Internal Medicine', 3, '+1-555-0107', 'active');
-
-INSERT INTO departments (id, parent_id, department_name, floor_number, phone, status) VALUES
-(2, 1, 'Cardiology', 2, '+1-555-0102', 'active'),
-(4, 1, 'Orthopedics', 2, '+1-555-0104', 'active'),
-(6, 3, 'Radiology', 1, '+1-555-0106', 'active'),
-(8, 3, 'Ophthalmology', 4, '+1-555-0108', 'active');
+INSERT INTO departments (department_name, floor_number, phone, status) VALUES
+('Emergency Department', 1, '+1-555-0101', 'active'),
+('Cardiology', 2, '+1-555-0102', 'active'),
+('Pediatrics', 3, '+1-555-0103', 'active'),
+('Orthopedics', 2, '+1-555-0104', 'active'),
+('Neurology', 4, '+1-555-0105', 'active'),
+('Radiology', 1, '+1-555-0106', 'active'),
+('Internal Medicine', 3, '+1-555-0107', 'active'),
+('Ophthalmology', 4, '+1-555-0108', 'active');
 
 INSERT INTO doctors (department_id, full_name, email, phone, specialization, license_number, hire_date, consultation_fee, status) VALUES
 (1, 'Dr. Ahmed Al-Masri', 'ahmed.masri@hospital.com', '+1-555-1101', 'Emergency Medicine', 'LIC-1001', '2022-01-15', 150.0, 'active'),
