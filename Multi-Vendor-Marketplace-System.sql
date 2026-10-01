@@ -5656,4 +5656,107 @@ DELIMITER ;
 
 
 
+-- Price History Trigger
+
+
+DELIMITER $$
+
+DROP TRIGGER IF EXISTS trg_product_price_history$$
+
+CREATE TRIGGER trg_product_price_history
+AFTER UPDATE ON products
+FOR EACH ROW
+BEGIN
+
+    IF NOT (OLD.price <=> NEW.price) THEN
+
+        INSERT INTO product_price_history
+        (
+            product_id,
+            old_price,
+            new_price,
+            changed_at
+        )
+        VALUES
+        (
+            NEW.id,
+            OLD.price,
+            NEW.price,
+            NOW()
+        );
+
+    END IF;
+
+END$$
+
+DELIMITER ;
+
+
+
+
+SELECT id, product_name, price
+FROM products
+WHERE id = 1;
+
+
+
+
+
+UPDATE products
+SET price = price + 100
+WHERE id = 1;
+
+
+
+UPDATE products
+SET price = price + 100
+WHERE id = 1;
+
+
+
+-- Query Optimization Challenge
+
+CREATE TABLE seller_performance_summary (
+    seller_id INT PRIMARY KEY,
+
+    total_orders BIGINT NOT NULL DEFAULT 0,
+    products_sold BIGINT NOT NULL DEFAULT 0,
+
+    revenue DECIMAL(14,2) NOT NULL DEFAULT 0,
+    commission DECIMAL(14,2) NOT NULL DEFAULT 0,
+    refunds DECIMAL(14,2) NOT NULL DEFAULT 0,
+    net_revenue DECIMAL(14,2) NOT NULL DEFAULT 0,
+
+    unique_customers BIGINT NOT NULL DEFAULT 0,
+
+    average_rating DECIMAL(5,2) NULL,
+
+    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (seller_id)
+        REFERENCES sellers(id)
+);
+
+
+
+
+SELECT
+    s.store_name AS seller,
+    sp.total_orders AS orders,
+    sp.products_sold,
+    sp.revenue,
+    sp.commission,
+    sp.refunds,
+    sp.net_revenue,
+    sp.unique_customers,
+    sp.average_rating
+FROM seller_performance_summary sp
+JOIN sellers s
+    ON s.id = sp.seller_id
+ORDER BY sp.net_revenue DESC;
+
+
+
+TRUNCATE TABLE seller_performance_summary;
+
 
