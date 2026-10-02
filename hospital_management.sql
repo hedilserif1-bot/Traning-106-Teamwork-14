@@ -3381,6 +3381,54 @@ CALL pay_invoice(
     'TXN-TEST-1001'
 );
 
+-- من هنا تبدا أكواد ال ( Triggers )
+
+-- كود إنشاء مشغل يقوم بمنع حجز طبيب في موعدين بنفس التاريخ والوقت
+
+DELIMITER //
+
+CREATE TRIGGER prevent_doctor_double_booking
+BEFORE INSERT ON appointments
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM appointments 
+        WHERE doctor_id = NEW.doctor_id 
+          AND appointment_date = NEW.appointment_date 
+          AND appointment_time = NEW.appointment_time
+    ) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الطبيب لديه موعد آخر محجوز بالفعل في نفس التاريخ والوقت تماماً.';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- لتجربته إذا صحيح يجب تجربة حجز موعد بنفس الوقت لموعد قديم 
+
+-- كود إنشاء مشغل يقوم بمنع إدخال المريض في غرفتين بنفس الوقت
+
+DELIMITER //
+
+CREATE TRIGGER prevent_patient_double_admission
+BEFORE INSERT ON admissions
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM admissions 
+        WHERE patient_id = NEW.patient_id 
+          AND discharged_at IS NULL 
+          AND status != 'cancelled'
+    ) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: المريض لديه تنويم نشط حالياً في الغرفة ولا يمكن إدخاله في تنويم آخر حتى يتم تخريجه.';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- لتجربة الكود إذا كان يعمل أدخل بيانات حجز مريضين في نفس الغرفة 
+
 
 
 
