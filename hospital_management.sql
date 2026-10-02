@@ -9,7 +9,7 @@ USE hospital_management;
 
 -- أمر إنشاء جدول ال ( departments ) مع الحماية الكاملة عليه 
 
-CREATE TABLE departments_1 (
+CREATE TABLE departments (
     id INT PRIMARY KEY AUTO_INCREMENT,
     parent_id INT,
     department_name VARCHAR(100) NOT NULL CHECK (TRIM(department_name) <> ''),
