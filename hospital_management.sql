@@ -3446,11 +3446,26 @@ DELIMITER ;
 
 -- هذا المشغل يغير قيمة الحالة في جدول الغرف إلى محجوز إذا تم حجز غرفة لمريض جديد بطريقة صحيحة من دون ان يعترضها المشغل السابق
 
+-- إعادة الغرفة إلى available عند Discharge
 
+DELIMITER //
 
+CREATE TRIGGER update_room_available_on_discharge
+AFTER UPDATE ON admissions
+FOR EACH ROW
+BEGIN
+    IF (OLD.discharged_at IS NULL AND NEW.discharged_at IS NOT NULL) 
+       OR (OLD.status != 'discharged' AND NEW.status = 'discharged') THEN
+        UPDATE rooms 
+        SET status = 'available' 
+        WHERE id = NEW.room_id;
+        
+    END IF;
+END //
 
+DELIMITER ;
 
-
+-- لتجربة هذا المود يجب تعديل جدول ال ( admissions ) و تخريج مريض كان ماذال نائم بالمشفى و ستلاحظ وضع توقيت خروج و جعل الغرفة في حالة فارغة و متاحة 
 
 
 
