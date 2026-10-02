@@ -3049,6 +3049,14 @@ CREATE PROCEDURE book_appointment(
 BEGIN
     DECLARE v_doctor_status VARCHAR(20);
     
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
     SELECT status INTO v_doctor_status 
     FROM doctors 
     WHERE id = p_doctor_id;
@@ -3106,6 +3114,8 @@ BEGIN
         'scheduled', 
         NOW()
     );
+
+    COMMIT;
 
 END //
 
@@ -3396,6 +3406,7 @@ BEGIN
         WHERE doctor_id = NEW.doctor_id 
           AND appointment_date = NEW.appointment_date 
           AND appointment_time = NEW.appointment_time
+          AND status NOT IN ('cancelled')
     ) THEN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'خطأ: الطبيب لديه موعد آخر محجوز بالفعل في نفس التاريخ والوقت تماماً.';
