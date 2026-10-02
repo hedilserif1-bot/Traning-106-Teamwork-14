@@ -2609,7 +2609,8 @@ FROM admissions a
 JOIN patients p ON a.patient_id = p.id
 ORDER BY p.id, admission_sequence;
 
-مقارنة قيمة كل فاتورة بالفاتورة السابقة لنفس المريض باستخدام LAG()
+
+-- مقارنة قيمة كل فاتورة بالفاتورة السابقة لنفس المريض باستخدام LAG()
 
 SELECT 
     p.id AS patient_id,
@@ -2714,6 +2715,11 @@ FROM
     DepartmentRevenue
 ORDER BY 
     dept_revenue DESC;
+
+
+
+
+
 
 -- هنا بدا كود ال ( Views )
 
