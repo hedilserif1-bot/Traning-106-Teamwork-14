@@ -3513,9 +3513,45 @@ DELIMITER ;
 
 -- هذا المشغل يمنع إدخال القيم السالبة 
 
+-- منع استخدام دواء منتهي الصلاحية في Prescription جديدة
 
+DELIMITER //
 
+CREATE TRIGGER prevent_expired_med_prescription_insert
+BEFORE INSERT ON prescription_items
+FOR EACH ROW
+BEGIN
+    DECLARE med_expiry DATE;
+    DECLARE med_status VARCHAR(50);
+    
+    SELECT expiry_date, status INTO med_expiry, med_status
+    FROM medicines
+    WHERE id = NEW.medicine_id;
+    
+    IF med_expiry < CURDATE() OR med_status = 'Expired' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن وصف أو إدراج دواء منتهي الصلاحية في الوصفة الطبية.';
+    END IF;
+END //
 
+CREATE TRIGGER prevent_expired_med_prescription_update
+BEFORE UPDATE ON prescription_items
+FOR EACH ROW
+BEGIN
+    DECLARE med_expiry DATE;
+    DECLARE med_status VARCHAR(50);
+    
+    SELECT expiry_date, status INTO med_expiry, med_status
+    FROM medicines
+    WHERE id = NEW.medicine_id;
+    
+    IF med_expiry < CURDATE() OR med_status = 'Expired' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن تحديث الوصفة بدواء منتهي الصلاحية.';
+    END IF;
+END //
+
+DELIMITER ;
 
 
 
