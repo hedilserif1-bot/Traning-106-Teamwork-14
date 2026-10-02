@@ -3595,3 +3595,154 @@ END //
 DELIMITER ;
 
 -- هذا الكود يعمل على التنسيق بين جدولي الفواتير و المدفوعات
+
+-- من هنا يبدا كود ال ( Transactions )
+
+-- كود المشغل المسؤول عن الحماية 
+
+DELIMITER //
+
+CREATE TRIGGER prevent_invalid_admission_guard
+BEFORE INSERT ON admissions
+FOR EACH ROW
+BEGIN
+    DECLARE v_room_status VARCHAR(20);
+    DECLARE v_doctor_status VARCHAR(20);
+
+    IF EXISTS (
+        SELECT 1 FROM admissions 
+        WHERE patient_id = NEW.patient_id 
+          AND discharged_at IS NULL 
+          AND status != 'cancelled'
+    ) THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ [حراسة المشغل]: المريض لديه تنويم نشط حالياً ولا يمكن إدخاله في تنويم آخر.';
+    END IF;
+
+    SELECT status INTO v_room_status 
+    FROM rooms 
+    WHERE id = NEW.room_id;
+
+    IF v_room_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ [حراسة المشغل]: الغرفة غير موجودة في النظام.';
+    ELSEIF v_room_status = 'maintenance' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ [حراسة المشغل]: الغرفة تحت الصيانة ولا يمكن التنويم فيها.';
+    ELSEIF v_room_status != 'available' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ [حراسة المشغل]: الغرفة غير متاحة حالياً (مشغولة).';
+    END IF;
+
+    SELECT status INTO v_doctor_status 
+    FROM doctors 
+    WHERE id = NEW.doctor_id;
+
+    IF v_doctor_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ [حراسة المشغل]: الطبيب غير موجود في النظام.';
+    ELSEIF v_doctor_status != 'active' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ [حراسة المشغل]: الطبيب غير نشط حالياً.';
+    END IF;
+
+END //
+
+DELIMITER ;
+
+-- كود ال ( Procedure ) المسؤول عن الادخال و التعديل
+
+DELIMITER //
+
+CREATE PROCEDURE admit_patient_transaction(
+    IN p_patient_id INT,
+    IN p_doctor_id INT,
+    IN p_room_id INT,
+    IN p_admission_reason VARCHAR(255),
+    IN p_insurance_discount DECIMAL(10,2)
+)
+BEGIN
+    DECLARE v_daily_price DECIMAL(10,2);
+    DECLARE v_admission_id INT;
+    DECLARE v_subtotal DECIMAL(10,2);
+    DECLARE v_total_amount DECIMAL(10,2);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    INSERT INTO admissions (
+        patient_id,
+        room_id,
+        doctor_id,
+        admitted_at,
+        admission_reason,
+        status
+    ) 
+    VALUES (
+        p_patient_id,
+        p_room_id,
+        p_doctor_id,
+        NOW(),
+        p_admission_reason,
+        'admitted'
+    );
+
+    SET v_admission_id = LAST_INSERT_ID();
+
+    UPDATE rooms 
+    SET status = 'occupied' 
+    WHERE id = p_room_id;
+
+    SELECT daily_price INTO v_daily_price
+    FROM rooms
+    WHERE id = p_room_id;
+
+    SET v_subtotal = v_daily_price;
+    SET v_total_amount = v_subtotal - COALESCE(p_insurance_discount, 0.00);
+
+    INSERT INTO invoices (
+        patient_id,
+        admission_id,
+        subtotal,
+        insurance_discount,
+        total_amount,
+        issued_at,
+        due_date,
+        payment_status
+    ) 
+    VALUES (
+        p_patient_id,
+        v_admission_id,
+        v_subtotal,
+        COALESCE(p_insurance_discount, 0.00),
+        v_total_amount,
+        NOW(),
+        DATE_ADD(NOW(), INTERVAL 15 DAY),
+        'unpaid'
+    );
+
+    COMMIT;
+
+END //
+
+DELIMITER ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
