@@ -9,15 +9,16 @@ USE hospital_management;
 
 -- أمر إنشاء جدول ال ( departments ) مع الحماية الكاملة عليه 
 
-CREATE TABLE departments (
+CREATE TABLE departments_1 (
     id INT PRIMARY KEY AUTO_INCREMENT,
+    parent_id INT,
     department_name VARCHAR(100) NOT NULL CHECK (TRIM(department_name) <> ''),
     floor_number INT NOT NULL CHECK (floor_number > 0),
     phone VARCHAR(20) NOT NULL CHECK (TRIM(phone) <> ''),
     status VARCHAR(20) NOT NULL DEFAULT 'active'
-        CHECK (status IN ('active', 'inactive', 'maintenance'))
-);
-
+        CHECK (status IN ('active', 'inactive', 'maintenance')),
+    FOREIGN KEY  (parent_id) REFERENCES departments(id)  
+)
 -- كود إضافة فهرس على عمودي اسم القسم ورقم الطابق
 
 CREATE UNIQUE INDEX idx_departments_name_floor
@@ -409,6 +410,20 @@ INSERT INTO departments (department_name, floor_number, phone, status) VALUES
 ('Radiology', 1, '+1-555-0106', 'active'),
 ('Internal Medicine', 3, '+1-555-0107', 'active'),
 ('Ophthalmology', 4, '+1-555-0108', 'active');
+
+
+UPDATE departments
+SET parent_id = id
+WHERE id IN (1,2,3);
+
+UPDATE departments SET parent_id = 1 WHERE id = 4;
+UPDATE departments SET parent_id = 1 WHERE id = 5;
+
+UPDATE departments SET parent_id = 2 WHERE id = 6;
+UPDATE departments SET parent_id = 2 WHERE id = 7;
+
+UPDATE departments SET parent_id = 3 WHERE id = 8;
+UPDATE departments SET parent_id = 3 WHERE id = 9;
 
 INSERT INTO doctors (department_id, full_name, email, phone, specialization, license_number, hire_date, consultation_fee, status) VALUES
 (1, 'Dr. Ahmed Al-Masri', 'ahmed.masri@hospital.com', '+1-555-1101', 'Emergency Medicine', 'LIC-1001', '2022-01-15', 150.0, 'active'),
