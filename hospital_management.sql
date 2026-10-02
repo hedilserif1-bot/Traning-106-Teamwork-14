@@ -3553,6 +3553,76 @@ END //
 
 DELIMITER ;
 
+-- كود إنشاء مشغل يقوم بتحديث حالة Invoice عند تغير مجموع المدفوعات إذا كان تصميمك يعتمد على ذلك
+
+DELIMITER //
+
+CREATE PROCEDURE update_invoice_payment_status(IN target_invoice_id INT)
+BEGIN
+    DECLARE total_paid DECIMAL(10,2);
+    DECLARE invoice_total DECIMAL(10,2);
+    SELECT COALESCE(SUM(amount), 0) INTO total_paid
+    FROM payments
+    WHERE invoice_id = target_invoice_id AND status = 'completed';
+    
+    SELECT total_amount INTO invoice_total
+    FROM invoices
+    WHERE id = target_invoice_id;
+    
+    IF total_paid <= 0 THEN
+        UPDATE invoices SET payment_status = 'unpaid' WHERE id = target_invoice_id;
+    ELSEIF total_paid < invoice_total THEN
+        UPDATE invoices SET payment_status = 'partially_paid' WHERE id = target_invoice_id;
+    ELSE
+        UPDATE invoices SET payment_status = 'paid' WHERE id = target_invoice_id;
+    END IF;
+END //
+
+CREATE TRIGGER trg_payments_after_insert
+AFTER INSERT ON payments
+FOR EACH ROW
+BEGIN
+    CALL update_invoice_payment_status(NEW.invoice_id);
+END //
+
+CREATE TRIGGER trg_payments_after_update
+AFTER UPDATE ON payments
+FOR EACH ROW
+BEGIN
+    CALL update_invoice_payment_status(NEW.invoice_id);
+    IF OLD.invoice_id != NEW.invoice_id THEN
+        CALL update_invoice_payment_status(OLD.invoice_id);
+    END IF;
+END //
+
+CREATE TRIGGER trg_payments_after_delete
+AFTER DELETE ON payments
+FOR EACH ROW
+BEGIN
+    CALL update_invoice_payment_status(OLD.invoice_id);
+END //
+
+DELIMITER ;
+
+-- هذا الكود يعمل على التنسيق بين جدولي الفواتير و المدفوعات
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
