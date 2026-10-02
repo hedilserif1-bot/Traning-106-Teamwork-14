@@ -20,7 +20,9 @@ CREATE TABLE departments (
     FOREIGN KEY  (parent_id) REFERENCES departments(id) 
     ON UPDATE CASCADE
     ON DELETE SET NULL
-)
+);
+
+
 -- كود إضافة فهرس على عمودي اسم القسم ورقم الطابق
 
 CREATE UNIQUE INDEX idx_departments_name_floor
