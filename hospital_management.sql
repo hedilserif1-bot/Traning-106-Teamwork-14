@@ -3121,16 +3121,6 @@ END //
 
 DELIMITER ;
 
--- كود تجربة الحالة الصحيحة من Procedures التي إسمها ( book_appointment )
-
-CALL book_appointment(
-    3,   
-    2, 
-    '2026-10-15', 
-    '10:30:00',
-    'Routine checkup'
-);
-
 -- كود إنشاء Procedures التي إسمها ( admit_patient )
 
 DELIMITER //
@@ -3203,18 +3193,10 @@ END //
 
 DELIMITER ;
 
--- كود تجربة Procedures التي إسمها ( admit_patient ) الحالة الصحيحة منها 
-
-CALL admit_patient(
-    1,    
-    1,       
-    1,   
-    'Severe Respiratory Infection' 
-);
-
 -- كود إنشاء Procedures التي إسمها ( discharge_patient )
 
 DELIMITER //
+
 CREATE PROCEDURE discharge_patient(
     IN p_admission_id INT
 )
@@ -3228,6 +3210,7 @@ BEGIN
     DECLARE v_subtotal DECIMAL(10,2);
     DECLARE v_insurance_discount DECIMAL(10,2) DEFAULT 0.00;
     DECLARE v_total_amount DECIMAL(10,2);
+    
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -3265,10 +3248,6 @@ BEGIN
         status = 'discharged'
     WHERE id = p_admission_id;
 
-    UPDATE rooms 
-    SET status = 'available' 
-    WHERE id = v_room_id;
- 
     INSERT INTO invoices (
         patient_id, 
         visit_id,
@@ -3298,12 +3277,6 @@ END //
 
 DELIMITER ;
 
--- كود تجربة Procedures التي إسمها ( discharge_patient )
-
--- ملاحظة يجب أن تكود قيمة العمود ( discharged_at ) NULL في الاسطر اتي تملك ال id الخاص بالمريض الذي نريد ان نخرجه مثل ال id ( 8 )
-
-CALL discharge_patient(8);
-
 -- كود إنشاء Procedures التي إسمها ( pay_invoice )
 
 DELIMITER //
@@ -3315,8 +3288,8 @@ CREATE PROCEDURE pay_invoice(
     IN p_transaction_reference VARCHAR(100)
 )
 BEGIN
-    DECLARE v_total_invoice_amount DECIMAL(10,2);
-    DECLARE v_total_paid_amount DECIMAL(10,2);
+    DECLARE v_invoice_exists INT;
+    
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -3325,11 +3298,11 @@ BEGIN
 
     START TRANSACTION;
 
-    SELECT total_amount INTO v_total_invoice_amount
+    SELECT 1 INTO v_invoice_exists
     FROM invoices
     WHERE id = p_invoice_id;
 
-    IF v_total_invoice_amount IS NULL THEN
+    IF v_invoice_exists IS NULL THEN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'خطأ: رقم الفاتورة غير موجود في النظام.';
     END IF;
@@ -3351,41 +3324,11 @@ BEGIN
         'completed'
     );
 
-    SELECT COALESCE(SUM(amount), 0.00) INTO v_total_paid_amount
-    FROM payments
-    WHERE invoice_id = p_invoice_id 
-      AND status = 'completed';
-
-    IF v_total_paid_amount >= v_total_invoice_amount THEN
-        UPDATE invoices 
-        SET payment_status = 'paid' 
-        WHERE id = p_invoice_id;
-        
-    ELSEIF v_total_paid_amount > 0 THEN
-        UPDATE invoices 
-        SET payment_status = 'partially_paid' 
-        WHERE id = p_invoice_id;
-        
-    ELSE
-        UPDATE invoices 
-        SET payment_status = 'unpaid' 
-        WHERE id = p_invoice_id;
-    END IF;
-
     COMMIT;
 
 END //
 
 DELIMITER ;
-
--- كود تجربة ال ( pay_invoice ) بطريقة صحيحة 
-
-CALL pay_invoice(
-    1,
-    100.00,
-    'card',
-    'TXN-TEST-1001'
-);
 
 -- من هنا تبدا أكواد ال ( Triggers )
 
@@ -3463,6 +3406,7 @@ FOR EACH ROW
 BEGIN
     IF (OLD.discharged_at IS NULL AND NEW.discharged_at IS NOT NULL) 
        OR (OLD.status != 'discharged' AND NEW.status = 'discharged') THEN
+        
         UPDATE rooms 
         SET status = 'available' 
         WHERE id = NEW.room_id;
@@ -3485,6 +3429,45 @@ BEGIN
     IF NEW.amount <= 0 THEN
         SIGNAL SQLSTATE '45000' 
         SET MESSAGE_TEXT = 'خطأ: لا يمكن قبول عملية دفع بقيمة صفر أو أقل.';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- الاول يحمي الجدول من القيم الخاطئة و الثاني يحدث الحالات 
+
+DELIMITER //
+
+CREATE TRIGGER update_invoice_status_after_payment
+AFTER INSERT ON payments
+FOR EACH ROW
+BEGIN
+    DECLARE v_total_invoice_amount DECIMAL(10,2);
+    DECLARE v_total_paid_amount DECIMAL(10,2);
+
+    SELECT total_amount INTO v_total_invoice_amount
+    FROM invoices
+    WHERE id = NEW.invoice_id;
+
+    SELECT COALESCE(SUM(amount), 0.00) INTO v_total_paid_amount
+    FROM payments
+    WHERE invoice_id = NEW.invoice_id 
+      AND status = 'completed';
+
+    IF v_total_paid_amount >= v_total_invoice_amount THEN
+        UPDATE invoices 
+        SET payment_status = 'paid' 
+        WHERE id = NEW.invoice_id;
+        
+    ELSEIF v_total_paid_amount > 0 THEN
+        UPDATE invoices 
+        SET payment_status = 'partially_paid' 
+        WHERE id = NEW.invoice_id;
+        
+    ELSE
+        UPDATE invoices 
+        SET payment_status = 'unpaid' 
+        WHERE id = NEW.invoice_id;
     END IF;
 END //
 
@@ -3612,34 +3595,3 @@ END //
 DELIMITER ;
 
 -- هذا الكود يعمل على التنسيق بين جدولي الفواتير و المدفوعات
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
