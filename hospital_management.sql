@@ -3854,6 +3854,126 @@ END //
 
 DELIMITER ;
 
+-- إضافة مشغل ليمنع Appointment completed بدون Medical Visit عندما تكون الزيارة مطلوبة
+
+-- يعمل عندد الادخال 
+
+DELIMITER //
+
+CREATE TRIGGER check_appointment_completed_before_insert
+BEFORE INSERT ON appointments
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'completed' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن إنشاء موعد جديد بحالة مكتمل (completed) مباشرة.';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- يعمل عند التحديث
+
+DELIMITER //
+
+CREATE TRIGGER check_appointment_completed_before_update
+BEFORE UPDATE ON appointments
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed') THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM medical_visits 
+            WHERE appointment_id = NEW.id
+        ) THEN
+            SIGNAL SQLSTATE '45000' 
+            SET MESSAGE_TEXT = 'خطأ: لا يمكن تحديث حالة الموعد إلى مكتمل (completed) لعدم وجود زيارة طبية (Medical Visit) مرتبطة به.';
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+
+-- patient_lab_tests completed بدون completed_at
+
+-- يعمل عند الادخال 
+
+DELIMITER //
+
+CREATE TRIGGER check_lab_test_completed_before_insert
+BEFORE INSERT ON patient_lab_tests
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'completed' AND NEW.completed_at IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن إدخال اختبار مخبري بحالة مكتمل (completed) بدون تحديد وقت الإكمال (completed_at).';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- يعمل عند التحديث
+
+DELIMITER //
+
+CREATE TRIGGER check_lab_test_completed_before_update
+BEFORE UPDATE ON patient_lab_tests
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'completed' AND NEW.completed_at IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن تحديث حالة الاختبار المخبري إلى مكتمل (completed) بدون تحديد وقت الإكمال (completed_at).';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Prescription تحتوي على Medicine غير active.
+
+-- يعمل قبل الاضافة 
+
+DELIMITER //
+
+CREATE TRIGGER prevent_inactive_medicine_before_insert
+BEFORE INSERT ON prescription_items
+FOR EACH ROW
+BEGIN
+    DECLARE med_status VARCHAR(50);
+    
+    SELECT status INTO med_status 
+    FROM medicines 
+    WHERE id = NEW.medicine_id;
+  
+    IF med_status IS NULL OR med_status != 'Available' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن وصف دواء غير نشط أو غير متاح في الوصفة الطبية.';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- يعمل قبل التحديث
+
+DELIMITER //
+
+CREATE TRIGGER prevent_inactive_medicine_before_update
+BEFORE UPDATE ON prescription_items
+FOR EACH ROW
+BEGIN
+    DECLARE med_status VARCHAR(50);
+    
+    IF OLD.medicine_id != NEW.medicine_id THEN
+        SELECT status INTO med_status 
+        FROM medicines 
+        WHERE id = NEW.medicine_id;
+        
+        IF med_status IS NULL OR med_status != 'Available' THEN
+            SIGNAL SQLSTATE '45000' 
+            SET MESSAGE_TEXT = 'خطأ: لا يمكن تحديث الوصفة الطبية بدواء غير نشط أو غير متاح.';
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
 
 
 
