@@ -3732,9 +3732,96 @@ END //
 
 DELIMITER ;
 
+-- كود ال ( Concurrency Challenge )
 
+DELIMITER //
 
+CREATE PROCEDURE admit_patient_safely(
+    IN p_patient_id INT,
+    IN p_doctor_id INT,
+    IN p_room_id INT,
+    IN p_admission_reason VARCHAR(255),
+    IN p_insurance_discount DECIMAL(10,2)
+)
+BEGIN
+    DECLARE v_room_status VARCHAR(20);
+    DECLARE v_daily_price DECIMAL(10,2);
+    DECLARE v_admission_id INT;
+    DECLARE v_subtotal DECIMAL(10,2);
+    DECLARE v_total_amount DECIMAL(10,2);
 
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT status, daily_price INTO v_room_status, v_daily_price
+    FROM rooms
+    WHERE id = p_room_id
+    FOR UPDATE;
+
+    IF v_room_status IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: الغرفة غير موجودة في النظام.';
+    ELSEIF v_room_status != 'available' THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: عذراً، هذه الغرفة أصبحت مشغولة وتم حجزها من قبل موظف آخر للتو.';
+    END IF;
+
+    INSERT INTO admissions (
+        patient_id,
+        room_id,
+        doctor_id,
+        admitted_at,
+        admission_reason,
+        status
+    ) 
+    VALUES (
+        p_patient_id,
+        p_room_id,
+        p_doctor_id,
+        NOW(),
+        p_admission_reason,
+        'admitted'
+    );
+
+    SET v_admission_id = LAST_INSERT_ID();
+
+    UPDATE rooms 
+    SET status = 'occupied' 
+    WHERE id = p_room_id;
+    SET v_subtotal = v_daily_price;
+    SET v_total_amount = v_subtotal - COALESCE(p_insurance_discount, 0.00);
+
+    INSERT INTO invoices (
+        patient_id,
+        admission_id,
+        subtotal,
+        insurance_discount,
+        total_amount,
+        issued_at,
+        due_date,
+        payment_status
+    ) 
+    VALUES (
+        p_patient_id,
+        v_admission_id,
+        v_subtotal,
+        COALESCE(p_insurance_discount, 0.00),
+        v_total_amount,
+        NOW(),
+        DATE_ADD(NOW(), INTERVAL 15 DAY),
+        'unpaid'
+    );
+
+    COMMIT;
+
+END //
+
+DELIMITER ;
 
 
 
