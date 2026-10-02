@@ -3145,15 +3145,13 @@ BEGIN
     DECLARE v_doctor_status VARCHAR(20);
     DECLARE v_room_status VARCHAR(20);
     
-    IF EXISTS (
-        SELECT 1 FROM admissions 
-        WHERE patient_id = p_patient_id 
-          AND discharged_at IS NULL 
-          AND status != 'cancelled'
-    ) THEN
-        SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'خطأ: المريض موجود بالفعل في تنويم نشط حالياً.';
-    END IF;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
 
     SELECT status INTO v_doctor_status 
     FROM doctors 
@@ -3199,9 +3197,7 @@ BEGIN
         'admitted'
     );
 
-    UPDATE rooms 
-    SET status = 'occupied' 
-    WHERE id = p_room_id;
+    COMMIT;
 
 END //
 
