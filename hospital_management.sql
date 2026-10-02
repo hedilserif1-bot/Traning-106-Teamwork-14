@@ -3485,6 +3485,46 @@ DELIMITER ;
 
 -- هذا الكود يمنع إدخال دفعة مالية بقيمة ( 0 ) او ( قيمة سالبة )
 
+-- منع stock_quantity من الوصول إلى قيمة سالبة
+
+DELIMITER //
+
+CREATE TRIGGER prevent_negative_stock_insert
+BEFORE INSERT ON medicines
+FOR EACH ROW
+BEGIN
+    IF NEW.stock_quantity < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن أن تكون كمية المخزون المضافة سالبة.';
+    END IF;
+END //
+
+CREATE TRIGGER prevent_negative_stock_update
+BEFORE UPDATE ON medicines
+FOR EACH ROW
+BEGIN
+    IF NEW.stock_quantity < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن تحديث كمية المخزون لتصبح قيمة سالبة.';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- هذا المشغل يمنع إدخال القيم السالبة 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
