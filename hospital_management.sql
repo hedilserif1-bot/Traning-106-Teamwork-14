@@ -17,7 +17,9 @@ CREATE TABLE departments (
     phone VARCHAR(20) NOT NULL CHECK (TRIM(phone) <> ''),
     status VARCHAR(20) NOT NULL DEFAULT 'active'
         CHECK (status IN ('active', 'inactive', 'maintenance')),
-    FOREIGN KEY  (parent_id) REFERENCES departments(id)  
+    FOREIGN KEY  (parent_id) REFERENCES departments(id) 
+    ON UPDATE CASCADE
+    ON DELETE SET NULL
 )
 -- كود إضافة فهرس على عمودي اسم القسم ورقم الطابق
 
