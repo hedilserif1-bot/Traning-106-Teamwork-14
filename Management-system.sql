@@ -1421,9 +1421,9 @@ ROLLBACK;
 
 --In this project, three Stored Procedures were created:
 
---1. `create_shipment`
---2. `assign_delivery`
---3. `complete_delivery`
+--1.`create_shipment`
+--2.`assign_delivery`
+--3.`complete_delivery`
 
 --=====================================================
 --- 1. create_shipment=================================
