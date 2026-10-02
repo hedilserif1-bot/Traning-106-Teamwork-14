@@ -2741,14 +2741,12 @@ ORDER BY
 
 
 
-
-
 -- هنا بدا كود ال ( Views )
 
 -- إستعلام لأنشاء view ال ( patient_summary_view )
 
 CREATE VIEW patient_summary_view AS
-SELECT 
+SELECT
     p.id AS patient_id,
     p.full_name,
     p.national_id,
@@ -2798,7 +2796,7 @@ SELECT * FROM patient_summary_view;
 -- كود إنشاء ال view ( doctor_performance_view )
 
 CREATE OR REPLACE VIEW doctor_performance_view AS
-SELECT 
+SELECT
     d.full_name AS doctor,
     dep.department_name AS department,
     COALESCE(app_stats.total_appointments, 0) AS total_appointments,
@@ -2810,7 +2808,7 @@ SELECT
 FROM doctors d
 JOIN departments dep ON d.department_id = dep.id
 LEFT JOIN (
-    SELECT 
+    SELECT
         doctor_id,
         COUNT(id) AS total_appointments,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_appointments,
@@ -2821,7 +2819,7 @@ LEFT JOIN (
     GROUP BY doctor_id
 ) app_stats ON d.id = app_stats.doctor_id
 LEFT JOIN (
-    SELECT 
+    SELECT
         mv.doctor_id,
         SUM(i.total_amount) AS total_revenue
     FROM invoices i
@@ -2836,15 +2834,15 @@ SELECT * FROM doctor_performance_view;
 -- كود إنشاء view ال ( room_status_view )
 
 CREATE OR REPLACE VIEW room_status_view AS
-SELECT 
-    r.id AS room_id,
-    r.room_number,
-    r.room_type,
-    r.floor_number,
-    r.daily_price,
-    r.status AS room_status,
-    p.full_name AS current_patient_name,
-    a.admitted_at AS admission_date
+SELECT
+    r.id AS room_id,
+    r.room_number,
+    r.room_type,
+    r.floor_number,
+    r.daily_price,
+    r.status AS room_status,
+    p.full_name AS current_patient_name,
+    a.admitted_at AS admission_date
 FROM rooms r
 LEFT JOIN admissions a ON r.id = a.room_id AND a.discharged_at IS NULL
 LEFT JOIN patients p ON a.patient_id = p.id;
@@ -2852,6 +2850,11 @@ LEFT JOIN patients p ON a.patient_id = p.id;
 -- كود إستدعاء و تجربة view ال ( room_status_view )
 
 SELECT * FROM room_status_view;
+
+
+
+
+
 
 -- من هنا تبدا إستعلامات ال ( CTE )
 
