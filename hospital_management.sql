@@ -414,18 +414,6 @@ INSERT INTO departments (department_name, floor_number, phone, status) VALUES
 ('Ophthalmology', 4, '+1-555-0108', 'active');
 
 
-UPDATE departments
-SET parent_id = id
-WHERE id IN (1,2,3);
-
-UPDATE departments SET parent_id = 1 WHERE id = 4;
-UPDATE departments SET parent_id = 1 WHERE id = 5;
-
-UPDATE departments SET parent_id = 2 WHERE id = 6;
-UPDATE departments SET parent_id = 2 WHERE id = 7;
-
-UPDATE departments SET parent_id = 3 WHERE id = 8;
-UPDATE departments SET parent_id = 3 WHERE id = 9;
 
 INSERT INTO doctors (department_id, full_name, email, phone, specialization, license_number, hire_date, consultation_fee, status) VALUES
 (1, 'Dr. Ahmed Al-Masri', 'ahmed.masri@hospital.com', '+1-555-1101', 'Emergency Medicine', 'LIC-1001', '2022-01-15', 150.0, 'active'),
@@ -1331,6 +1319,21 @@ INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference,
 (26, 500.0, 'bank_transfer', 'TXN-9098', '2027-01-06 09:15:00', 'refunded'),
 (40, 350.0, 'pix', 'TXN-9099', NULL, 'failed'),
 (74, 300.00, 'insurance', 'TXN-9100', '2027-01-08 11:00:00', 'completed');
+
+
+
+UPDATE departments
+SET parent_id = id
+WHERE id IN (1,2,3);
+
+UPDATE departments SET parent_id = 1 WHERE id = 4;
+UPDATE departments SET parent_id = 1 WHERE id = 5;
+
+UPDATE departments SET parent_id = 2 WHERE id = 6;
+UPDATE departments SET parent_id = 2 WHERE id = 7;
+
+UPDATE departments SET parent_id = 3 WHERE id = 8;
+UPDATE departments SET parent_id = 3 WHERE id = 9;
 
 
 START TRANSACTION;
