@@ -3429,6 +3429,32 @@ DELIMITER ;
 
 -- لتجربة الكود إذا كان يعمل أدخل بيانات حجز مريضين في نفس الغرفة 
 
+--  إنشاء مشغل يقوم بتغيير الغرفة إلى occupied عند Admission ناجح
+
+DELIMITER //
+
+CREATE TRIGGER update_room_status_on_admission
+AFTER INSERT ON admissions
+FOR EACH ROW
+BEGIN
+    UPDATE rooms 
+    SET status = 'occupied' 
+    WHERE id = NEW.room_id;
+END //
+
+DELIMITER ;
+
+-- هذا المشغل يغير قيمة الحالة في جدول الغرف إلى محجوز إذا تم حجز غرفة لمريض جديد بطريقة صحيحة من دون ان يعترضها المشغل السابق
+
+
+
+
+
+
+
+
+
+
 
 
 
