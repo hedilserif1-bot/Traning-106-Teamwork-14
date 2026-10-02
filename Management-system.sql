@@ -1413,9 +1413,239 @@ ROLLBACK;
 
 --The transaction ensures that related operations can be treated as one unit, which helps maintain data consistency.
 
+--------------------------------------------------------------------------------------------------------
+
+-- ============================================
+--========= STORED PROCEDURES======
+-- ============================================
+
+--In this project, three Stored Procedures were created:
+
+--1. `create_shipment`
+--2. `assign_delivery`
+--3. `complete_delivery`
+
+--=====================================================
+--- 1. create_shipment=================================
+
+--This procedure creates a new shipment and automatically creates the first tracking record for that shipment.
+
+--sql--
+DELIMITER //
+
+CREATE PROCEDURE create_shipment(
+    IN p_tracking_number VARCHAR(50),
+    IN p_customer_id INT,
+    IN p_origin_branch_id INT,
+    IN p_destination_branch_id INT,
+    IN p_sender_name VARCHAR(100),
+    IN p_sender_phone VARCHAR(20),
+    IN p_receiver_name VARCHAR(100),
+    IN p_receiver_phone VARCHAR(20),
+    IN p_receiver_address VARCHAR(255),
+    IN p_receiver_city VARCHAR(100),
+    IN p_weight DECIMAL(10,2),
+    IN p_shipping_cost DECIMAL(10,2),
+    IN p_expected_delivery_date DATE
+)
+BEGIN
+
+    INSERT INTO shipments (
+        tracking_number,
+        customer_id,
+        origin_branch_id,
+        destination_branch_id,
+        sender_name,
+        sender_phone,
+        receiver_name,
+        receiver_phone,
+        receiver_address,
+        receiver_city,
+        weight,
+        shipping_cost,
+        expected_delivery_date
+    )
+    VALUES (
+        p_tracking_number,
+        p_customer_id,
+        p_origin_branch_id,
+        p_destination_branch_id,
+        p_sender_name,
+        p_sender_phone,
+        p_receiver_name,
+        p_receiver_phone,
+        p_receiver_address,
+        p_receiver_city,
+        p_weight,
+        p_shipping_cost,
+        p_expected_delivery_date
+    );
+
+    INSERT INTO shipment_tracking (
+        shipment_id,
+        branch_id,
+        status,
+        description,
+        recorded_at
+    )
+    VALUES (
+        LAST_INSERT_ID(),
+        p_origin_branch_id,
+        'created',
+        'Shipment created',
+        NOW()
+    );
+
+END //
+
+DELIMITER ;
+```
+
+---- Test-----
+
+
+CALL create_shipment(
+    'TRK100063',
+    1,
+    1,
+    2,
+    'Omar Ali',
+    '0502000002',
+    'Lina Ali',
+    '0506000002',
+    'Kadikoy',
+    'Istanbul',
+    3.00,
+    200.00,
+    '2026-10-07'
+);
+
+----- Result-----
 
 
 
+--Shipment ID: 63
+--Tracking Number: TRK100063
 
 
+--A first tracking record with status `created` was also inserted automatically.
+
+---
+--===========================================
+---- 2. assign_delivery =====================
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE assign_delivery(
+    IN p_shipment_id INT,
+    IN p_driver_id INT,
+    IN p_vehicle_id INT
+)
+BEGIN
+
+    INSERT INTO deliveries (
+        shipment_id,
+        driver_id,
+        vehicle_id,
+        assigned_at,
+        delivery_status
+    )
+    VALUES (
+        p_shipment_id,
+        p_driver_id,
+        p_vehicle_id,
+        NOW(),
+        'assigned'
+    );
+
+END //
+
+DELIMITER ;
+
+
+---Test----
+
+
+CALL assign_delivery(63, 4, 7);
+
+---- Result----
+
+---A new delivery record was created:
+
+
+--Delivery ID: 41
+--Shipment ID: 63
+--Driver ID: 4
+--Vehicle ID: 7
+--Delivery Status: assigned
+
+---=====================================
+---3. complete_delivery=================
+
+--This procedure completes an existing delivery.
+
+--It updates:
+
+-- `started_at`
+-- `completed_at`
+-- `delivery_status`
+
+---`IFNULL()` is used so that if `started_at` is still `NULL`, the current time is recorded as the start time.
+
+
+DELIMITER //
+
+CREATE PROCEDURE complete_delivery(
+    IN p_delivery_id INT
+)
+BEGIN
+
+    UPDATE deliveries
+    SET
+        started_at = IFNULL(started_at, NOW()),
+        completed_at = NOW(),
+        delivery_status = 'completed'
+    WHERE id = p_delivery_id;
+
+END //
+
+DELIMITER ;
+
+
+--- Test
+
+
+CALL complete_delivery(41);
+
+SELECT
+    id,
+    shipment_id,
+    driver_id,
+    vehicle_id,
+    assigned_at,
+    started_at,
+    completed_at,
+    delivery_status
+FROM deliveries
+WHERE id = 41;
+```
+
+---- Result----
+
+
+--Delivery ID: 41
+--Shipment ID: 63
+--Driver ID: 4
+--Vehicle ID: 7
+--Delivery Status: completed
+--started_at: recorded
+--completed_at: recorded
+
+---------------------------------------------
+
+--================================================
+             ---=====Triggers======
+--================================================
 
