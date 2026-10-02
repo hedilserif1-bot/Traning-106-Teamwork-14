@@ -1838,9 +1838,9 @@ VALUES (
 
 --====== 5. Prevent Deleting Customer with Shipments=====
 
-This trigger prevents deleting a customer if the customer already has shipments.
+--This trigger prevents deleting a customer if the customer already has shipments.
 
-```sql
+
 DELIMITER //
 
 CREATE TRIGGER prevent_customer_delete_with_shipments
@@ -1861,7 +1861,7 @@ BEGIN
 END //
 
 DELIMITER ;
-```
+
 
 ----Test----------
 
