@@ -1649,3 +1649,247 @@ WHERE id = 41;
              ---=====Triggers======
 --================================================
 
+
+
+
+--====== 1. Update Shipment Status from Tracking=======
+
+--This trigger automatically updates the shipment status when a new tracking record is inserted.
+
+
+DELIMITER //
+
+CREATE TRIGGER update_shipment_status_from_tracking
+AFTER INSERT
+ON shipment_tracking
+FOR EACH ROW
+BEGIN
+    UPDATE shipments
+    SET shipment_status = NEW.status
+    WHERE id = NEW.shipment_id;
+END //
+
+DELIMITER ;
+
+
+---Test----
+
+INSERT INTO shipment_tracking (
+    shipment_id,
+    branch_id,
+    status,
+    description,
+    recorded_at
+)
+VALUES (
+    63,
+    2,
+    'in_transit',
+    'Shipment is in transit',
+    NOW()
+);
+
+
+---Result---
+
+--Shipment `63` was automatically updated to:
+
+
+--shipment_status = in_transit
+
+
+---------------------------
+
+--===== 2. Update Vehicle Status on Delivery Start=======
+
+---This trigger changes the vehicle status to `in_delivery` when a delivery starts.
+
+
+DELIMITER //
+
+CREATE TRIGGER update_vehicle_status_on_delivery_start
+AFTER UPDATE
+ON deliveries
+FOR EACH ROW
+BEGIN
+    IF NEW.delivery_status = 'started'
+       AND OLD.delivery_status <> 'started' THEN
+
+        UPDATE vehicles
+        SET status = 'in_delivery'
+        WHERE id = NEW.vehicle_id;
+
+    END IF;
+END //
+
+DELIMITER ;
+
+
+--- Test---
+
+UPDATE deliveries
+SET delivery_status = 'assigned'
+WHERE id = 41;
+
+UPDATE deliveries
+SET delivery_status = 'started'
+WHERE id = 41;
+
+
+--- Result---
+
+--Vehicle `7` changed automatically from:
+
+
+--available
+
+
+--to:
+
+--in_delivery
+
+----------------------------------------------------------
+--=====3. Update Vehicle Status on Delivery Complete======
+
+--This trigger changes the vehicle status back to `available` when a delivery is completed.
+
+
+DELIMITER //
+
+CREATE TRIGGER update_vehicle_status_on_delivery_complete
+AFTER UPDATE
+ON deliveries
+FOR EACH ROW
+BEGIN
+    IF NEW.delivery_status = 'completed'
+       AND OLD.delivery_status <> 'completed' THEN
+
+        UPDATE vehicles
+        SET status = 'available'
+        WHERE id = NEW.vehicle_id;
+
+    END IF;
+END //
+
+DELIMITER ;
+
+
+----- Test---
+
+
+UPDATE deliveries
+SET delivery_status = 'completed'
+WHERE id = 41;
+
+-----------------------------
+
+--=========== 4. Prevent Invalid Payment==========
+
+--This trigger prevents inserting a payment with an amount of zero or less.
+
+
+DELIMITER //
+
+CREATE TRIGGER prevent_invalid_payment
+BEFORE INSERT
+ON payments
+FOR EACH ROW
+BEGIN
+    IF NEW.amount <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Payment amount must be greater than 0';
+
+    END IF;
+END //
+
+DELIMITER ;
+
+
+--- Test---
+
+
+INSERT INTO payments (
+    shipment_id,
+    amount,
+    payment_method,
+    payment_date,
+    transaction_reference,
+    status
+)
+VALUES (
+    63,
+    -50.00,
+    'cash',
+    NOW(),
+    'TXNTEST001',
+    'successful'
+);
+
+
+--- Result ---
+
+--The database rejected the payment and returned:
+
+
+--1644 - Payment amount must be greater than 0
+
+-------------------------
+
+--====== 5. Prevent Deleting Customer with Shipments=====
+
+This trigger prevents deleting a customer if the customer already has shipments.
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER prevent_customer_delete_with_shipments
+BEFORE DELETE
+ON customers
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM shipments
+        WHERE customer_id = OLD.id
+    ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cannot delete customer with shipments';
+
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+----Test----------
+
+
+DELETE FROM customers
+WHERE id = 1;
+
+
+---Result---
+
+---The database rejected the deletion and returned:
+
+
+--1644 - Cannot delete customer with shipments
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
