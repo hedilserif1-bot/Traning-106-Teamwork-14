@@ -3467,11 +3467,23 @@ DELIMITER ;
 
 -- لتجربة هذا المود يجب تعديل جدول ال ( admissions ) و تخريج مريض كان ماذال نائم بالمشفى و ستلاحظ وضع توقيت خروج و جعل الغرفة في حالة فارغة و متاحة 
 
+-- منع Payment بقيمة صفر أو أقل
 
+DELIMITER //
 
+CREATE TRIGGER prevent_invalid_payment_amount
+BEFORE INSERT ON payments
+FOR EACH ROW
+BEGIN
+    IF NEW.amount <= 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'خطأ: لا يمكن قبول عملية دفع بقيمة صفر أو أقل.';
+    END IF;
+END //
 
+DELIMITER ;
 
-
+-- هذا الكود يمنع إدخال دفعة مالية بقيمة ( 0 ) او ( قيمة سالبة )
 
 
 
