@@ -2182,6 +2182,176 @@ WITH RECURSIVE dates AS (
 SELECT *
 FROM dates;
 
+--==========================================================
+    --=========INTEGRITY & SAFETY CHECKS============
+--==========================================================
+
+-------- 1. Shipments Without Customers------------
+
+SELECT
+    s.id,
+    s.tracking_number,
+    s.customer_id
+FROM shipments s
+LEFT JOIN customers c
+    ON s.customer_id = c.id
+WHERE c.id IS NULL;
+
+
+----Result:Empty result.
+
+----- 2. Deliveries Without Shipments-----------------
+
+
+SELECT
+    d.id,
+    d.shipment_id,
+    d.driver_id,
+    d.vehicle_id
+FROM deliveries d
+LEFT JOIN shipments s
+    ON d.shipment_id = s.id
+WHERE s.id IS NULL;
+
+
+--Result: Empty result.
+
+----3. Payments Without Shipments-------------------
+
+SELECT
+    p.id,
+    p.shipment_id,
+    p.amount,
+    p.payment_date,
+    p.status
+FROM payments p
+LEFT JOIN shipments s
+    ON p.shipment_id = s.id
+WHERE s.id IS NULL;
+
+
+---Result: Empty result.
+
+---- 4. Deliveries Without Drivers----------------
+
+SELECT
+    d.id,
+    d.shipment_id,
+    d.driver_id,
+    d.vehicle_id
+FROM deliveries d
+LEFT JOIN drivers dr
+    ON d.driver_id = dr.id
+WHERE dr.id IS NULL;
+
+
+----Result: Empty result.
+
+----- 5. Deliveries Without Vehicles ---------------
+
+
+SELECT
+    d.id,
+    d.shipment_id,
+    d.driver_id,
+    d.vehicle_id
+FROM deliveries d
+LEFT JOIN vehicles v
+    ON d.vehicle_id = v.id
+WHERE v.id IS NULL;
+
+---Result: Empty result.
+
+---- 6. Tracking Records Without Shipments------------
+
+SELECT
+    st.id,
+    st.shipment_id,
+    st.branch_id,
+    st.status,
+    st.recorded_at
+FROM shipment_tracking st
+LEFT JOIN shipments s
+    ON st.shipment_id = s.id
+WHERE s.id IS NULL;
+
+
+----Result: Empty result.
+
+
+------ 7. Invalid Shipment Status--------------------
+
+SELECT
+    id,
+    tracking_number,
+    shipment_status
+FROM shipments
+WHERE shipment_status NOT IN (
+    'created',
+    'received',
+    'in_transit',
+    'out_for_delivery',
+    'delivered',
+    'cancelled',
+    'returned'
+);
+
+
+---Result: Empty result.
+
+
+----- 8. Invalid Payment Amounts------------
+
+
+SELECT
+    id,
+    shipment_id,
+    amount,
+    payment_date,
+    status
+FROM payments
+WHERE amount <= 0;
+
+
+------Result:** Empty result.
+
+------- 9. Invalid Shipping Costs--------------
+
+SELECT
+    id,
+    tracking_number,
+    shipping_cost
+FROM shipments
+WHERE shipping_cost <= 0;
+
+
+----Result:** Empty result.
+
+------ 10. Shipments With Multiple Deliveries--------
+
+
+SELECT
+    shipment_id,
+    COUNT(*) AS delivery_count
+FROM deliveries
+GROUP BY shipment_id
+HAVING COUNT(*) > 1;
+
+
+----Result:** The query was used to identify shipments with more than one delivery record.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
