@@ -2081,9 +2081,106 @@ SELECT
     ) AS next_cost
 FROM shipments;
 
+--====================================================
+        --============CTE===========
+--===================================================
+
+-- 1. Basic CTE-----------
+
+-- the number of shipments for each customer.
+
+WITH customer_shipments AS (
+    SELECT
+        customer_id,
+        COUNT(*) AS shipment_count
+    FROM shipments
+    GROUP BY customer_id
+)
+SELECT *
+FROM customer_shipments
+WHERE shipment_count > 2;
+
+--- 2. CTE with JOIN------------------
+
+WITH customer_shipments AS (
+    SELECT
+        customer_id,
+        COUNT(*) AS shipment_count
+    FROM shipments
+    GROUP BY customer_id
+)
+SELECT
+    c.id,
+    c.full_name,
+    cs.shipment_count
+FROM customers c
+JOIN customer_shipments cs
+    ON c.id = cs.customer_id
+WHERE cs.shipment_count > 2;
 
 
+----- 3. Multiple CTEs------------------------
 
+WITH customer_shipments AS (
+    SELECT
+        customer_id,
+        COUNT(*) AS shipment_count
+    FROM shipments
+    GROUP BY customer_id
+),
+customer_costs AS (
+    SELECT
+        customer_id,
+        SUM(shipping_cost) AS total_shipping_cost
+    FROM shipments
+    GROUP BY customer_id
+)
+SELECT
+    c.id,
+    c.full_name,
+    cs.shipment_count,
+    cc.total_shipping_cost
+FROM customers c
+JOIN customer_shipments cs
+    ON c.id = cs.customer_id
+JOIN customer_costs cc
+    ON c.id = cc.customer_id
+WHERE cs.shipment_count > 2
+  AND cc.total_shipping_cost > 1000;
+
+--============================================
+--========== RECURSIVE CTE====================
+--============================================
+
+
+---- 4. Simple Recursive CTE------------------
+
+WITH RECURSIVE numbers AS (
+    SELECT 1 AS number
+
+    UNION ALL
+
+    SELECT number + 1
+    FROM numbers
+    WHERE number < 5
+)
+SELECT *
+FROM numbers;
+
+
+------ 5. Recursive CTE with Dates--------------
+
+WITH RECURSIVE dates AS (
+    SELECT DATE('2026-10-01') AS delivery_date
+
+    UNION ALL
+
+    SELECT delivery_date + INTERVAL 1 DAY
+    FROM dates
+    WHERE delivery_date < '2026-10-05'
+)
+SELECT *
+FROM dates;
 
 
 
