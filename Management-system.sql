@@ -1877,10 +1877,103 @@ WHERE id = 1;
 
 --1644 - Cannot delete customer with shipments
 
+--======================================================
+------------------Advanced Queries----------------------
+--======================================================
+
+
+-- 1. Subquery with AVG----------
+
+SELECT
+    c.id,
+    c.full_name,
+    COUNT(s.id) AS shipment_count
+FROM customers c
+JOIN shipments s
+    ON c.id = s.customer_id
+GROUP BY c.id, c.full_name
+HAVING COUNT(s.id) > (
+    SELECT AVG(shipment_count)
+    FROM (
+        SELECT customer_id, COUNT(*) AS shipment_count
+        FROM shipments
+        GROUP BY customer_id
+    ) AS customer_shipments
+);
+
+
+--- 2. EXISTS--------------------
+
+SELECT
+    c.id,
+    c.full_name
+FROM customers c
+WHERE EXISTS (
+    SELECT 1
+    FROM shipments s
+    WHERE s.customer_id = c.id
+);
 
 
 
+-- 3. NOT EXISTS-------------
 
+SELECT
+    c.id,
+    c.full_name
+FROM customers c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM shipments s
+    WHERE s.customer_id = c.id
+);
+
+
+--- 4. Subquery with MAX-------------
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost
+FROM shipments
+WHERE shipping_cost > (
+    SELECT MAX(shipping_cost)
+    FROM shipments
+    WHERE customer_id = 1
+);
+
+-- 5. Subquery with IN --------------
+
+Find shipments belonging to business customers.
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost
+FROM shipments
+WHERE customer_id IN (
+    SELECT id
+    FROM customers
+    WHERE customer_type = 'business'
+);
+
+-- 6. Subquery with ALL---------------
+
+Find shipments whose shipping cost is greater than the shipping cost of all shipments belonging to customer `1`.
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost
+FROM shipments
+WHERE shipping_cost > ALL (
+    SELECT shipping_cost
+    FROM shipments
+    WHERE customer_id = 1
+);
 
 
 
