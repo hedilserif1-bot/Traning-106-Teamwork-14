@@ -1975,7 +1975,111 @@ WHERE shipping_cost > ALL (
     WHERE customer_id = 1
 );
 
+--====================================================
+--=================WINDOW FUNCTIONS===================
+-------------------------------------------------------
 
+-----1. ROW_NUMBER()----------------
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost,
+    ROW_NUMBER() OVER (
+        ORDER BY shipping_cost DESC
+    ) AS row_num
+FROM shipments;
+
+
+----- 2. RANK()-------------------
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost,
+    RANK() OVER (
+        ORDER BY shipping_cost DESC
+    ) AS cost_rank
+FROM shipments;
+
+
+--- 3. DENSE_RANK()--------------
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost,
+    DENSE_RANK() OVER (
+        ORDER BY shipping_cost DESC
+    ) AS cost_rank
+FROM shipments;
+
+
+----4. PARTITION BY-----------
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost,
+    ROW_NUMBER() OVER (
+        PARTITION BY customer_id
+        ORDER BY shipping_cost DESC
+    ) AS shipment_rank
+FROM shipments;
+
+
+---- 5. Finding the Most Expensive Shipment for Each Customer
+
+SELECT *
+FROM (
+    SELECT
+        id,
+        tracking_number,
+        customer_id,
+        shipping_cost,
+        ROW_NUMBER() OVER (
+            PARTITION BY customer_id
+            ORDER BY shipping_cost DESC
+        ) AS shipment_rank
+    FROM shipments
+) AS ranked_shipments
+WHERE shipment_rank = 1;
+
+--- 6. Running Total with SUM()-------
+
+SELECT
+    id,
+    tracking_number,
+    shipping_cost,
+    SUM(shipping_cost) OVER (
+        ORDER BY id
+    ) AS running_total
+FROM shipments;
+
+
+---- 7. LAG()-----------------------
+
+SELECT
+    id,
+    tracking_number,
+    shipping_cost,
+    LAG(shipping_cost) OVER (
+        ORDER BY id
+    ) AS previous_cost
+FROM shipments;
+
+
+----- 8. LEAD()-----------------------
+SELECT
+    id,
+    tracking_number,
+    shipping_cost,
+    LEAD(shipping_cost) OVER (
+        ORDER BY id
+    ) AS next_cost
+FROM shipments;
 
 
 
