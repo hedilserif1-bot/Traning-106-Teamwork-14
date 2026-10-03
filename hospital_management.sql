@@ -4112,8 +4112,130 @@ LEFT JOIN current_admission_room car ON pt.id = car.patient_id
 LEFT JOIN invoice_payments inv ON pt.id = inv.patient_id
 LEFT JOIN latest_insurance li ON pt.id = li.patient_id;
 
+-- كود العملية المتكاملة ( Final Transaction Test )
 
+DELIMITER //
 
+CREATE PROCEDURE sp_execute_complete_hospital_workflow(
+    IN p_full_name VARCHAR(100),
+    IN p_national_id VARCHAR(50),
+    IN p_birth_date DATE,
+    IN p_gender ENUM('Male', 'Female'),
+    IN p_phone VARCHAR(20),
+    IN p_email VARCHAR(100),
+    IN p_blood_type VARCHAR(10),
+    IN p_city VARCHAR(50),
+    IN p_address TEXT,
+    IN p_emergency_contact_name VARCHAR(100),
+    IN p_emergency_contact_phone VARCHAR(20),
+    IN p_status VARCHAR(20),
+    IN p_doctor_id INT,
+    IN p_room_id INT,
+    IN p_lab_test_id INT,
+    IN p_insurance_company_id INT,
+    IN p_policy_number VARCHAR(50)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
+    START TRANSACTION;
 
+    INSERT INTO patients (full_name, national_id, birth_date, gender, phone, email, blood_type, city, address, emergency_contact_name, emergency_contact_phone, registered_at, status)
+    VALUES (p_full_name, p_national_id, p_birth_date, p_gender, p_phone, p_email, p_blood_type, p_city, p_address, p_emergency_contact_name, p_emergency_contact_phone, NOW(), p_status);
+    
+    SET @patient_id = LAST_INSERT_ID();
+
+    INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, reason, status, created_at)
+    VALUES (@patient_id, p_doctor_id, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '09:00:00', 'Routine checkup', 'scheduled', NOW());
+    
+    SET @appointment_id = LAST_INSERT_ID();
+
+    UPDATE appointments 
+    SET status = 'completed' 
+    WHERE id = @appointment_id;
+
+    INSERT INTO medical_visits (patient_id, doctor_id, appointment_id, visit_date, symptoms, diagnosis, doctor_notes, follow_up_date)
+    VALUES (@patient_id, p_doctor_id, @appointment_id, NOW(), 'General checkup symptoms', 'Initial clinical evaluation and diagnosis', 'Regular checkup notes', DATE_ADD(NOW(), INTERVAL 1 MONTH));
+    
+    SET @visit_id = LAST_INSERT_ID();
+
+    INSERT INTO patient_lab_tests (visit_id, lab_test_id, ordered_at, result_status, status)
+    VALUES (@visit_id, p_lab_test_id, NOW(), 'Pending', 'ordered');
+    
+    SET @lab_test_row_id = LAST_INSERT_ID();
+
+    UPDATE patient_lab_tests 
+    SET status = 'completed', completed_at = NOW(), result = 'All parameters within normal limits', result_status = 'Normal' 
+    WHERE id = @lab_test_row_id;
+
+    INSERT INTO prescriptions (visit_id, prescribed_at, notes)
+    VALUES (@visit_id, NOW(), 'Antibiotic & Painkiller as directed');
+
+    INSERT INTO admissions (patient_id, room_id, doctor_id, admitted_at, admission_reason, status)
+    VALUES (@patient_id, p_room_id, p_doctor_id, NOW(), 'Inpatient medical observation', 'admitted');
+    
+    SET @admission_id = LAST_INSERT_ID();
+
+    UPDATE rooms 
+    SET status = 'occupied' 
+    WHERE id = p_room_id;
+
+    UPDATE admissions 
+    SET discharged_at = DATE_ADD(NOW(), INTERVAL 2 DAY), status = 'discharged' 
+    WHERE id = @admission_id;
+
+    UPDATE rooms 
+    SET status = 'available' 
+    WHERE id = p_room_id;
+
+    SET @discount_percentage = 0.00;
+    IF p_insurance_company_id IS NOT NULL THEN
+        INSERT INTO patient_insurance (patient_id, insurance_company_id, policy_number, start_date, expiry_date, status)
+        VALUES (@patient_id, p_insurance_company_id, p_policy_number, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), 'Active');
+        
+        SELECT coverage_percentage INTO @discount_percentage 
+        FROM insurance_companies 
+        WHERE id = p_insurance_company_id;
+    END IF;
+
+    SET @subtotal = 600.00;
+    SET @insurance_discount = (@subtotal * COALESCE(@discount_percentage, 0)) / 100;
+    SET @total_amount = @subtotal - @insurance_discount;
+
+    INSERT INTO invoices (patient_id, visit_id, admission_id, subtotal, insurance_discount, total_amount, issued_at, due_date, payment_status)
+    VALUES (@patient_id, @visit_id, @admission_id, @subtotal, @insurance_discount, @total_amount, NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY), 'unpaid');
+    
+    SET @invoice_id = LAST_INSERT_ID();
+
+    SET @first_payment = @total_amount * 0.40;
+    INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference, paid_at, status)
+    VALUES (@invoice_id, @first_payment, 'card', 'TXN-WF-101', NOW(), 'completed');
+
+    SET @second_payment = @total_amount * 0.30;
+    INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference, paid_at, status)
+    VALUES (@invoice_id, @second_payment, 'cash', 'TXN-WF-102', NOW(), 'completed');
+
+    UPDATE invoices 
+    SET payment_status = 'partially_paid' 
+    WHERE id = @invoice_id;
+
+    SET @remaining_balance = @total_amount - (@first_payment + @second_payment);
+    
+    IF @remaining_balance > 0 THEN
+        INSERT INTO payments (invoice_id, amount, payment_method, transaction_reference, paid_at, status)
+        VALUES (@invoice_id, @remaining_balance, 'bank_transfer', 'TXN-WF-103', NOW(), 'completed');
+    END IF;
+
+    UPDATE invoices 
+    SET payment_status = 'paid' 
+    WHERE id = @invoice_id;
+
+    COMMIT;
+END //
+
+DELIMITER ;
 
