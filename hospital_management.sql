@@ -3975,9 +3975,142 @@ END //
 
 DELIMITER ;
 
+-- ملاحظة : ( من هنا بدات بأضافة الاكواد اليوم )                                                                   (------رين------)
 
+-- كود الاختبار الشامل ( Final Challenge )
 
-
+WITH 
+patient_appointments AS (
+    SELECT 
+        patient_id,
+        COUNT(*) AS total_appointments,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_appointments
+    FROM appointments
+    GROUP BY patient_id
+),
+patient_visits AS (
+    SELECT 
+        patient_id,
+        COUNT(*) AS total_visits,
+        MAX(visit_date) AS last_visit_date
+    FROM medical_visits
+    GROUP BY patient_id
+),
+patient_unique_doctors_depts AS (
+    SELECT 
+        v.patient_id,
+        COUNT(DISTINCT v.doctor_id) AS unique_doctors,
+        COUNT(DISTINCT d.department_id) AS unique_departments
+    FROM medical_visits v
+    JOIN doctors d ON v.doctor_id = d.id
+    GROUP BY v.patient_id
+),
+last_visit_ranked AS (
+    SELECT 
+        v.patient_id,
+        doc.full_name AS last_doctor,
+        ROW_NUMBER() OVER (PARTITION BY v.patient_id ORDER BY v.visit_date DESC, v.id DESC) as rn
+    FROM medical_visits v
+    JOIN doctors doc ON v.doctor_id = doc.id
+),
+last_visit_doctor AS (
+    SELECT patient_id, last_doctor
+    FROM last_visit_ranked
+    WHERE rn = 1
+),
+patient_lab_tests_agg AS (
+    SELECT 
+        v.patient_id,
+        COUNT(plt.id) AS total_lab_tests
+    FROM medical_visits v
+    JOIN patient_lab_tests plt ON v.id = plt.visit_id
+    GROUP BY v.patient_id
+),
+patient_prescriptions_agg AS (
+    SELECT 
+        v.patient_id,
+        COUNT(p.id) AS total_prescriptions
+    FROM medical_visits v
+    JOIN prescriptions p ON v.id = p.visit_id
+    GROUP BY v.patient_id
+),
+patient_admissions_agg AS (
+    SELECT 
+        patient_id,
+        COUNT(*) AS total_admissions,
+        SUM(DATEDIFF(COALESCE(discharged_at, NOW()), admitted_at)) AS total_days_admitted
+    FROM admissions
+    GROUP BY patient_id
+),
+current_admission_room AS (
+    SELECT 
+        a.patient_id,
+        CONCAT('Room: ', r.room_number, ' (', r.room_type, ')') AS current_room
+    FROM admissions a
+    JOIN rooms r ON a.room_id = r.id
+    WHERE a.status != 'cancelled' AND (a.discharged_at IS NULL OR a.discharged_at > NOW())
+),
+invoice_payments AS (
+    SELECT 
+        i.patient_id,
+        COUNT(i.id) AS total_invoices,
+        SUM(i.total_amount) AS total_billed,
+        SUM(COALESCE(p_paid.paid_sum, 0)) AS total_paid
+    FROM invoices i
+    LEFT JOIN (
+        SELECT invoice_id, SUM(amount) AS paid_sum
+        FROM payments
+        WHERE status = 'completed'
+        GROUP BY invoice_id
+    ) p_paid ON i.id = p_paid.invoice_id
+    GROUP BY i.patient_id
+),
+patient_active_insurance AS (
+    SELECT 
+        pi.patient_id,
+        ic.company_name AS insurance_company,
+        ROW_NUMBER() OVER (PARTITION BY pi.patient_id ORDER BY pi.expiry_date DESC) as rn
+    FROM patient_insurance pi
+    JOIN insurance_companies ic ON pi.insurance_company_id = ic.id
+    WHERE pi.status = 'Active'
+),
+latest_insurance AS (
+    SELECT patient_id, insurance_company
+    FROM patient_active_insurance
+    WHERE rn = 1
+)
+SELECT 
+    pt.id AS patient_id,
+    pt.full_name AS patient_name,
+    TIMESTAMPDIFF(YEAR, pt.birth_date, CURDATE()) AS age,
+    COALESCE(pa.total_appointments, 0) AS total_appointments,
+    COALESCE(pa.completed_appointments, 0) AS completed_appointments,
+    COALESCE(pv.total_visits, 0) AS total_visits,
+    COALESCE(pd.unique_doctors, 0) AS unique_doctors,
+    COALESCE(pd.unique_departments, 0) AS unique_departments,
+    COALESCE(plt.total_lab_tests, 0) AS total_lab_tests,
+    COALESCE(pr.total_prescriptions, 0) AS total_prescriptions,
+    COALESCE(adm.total_admissions, 0) AS total_admissions,
+    COALESCE(adm.total_days_admitted, 0) AS total_days_admitted,
+    COALESCE(inv.total_invoices, 0) AS total_invoices,
+    COALESCE(inv.total_billed, 0.00) AS total_billed,
+    COALESCE(inv.total_paid, 0.00) AS total_paid,
+    (COALESCE(inv.total_billed, 0.00) - COALESCE(inv.total_paid, 0.00)) AS outstanding_balance,
+    pv.last_visit_date,
+    lvd.last_doctor,
+    car.current_room,
+    li.insurance_company
+FROM patients pt
+LEFT JOIN patient_appointments pa ON pt.id = pa.patient_id
+LEFT JOIN patient_visits pv ON pt.id = pv.patient_id
+LEFT JOIN patient_unique_doctors_depts pd ON pt.id = pd.patient_id
+LEFT JOIN last_visit_doctor lvd ON pt.id = lvd.patient_id
+LEFT JOIN patient_lab_tests_agg plt ON pt.id = plt.patient_id
+LEFT JOIN patient_prescriptions_agg pr ON pt.id = pr.patient_id
+LEFT JOIN patient_admissions_agg adm ON pt.id = adm.patient_id
+LEFT JOIN current_admission_room car ON pt.id = car.patient_id
+LEFT JOIN invoice_payments inv ON pt.id = inv.patient_id
+LEFT JOIN latest_insurance li ON pt.id = li.patient_id;
 
 
 
