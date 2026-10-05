@@ -1941,15 +1941,14 @@ DELIMITER ;
 
 
 
+-- ================================================
+-- ================== TRIGGERS ====================
+-- ================================================
 
 
---================================================
-             ---=====Triggers======
---================================================
-
-
---- 1. Update Shipment Status from Tracking
-
+-- ================================================
+-- 1. Update Shipment Status from Tracking
+-- ================================================
 
 DROP TRIGGER IF EXISTS update_shipment_status_from_tracking;
 
@@ -1960,17 +1959,19 @@ AFTER INSERT
 ON shipment_tracking
 FOR EACH ROW
 BEGIN
+
     UPDATE shipments
     SET shipment_status = NEW.status
     WHERE id = NEW.shipment_id;
+
 END //
 
 DELIMITER ;
-```
 
----
 
----2. Update Vehicle Status When Delivery Starts
+-- ================================================
+-- 2. Update Vehicle Status When Delivery Starts
+-- ================================================
 
 DROP TRIGGER IF EXISTS update_vehicle_status_on_delivery_start;
 
@@ -1981,6 +1982,7 @@ AFTER UPDATE
 ON deliveries
 FOR EACH ROW
 BEGIN
+
     IF NEW.delivery_status = 'in_progress'
        AND OLD.delivery_status <> 'in_progress' THEN
 
@@ -1989,14 +1991,15 @@ BEGIN
         WHERE id = NEW.vehicle_id;
 
     END IF;
+
 END //
 
 DELIMITER ;
-```
 
----
 
----- 3. Update Vehicle Status When Delivery Completes
+-- ================================================
+-- 3. Update Vehicle Status When Delivery Completes
+-- ================================================
 
 DROP TRIGGER IF EXISTS update_vehicle_status_on_delivery_complete;
 
@@ -2007,6 +2010,7 @@ AFTER UPDATE
 ON deliveries
 FOR EACH ROW
 BEGIN
+
     IF NEW.delivery_status = 'completed'
        AND OLD.delivery_status <> 'completed' THEN
 
@@ -2015,12 +2019,14 @@ BEGIN
         WHERE id = NEW.vehicle_id;
 
     END IF;
+
 END //
 
 DELIMITER ;
 
 
----
+
+
 
 ------- 4. Prevent Invalid Payments
 
