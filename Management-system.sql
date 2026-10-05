@@ -2379,16 +2379,16 @@ DELIMITER ;
 
 
 
+-- ======================================================
+-- ================== Advanced Queries ==================
+-- ======================================================
 
 
+-- ======================================================
+-- 1. Customers whose spending is higher than
+--    the average spending of all customers
+-- ======================================================
 
-
---======================================================
-------------------Advanced Queries----------------------
---======================================================
-
-
---Subquery 1 — العملاء الذين إنفاقهم أعلى من متوسط إنفاق العملاء
 SELECT
     c.id,
     c.full_name,
@@ -2402,7 +2402,7 @@ LEFT JOIN payments p
 GROUP BY
     c.id,
     c.full_name
-HAVING total_spending > (
+HAVING COALESCE(SUM(p.amount), 0) > (
     SELECT AVG(customer_spending)
     FROM (
         SELECT
@@ -2414,12 +2414,16 @@ HAVING total_spending > (
         LEFT JOIN payments p2
             ON s2.id = p2.shipment_id
            AND p2.status = 'successful'
-        GROUP BY c2.id
+        GROUP BY
+            c2.id
     ) AS spending_table
 );
 
 
---- 2. Subquery 2 — الموظفون الذين راتبهم أعلى من متوسط راتب فرعهم
+-- ======================================================
+-- 2. Employees whose salary is higher than
+--    the average salary of their branch
+-- ======================================================
 
 SELECT
     e.id,
@@ -2433,7 +2437,12 @@ WHERE e.salary > (
     WHERE e2.branch_id = e.branch_id
 );
 
--- 3. Subquery 3 — الشحنات التي تكلفتها أعلى من متوسط تكلفة الشحن
+
+-- ======================================================
+-- 3. Shipments whose shipping cost is higher than
+--    the average shipping cost of all shipments
+-- ======================================================
+
 SELECT
     id,
     tracking_number,
@@ -2444,7 +2453,12 @@ WHERE shipping_cost > (
     FROM shipments
 );
 
---- 4. Subquery 4 — السائقون الذين عدد توصيلاتهم أكبر من متوسط عدد التوصيلات للسائقين
+
+-- ======================================================
+-- 4. Drivers whose number of deliveries is higher
+--    than the average number of deliveries per driver
+-- ======================================================
+
 SELECT
     d.id,
     d.full_name,
@@ -2464,10 +2478,16 @@ HAVING COUNT(del.id) > (
         FROM drivers d2
         LEFT JOIN deliveries del2
             ON d2.id = del2.driver_id
-        GROUP BY d2.id
+        GROUP BY
+            d2.id
     ) AS driver_counts
 );
--- 5. Subquery 5 — الفروع التي إيراداتها أعلى من متوسط إيرادات الفروع
+
+
+-- ======================================================
+-- 5. Branches whose revenue is higher than
+--    the average revenue of all branches
+-- ======================================================
 
 SELECT
     b.id,
@@ -2482,7 +2502,7 @@ LEFT JOIN payments p
 GROUP BY
     b.id,
     b.branch_name
-HAVING branch_revenue > (
+HAVING COALESCE(SUM(p.amount), 0) > (
     SELECT AVG(branch_revenue)
     FROM (
         SELECT
@@ -2494,12 +2514,17 @@ HAVING branch_revenue > (
         LEFT JOIN payments p2
             ON s2.id = p2.shipment_id
            AND p2.status = 'successful'
-        GROUP BY b2.id
+        GROUP BY
+            b2.id
     ) AS branch_revenues
 );
 
 
--- 6. Subquery 6 — السيارات المستخدمة أكثر من متوسط استخدام السيارات--------------
+-- ======================================================
+-- 6. Vehicles used more than the average usage
+--    of all vehicles
+-- ======================================================
+
 SELECT
     v.id,
     v.plate_number,
@@ -2519,9 +2544,12 @@ HAVING COUNT(d.id) > (
         FROM vehicles v2
         LEFT JOIN deliveries d2
             ON v2.id = d2.vehicle_id
-        GROUP BY v2.id
+        GROUP BY
+            v2.id
     ) AS vehicle_usage_table
 );
+
+
 
 --====================================================
 --=================WINDOW FUNCTIONS===================
