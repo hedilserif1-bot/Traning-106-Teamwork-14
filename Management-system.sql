@@ -1623,12 +1623,10 @@ DELIMITER ;
 --================================================
 
 
+--- 1. Update Shipment Status from Tracking
 
 
---====== 1. Update Shipment Status from Tracking=======
-
---This trigger automatically updates the shipment status when a new tracking record is inserted.
-
+DROP TRIGGER IF EXISTS update_shipment_status_from_tracking;
 
 DELIMITER //
 
@@ -1643,28 +1641,13 @@ BEGIN
 END //
 
 DELIMITER ;
+```
 
+---
 
----Test----
+---2. Update Vehicle Status When Delivery Starts
 
-INSERT INTO shipment_tracking (
-    shipment_id,
-    branch_id,
-    status,
-    description,
-    recorded_at
-)
-VALUES (
-    63,
-    2,
-    'in_transit',
-    'Shipment is in transit',
-    NOW()
-);
-
---===== 2. Update Vehicle Status on Delivery Start=======
-
----This trigger changes the vehicle status to `in_delivery` when a delivery starts.
+DROP TRIGGER IF EXISTS update_vehicle_status_on_delivery_start;
 
 DELIMITER //
 
@@ -1684,13 +1667,13 @@ BEGIN
 END //
 
 DELIMITER ;
+```
 
+---
 
-----------------------------------------------------------
---=====3. Update Vehicle Status on Delivery Complete======
+---- 3. Update Vehicle Status When Delivery Completes
 
---This trigger changes the vehicle status back to `available` when a delivery is completed.
-
+DROP TRIGGER IF EXISTS update_vehicle_status_on_delivery_complete;
 
 DELIMITER //
 
@@ -1712,19 +1695,11 @@ END //
 DELIMITER ;
 
 
------ Test---
+---
 
+------- 4. Prevent Invalid Payments
 
-UPDATE deliveries
-SET delivery_status = 'completed'
-WHERE id = 41;
-
------------------------------
-
---=========== 4. Prevent Invalid Payment==========
-
---This trigger prevents inserting a payment with an amount of zero or less.
-
+DROP TRIGGER IF EXISTS prevent_invalid_payment;
 
 DELIMITER //
 
@@ -1744,40 +1719,11 @@ END //
 DELIMITER ;
 
 
---- Test---
+---
 
+------- 5. Prevent Deleting Customers with Shipments
 
-INSERT INTO payments (
-    shipment_id,
-    amount,
-    payment_method,
-    payment_date,
-    transaction_reference,
-    status
-)
-VALUES (
-    63,
-    -50.00,
-    'cash',
-    NOW(),
-    'TXNTEST001',
-    'successful'
-);
-
-
---- Result ---
-
---The database rejected the payment and returned:
-
-
---1644 - Payment amount must be greater than 0
-
--------------------------
-
---====== 5. Prevent Deleting Customer with Shipments=====
-
---This trigger prevents deleting a customer if the customer already has shipments.
-
+DROP TRIGGER IF EXISTS prevent_customer_delete_with_shipments;
 
 DELIMITER //
 
@@ -1799,21 +1745,177 @@ BEGIN
 END //
 
 DELIMITER ;
+```
+
+---
+
+--------- 6. Prevent Invalid Delivery Completion
+
+DROP TRIGGER IF EXISTS prevent_invalid_delivery_completion;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_invalid_delivery_completion
+BEFORE UPDATE
+ON deliveries
+FOR EACH ROW
+BEGIN
+    DECLARE v_shipment_status VARCHAR(30);
+
+    IF NEW.delivery_status = 'completed'
+       AND OLD.delivery_status <> 'completed' THEN
+
+        SELECT shipment_status
+        INTO v_shipment_status
+        FROM shipments
+        WHERE id = NEW.shipment_id;
+
+        IF v_shipment_status = 'created' THEN
+
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+            'Cannot complete delivery while shipment is still created';
+
+        END IF;
+
+    END IF;
+END //
+
+DELIMITER ;
 
 
-----Test----------
+---
+
+--------- 7. Prevent Multiple Active Deliveries for the Same Vehicle
+
+DROP TRIGGER IF EXISTS prevent_vehicle_multiple_active_deliveries;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_vehicle_multiple_active_deliveries
+BEFORE INSERT
+ON deliveries
+FOR EACH ROW
+BEGIN
+    IF NEW.delivery_status IN ('assigned', 'in_progress')
+       AND EXISTS (
+           SELECT 1
+           FROM deliveries
+           WHERE vehicle_id = NEW.vehicle_id
+             AND delivery_status IN ('assigned', 'in_progress')
+       ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Vehicle already has an active delivery';
+
+    END IF;
+END //
+
+DELIMITER ;
 
 
-DELETE FROM customers
-WHERE id = 1;
+---
+
+----- 8. Prevent Multiple Active Deliveries for the Same Driver
+
+DROP TRIGGER IF EXISTS prevent_driver_multiple_active_deliveries;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_driver_multiple_active_deliveries
+BEFORE INSERT
+ON deliveries
+FOR EACH ROW
+BEGIN
+    IF NEW.delivery_status IN ('assigned', 'in_progress')
+       AND EXISTS (
+           SELECT 1
+           FROM deliveries
+           WHERE driver_id = NEW.driver_id
+             AND delivery_status IN ('assigned', 'in_progress')
+       ) THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Driver already has an active delivery';
+
+    END IF;
+END //
+
+DELIMITER ;
 
 
----Result---
+----- 9. Prevent Tracking Before Shipment Creation
 
----The database rejected the deletion and returned:
+DROP TRIGGER IF EXISTS prevent_tracking_before_shipment;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_tracking_before_shipment
+BEFORE INSERT
+ON shipment_tracking
+FOR EACH ROW
+BEGIN
+    DECLARE v_created_at DATETIME;
+
+    SELECT created_at
+    INTO v_created_at
+    FROM shipments
+    WHERE id = NEW.shipment_id;
+
+    IF NEW.recorded_at < v_created_at THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Tracking date cannot be earlier than shipment creation';
+
+    END IF;
+END //
+
+DELIMITER ;
 
 
---1644 - Cannot delete customer with shipments
+---
+
+---- 10. Prevent Overweight Shipment Delivery
+
+
+DROP TRIGGER IF EXISTS prevent_overweight_shipment_delivery;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_overweight_shipment_delivery
+BEFORE INSERT
+ON deliveries
+FOR EACH ROW
+BEGIN
+    DECLARE v_shipment_weight DECIMAL(10,2);
+    DECLARE v_vehicle_capacity DECIMAL(10,2);
+
+    SELECT weight
+    INTO v_shipment_weight
+    FROM shipments
+    WHERE id = NEW.shipment_id;
+
+    SELECT max_weight
+    INTO v_vehicle_capacity
+    FROM vehicles
+    WHERE id = NEW.vehicle_id;
+
+    IF v_shipment_weight > v_vehicle_capacity THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Shipment weight exceeds vehicle capacity';
+
+    END IF;
+END //
+
+DELIMITER ;
+
+
+
 
 --======================================================
 ------------------Advanced Queries----------------------
@@ -2161,325 +2263,442 @@ ORDER BY contribution_percentage DESC;
         --============CTE===========
 --===================================================
 
--- 1. Basic CTE-----------
+-- 1. CTE 1 — العملاء الذين إنفاقهم أعلى من المتوسط-----------
 
--- the number of shipments for each customer.
-
-WITH customer_shipments AS (
+WITH customer_spending AS (
     SELECT
-        customer_id,
-        COUNT(*) AS shipment_count
-    FROM shipments
-    GROUP BY customer_id
-)
-SELECT *
-FROM customer_shipments
-WHERE shipment_count > 2;
-
---- 2. CTE with JOIN------------------
-
-WITH customer_shipments AS (
-    SELECT
-        customer_id,
-        COUNT(*) AS shipment_count
-    FROM shipments
-    GROUP BY customer_id
+        c.id,
+        c.full_name,
+        COALESCE(SUM(p.amount), 0) AS total_spending
+    FROM customers c
+    LEFT JOIN shipments s
+        ON c.id = s.customer_id
+    LEFT JOIN payments p
+        ON s.id = p.shipment_id
+       AND p.status = 'successful'
+    GROUP BY
+        c.id,
+        c.full_name
 )
 SELECT
-    c.id,
-    c.full_name,
-    cs.shipment_count
-FROM customers c
-JOIN customer_shipments cs
-    ON c.id = cs.customer_id
-WHERE cs.shipment_count > 2;
+    id,
+    full_name,
+    total_spending
+FROM customer_spending
+WHERE total_spending > (
+    SELECT AVG(total_spending)
+    FROM customer_spending
+)
+ORDER BY total_spending DESC;
 
+--- 2.CTE 2 — أداء الفروع: عدد الشحنات + الإيرادات ----------------
 
------ 3. Multiple CTEs------------------------
-
-WITH customer_shipments AS (
+WITH branch_performance AS (
     SELECT
-        customer_id,
-        COUNT(*) AS shipment_count
-    FROM shipments
-    GROUP BY customer_id
-),
-customer_costs AS (
-    SELECT
-        customer_id,
-        SUM(shipping_cost) AS total_shipping_cost
-    FROM shipments
-    GROUP BY customer_id
+        b.id,
+        b.branch_name,
+        COUNT(DISTINCT s.id) AS shipment_count,
+        COALESCE(SUM(
+            CASE
+                WHEN p.status = 'successful' THEN p.amount
+                ELSE 0
+            END
+        ), 0) AS revenue
+    FROM branches b
+    LEFT JOIN shipments s
+        ON b.id = s.origin_branch_id
+    LEFT JOIN payments p
+        ON s.id = p.shipment_id
+    GROUP BY
+        b.id,
+        b.branch_name
 )
 SELECT
-    c.id,
-    c.full_name,
-    cs.shipment_count,
-    cc.total_shipping_cost
-FROM customers c
-JOIN customer_shipments cs
-    ON c.id = cs.customer_id
-JOIN customer_costs cc
-    ON c.id = cc.customer_id
-WHERE cs.shipment_count > 2
-  AND cc.total_shipping_cost > 1000;
+    id,
+    branch_name,
+    shipment_count,
+    revenue
+FROM branch_performance
+ORDER BY revenue DESC;
 
---============================================
---========== RECURSIVE CTE====================
---============================================
-
-
----- 4. Simple Recursive CTE------------------
-
-WITH RECURSIVE numbers AS (
-    SELECT 1 AS number
-
-    UNION ALL
-
-    SELECT number + 1
-    FROM numbers
-    WHERE number < 5
+----- 3. CTE 3 — الـ Overdue Shipments مع اسم العميل والسائق الحالي-----------------------
+WITH overdue_shipments AS (
+    SELECT
+        s.id,
+        s.tracking_number,
+        c.full_name AS customer_name,
+        s.expected_delivery_date,
+        d.full_name AS driver_name
+    FROM shipments s
+    JOIN customers c
+        ON s.customer_id = c.id
+    LEFT JOIN deliveries del
+        ON s.id = del.shipment_id
+       AND del.delivery_status IN ('assigned', 'in_progress')
+    LEFT JOIN drivers d
+        ON del.driver_id = d.id
+    WHERE s.expected_delivery_date < CURDATE()
+      AND s.shipment_status <> 'delivered'
 )
-SELECT *
-FROM numbers;
+SELECT
+    id,
+    tracking_number,
+    customer_name,
+    expected_delivery_date,
+    driver_name
+FROM overdue_shipments
+ORDER BY expected_delivery_date;
 
 
------- 5. Recursive CTE with Dates--------------
 
-WITH RECURSIVE dates AS (
-    SELECT DATE('2026-10-01') AS delivery_date
-
-    UNION ALL
-
-    SELECT delivery_date + INTERVAL 1 DAY
-    FROM dates
-    WHERE delivery_date < '2026-10-05'
+---- 4. CTE 4 — أداء السائقين فوق المتوسط-----------------
+WITH driver_performance AS (
+    SELECT
+        d.id,
+        d.full_name,
+        COUNT(del.id) AS delivery_count,
+        COUNT(
+            CASE
+                WHEN del.delivery_status = 'completed'
+                THEN 1
+            END
+        ) AS successful_deliveries,
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN del.delivery_status = 'completed'
+                    THEN s.shipping_cost
+                    ELSE 0
+                END
+            ),
+            0
+        ) AS total_shipment_value
+    FROM drivers d
+    LEFT JOIN deliveries del
+        ON d.id = del.driver_id
+    LEFT JOIN shipments s
+        ON del.shipment_id = s.id
+    GROUP BY
+        d.id,
+        d.full_name
 )
-SELECT *
-FROM dates;
+SELECT
+    id,
+    full_name,
+    delivery_count,
+    successful_deliveries,
+    total_shipment_value
+FROM driver_performance
+WHERE successful_deliveries > (
+    SELECT AVG(successful_deliveries)
+    FROM driver_performance
+)
+ORDER BY successful_deliveries DESC;
+
 
 --==========================================================
     --=========INTEGRITY & SAFETY CHECKS============
 --==========================================================
 
--------- 1. Shipments Without Customers------------
+
+---- 1. Delivered Shipment Must Have Delivered Date
 
 SELECT
-    s.id,
-    s.tracking_number,
-    s.customer_id
-FROM shipments s
-LEFT JOIN customers c
-    ON s.customer_id = c.id
-WHERE c.id IS NULL;
+    id,
+    tracking_number,
+    shipment_status,
+    delivered_at
+FROM shipments
+WHERE
+    (shipment_status = 'delivered' AND delivered_at IS NULL)
+    OR
+    (shipment_status <> 'delivered' AND delivered_at IS NOT NULL);
 
 
-----Result:Empty result.
+---Expected result:
 
------ 2. Deliveries Without Shipments-----------------
 
+--0 rows
+
+
+--- 2. Shipment Cannot Have Delivered Date Before Delivery
 
 SELECT
-    d.id,
+    id,
+    tracking_number,
+    shipment_status,
+    delivered_at
+FROM shipments
+WHERE shipment_status <> 'delivered'
+  AND delivered_at IS NOT NULL;
+
+
+--Expected result:
+
+--0 rows
+
+----3. Completed Delivery Cannot Belong to a Created Shipment
+
+SELECT
+    d.id AS delivery_id,
     d.shipment_id,
-    d.driver_id,
-    d.vehicle_id
+    d.delivery_status,
+    s.shipment_status
 FROM deliveries d
-LEFT JOIN shipments s
+JOIN shipments s
     ON d.shipment_id = s.id
-WHERE s.id IS NULL;
+WHERE d.delivery_status = 'completed'
+  AND s.shipment_status = 'created';
 
 
---Result: Empty result.
+--Expected result:
 
-----3. Payments Without Shipments-------------------
+
+--0 rows
+
+--- 4. A Vehicle Cannot Have Multiple Active Deliveries
 
 SELECT
-    p.id,
+    vehicle_id,
+    COUNT(*) AS active_deliveries
+FROM deliveries
+WHERE delivery_status IN ('assigned', 'in_progress')
+GROUP BY vehicle_id
+HAVING COUNT(*) > 1;
+
+
+--Expected result:
+
+--0 rows
+
+
+
+-- 5. A Driver Cannot Have Multiple Active Deliveries
+
+SELECT
+    driver_id,
+    COUNT(*) AS active_deliveries
+FROM deliveries
+WHERE delivery_status IN ('assigned', 'in_progress')
+GROUP BY driver_id
+HAVING COUNT(*) > 1;
+
+
+---Expected result:
+
+
+--0 rows
+
+---- 6. Successful Payments Must Reference Existing Shipments
+
+SELECT
+    p.id AS payment_id,
     p.shipment_id,
-    p.amount,
-    p.payment_date,
     p.status
 FROM payments p
 LEFT JOIN shipments s
     ON p.shipment_id = s.id
-WHERE s.id IS NULL;
+WHERE p.status = 'successful'
+  AND s.id IS NULL;
+
+--Expected result:
 
 
----Result: Empty result.
-
----- 4. Deliveries Without Drivers----------------
-
-SELECT
-    d.id,
-    d.shipment_id,
-    d.driver_id,
-    d.vehicle_id
-FROM deliveries d
-LEFT JOIN drivers dr
-    ON d.driver_id = dr.id
-WHERE dr.id IS NULL;
+--0 rows
 
 
-----Result: Empty result.
 
------ 5. Deliveries Without Vehicles ---------------
+----7. Tracking Date Cannot Be Before Shipment Creation
 
 
 SELECT
-    d.id,
-    d.shipment_id,
-    d.driver_id,
-    d.vehicle_id
-FROM deliveries d
-LEFT JOIN vehicles v
-    ON d.vehicle_id = v.id
-WHERE v.id IS NULL;
-
----Result: Empty result.
-
----- 6. Tracking Records Without Shipments------------
-
-SELECT
-    st.id,
+    st.id AS tracking_id,
     st.shipment_id,
-    st.branch_id,
-    st.status,
+    s.tracking_number,
+    s.created_at,
     st.recorded_at
 FROM shipment_tracking st
-LEFT JOIN shipments s
+JOIN shipments s
     ON st.shipment_id = s.id
-WHERE s.id IS NULL;
+WHERE st.recorded_at < s.created_at;
 
 
-----Result: Empty result.
+---Expected result:
+
+--0 rows
 
 
------- 7. Invalid Shipment Status--------------------
-
-SELECT
-    id,
-    tracking_number,
-    shipment_status
-FROM shipments
-WHERE shipment_status NOT IN (
-    'created',
-    'received',
-    'in_transit',
-    'out_for_delivery',
-    'delivered',
-    'cancelled',
-    'returned'
-);
-
-
----Result: Empty result.
-
-
------ 8. Invalid Payment Amounts------------
-
+---- 8. Shipment Weight Cannot Exceed Vehicle Capacity
 
 SELECT
-    id,
-    shipment_id,
-    amount,
-    payment_date,
-    status
-FROM payments
-WHERE amount <= 0;
+    d.id AS delivery_id,
+    d.shipment_id,
+    d.vehicle_id,
+    s.weight AS shipment_weight,
+    v.max_weight AS vehicle_max_weight
+FROM deliveries d
+JOIN shipments s
+    ON d.shipment_id = s.id
+JOIN vehicles v
+    ON d.vehicle_id = v.id
+WHERE s.weight > v.max_weight;
 
 
-------Result: Empty result.
-
-------- 9. Invalid Shipping Costs--------------
-
-SELECT
-    id,
-    tracking_number,
-    shipping_cost
-FROM shipments
-WHERE shipping_cost <= 0;
+--Expected result:
 
 
-----Result: Empty result.
-
------- 10. Shipments With Multiple Deliveries--------
-
-
-SELECT
-    shipment_id,
-    COUNT(*) AS delivery_count
-FROM deliveries
-GROUP BY shipment_id
-HAVING COUNT(*) > 1;
-
-
-----Result: The query was used to identify shipments with more than one delivery record.
+--0 rows
 
 --============================================================================
               --================ Normalization==================
 --=============================================================================
 
-Normalization is the process of organizing database tables to reduce data duplication and prevent data anomalies.
 
-## 1NF — First Normal Form
+--- 1. Functional Dependencies====
 
-A table is in 1NF when each column contains atomic values, meaning each cell contains a single value.
+Functional dependencies describe how one attribute determines other attributes in the database.
 
-For example, storing multiple phone numbers in one column would violate 1NF.
+Examples from the Logistics & Delivery Management System:
 
-In the Logistics & Delivery Management System, values such as customer phone, receiver phone, shipment weight, and shipping cost are stored separately in their own columns.
+- `customer_id → full_name, email, phone, customer_type, city, address, registered_at, status`
+- `branch_id → branch_name, city, address, phone, manager_name, opened_at, status`
+- `employee_id → branch_id, full_name, email, phone, job_title, salary, hire_date, status`
+- `driver_id → branch_id, full_name, phone, license_number, license_expiry_date, hire_date, salary, status`
+- `vehicle_id → branch_id, plate_number, vehicle_type, model, manufacture_year, max_weight, status`
+- `shipment_id → tracking_number, customer_id, origin_branch_id, destination_branch_id, sender_name, sender_phone, receiver_name, receiver_phone, receiver_address, receiver_city, weight, shipping_cost, created_at, expected_delivery_date, delivered_at, payment_status, shipment_status`
+- `delivery_id → shipment_id, driver_id, vehicle_id, assigned_at, started_at, completed_at, delivery_status, notes`
+- `payment_id → shipment_id, amount, payment_method, payment_date, transaction_reference, status`
 
-## 2NF — Second Normal Form
+These dependencies show that each entity's primary key determines the attributes belonging to that entity.
 
-A table is in 2NF when:
 
-- It is already in 1NF.
-- Every non-key column depends on the entire primary key.
 
-Partial dependency mainly occurs when a table has a composite primary key.
+---2. First Normal Form (1NF)
 
-In this project, most tables use a single-column primary key such as `id`, so partial dependency is not an issue.
+The database satisfies First Normal Form because:
+
+- Each table has a primary key.
+- Each column contains atomic values.
+- There are no repeating groups.
+- Multiple values are not stored in a single column.
+- Each row represents one specific entity or transaction.
+
+For example, customer phone numbers are stored as individual values rather than a comma-separated list.
+
+Therefore, the database satisfies **1NF**.
+
+
+
+---3. Second Normal Form (2NF)
+
+The database satisfies Second Normal Form because:
+
+- It already satisfies 1NF.
+- The main tables use a single-column primary key such as `customer_id`, `shipment_id`, `employee_id`, and `vehicle_id`.
+- There are no partial dependencies where a non-key attribute depends only on part of a composite primary key.
+
+Therefore, non-key attributes depend on the complete primary key of their table.
+
+The database satisfies **2NF**.
+
+---
+--- 4. Third Normal Form (3NF)
+
+The database satisfies Third Normal Form because:
+
+- It satisfies 2NF.
+- Non-key attributes depend on the primary key of their own table.
+- Attributes belonging to another entity are stored in that entity's table instead of being duplicated.
+
+
+The `employees` table does not store `branch_name` or `branch_city`.
+
+This prevents the following transitive dependency:
+
+```text
+employee_id → branch_id → branch_name
+```
+
+Instead, `branch_name` is determined by `branch_id` in the `branches` table.
+
+Therefore, the database satisfies **3NF**.
+
+---
+
+--- 5. Transitive Dependencies
+
+A transitive dependency occurs when:
+
+```text
+A → B
+B → C
+```
+
+which means:
+
+```text
+A → C
+```
+
+In this system, branch information could create a transitive dependency if it were stored inside the `employees` table.
 
 For example:
 
-- `customers.id` identifies the customer.
-- `branches.id` identifies the branch.
-- `shipments.id` identifies the shipment.
-- `deliveries.id` identifies the delivery.
+```text
+employee_id → branch_id
+branch_id → branch_name
+```
 
-## 3NF — Third Normal Form
+Instead of storing `branch_name` in `employees`, the system stores only:
 
-A table is in 3NF when:
+```text
+branch_id
+```
 
-- It is already in 2NF.
-- Non-key columns do not depend on other non-key columns.
+and retrieves branch information through the relationship with the `branches` table.
 
-For example, employee information is stored in the `employees` table, while branch information is stored in the `branches` table.
+This reduces data duplication and prevents update anomalies.
 
-The employee table contains `branch_id` as a foreign key instead of repeating the branch city, address, and phone for every employee.
+---
 
-Similarly, shipments store `customer_id` instead of repeating the customer's full information for every shipment.
+----- 6. Proposed Changes
 
-## Benefits of Normalization
+The current database design is already largely normalized to 3NF.
 
-Normalization helps the database to:
+The main normalization decisions are:
 
-- Reduce duplicate data.
-- Prevent update anomalies.
-- Prevent insert anomalies.
-- Prevent delete anomalies.
-- Improve data consistency.
-- Make the database easier to maintain.
+- Store customers separately from shipments.
+- Store branches separately from employees, drivers, and vehicles.
+- Store shipments separately from deliveries.
+- Store payments separately from shipments.
+- Store shipment movement history separately in `shipment_tracking`.
+- Use foreign keys instead of duplicating complete entity information.
+- Avoid storing calculated or repeated entity information unnecessarily.
 
-The Logistics & Delivery Management System follows the main principles of 1NF, 2NF, and 3NF by separating customers, branches, employees, drivers, vehicles, shipments, deliveries, payments, and tracking into related tables using primary and foreign keys.
+No major structural changes are required to achieve 3NF.
+
+---
+
+---- 7. When Denormalization Can Be Acceptable
+
+Denormalization may be acceptable when performance becomes more important than minimizing data duplication.
+
+For example, a frequently used reporting system might store a pre-calculated summary such as:
+
+```text
+customer_total_spending
+```
+
+instead of calculating it from all payment records every time.
+
+However, denormalization should only be introduced when there is a clear performance or reporting requirement.
+
+The current system prioritizes data consistency and normalization, while indexes, views, and optimized queries are used to improve performance without unnecessary duplication.
+
 
 --==============================================================================================
                     --=================== Queries — 1 to 40================
-
---===================================================================================================
-
--- =====================================================
+-- =============================================================================================
 -- Query 1
 -- عرض جميع الشحنات مع اسم العميل وفرع الإرسال وفرع الاستلام
 -- =====================================================
