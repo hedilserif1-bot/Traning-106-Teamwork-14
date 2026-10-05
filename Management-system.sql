@@ -3034,7 +3034,6 @@ WHERE s.weight > v.max_weight;
 -- 0 rows
 
 
-
 -- ============================================================================
 -- ========================= NORMALIZATION ================================
 -- ============================================================================
@@ -3045,37 +3044,37 @@ WHERE s.weight > v.max_weight;
 
 -- Functional dependencies describe how one attribute determines
 -- other attributes in the database.
---
+
 -- Examples from the Logistics & Delivery Management System:
---
+
 -- customer_id → full_name, email, phone, customer_type, city,
 --                address, registered_at, status
---
+
 -- branch_id → branch_name, city, address, phone, manager_name,
 --              opened_at, status
---
+
 -- employee_id → branch_id, full_name, email, phone, job_title,
 --               salary, hire_date, status
---
+
 -- driver_id → branch_id, full_name, phone, license_number,
 --              license_expiry_date, hire_date, salary, status
---
+
 -- vehicle_id → branch_id, plate_number, vehicle_type, model,
 --              manufacture_year, max_weight, status
---
+
 -- shipment_id → tracking_number, customer_id, origin_branch_id,
 --                destination_branch_id, sender_name, sender_phone,
 --                receiver_name, receiver_phone, receiver_address,
 --                receiver_city, weight, shipping_cost, created_at,
 --                expected_delivery_date, delivered_at, payment_status,
 --                shipment_status
---
+
 -- delivery_id → shipment_id, driver_id, vehicle_id, assigned_at,
 --               started_at, completed_at, delivery_status, notes
---
+
 -- payment_id → shipment_id, amount, payment_method, payment_date,
 --              transaction_reference, status
---
+
 -- These dependencies show that each entity's primary key
 -- determines the attributes belonging to that entity.
 
@@ -3085,17 +3084,17 @@ WHERE s.weight > v.max_weight;
 -- ============================================================================
 
 -- The database satisfies First Normal Form because:
---
+
 -- • Each table has a primary key.
 -- • Each column contains atomic values.
 -- • There are no repeating groups.
 -- • Multiple values are not stored in a single column.
 -- • Each row represents one specific entity or transaction.
---
+
 -- For example:
 -- Customer phone numbers are stored as individual values
 -- rather than as a comma-separated list.
---
+
 -- Therefore, the database satisfies 1NF.
 
 
@@ -3104,16 +3103,16 @@ WHERE s.weight > v.max_weight;
 -- ============================================================================
 
 -- The database satisfies Second Normal Form because:
---
+
 -- • It already satisfies 1NF.
 -- • The main tables use single-column primary keys such as
 --   customer_id, shipment_id, employee_id, and vehicle_id.
 -- • There are no partial dependencies where a non-key attribute
 --   depends only on part of a composite primary key.
---
+
 -- Therefore, non-key attributes depend on the complete primary key
 -- of their table.
---
+
 -- The database satisfies 2NF.
 
 
@@ -3122,22 +3121,22 @@ WHERE s.weight > v.max_weight;
 -- ============================================================================
 
 -- The database satisfies Third Normal Form because:
---
+
 -- • It satisfies 2NF.
 -- • Non-key attributes depend on the primary key of their own table.
 -- • Attributes belonging to another entity are stored in that entity's
 --   table instead of being duplicated.
---
+
 -- For example:
 -- The employees table does not store branch_name or branch_city.
---
+
 -- This prevents the following transitive dependency:
---
+
 -- employee_id → branch_id → branch_name
---
+
 -- Instead, branch_name is determined by branch_id
 -- in the branches table.
---
+
 -- Therefore, the database satisfies 3NF.
 
 
@@ -3146,30 +3145,30 @@ WHERE s.weight > v.max_weight;
 -- ============================================================================
 
 -- A transitive dependency occurs when:
---
+
 -- A → B
 -- B → C
---
+
 -- which means:
---
+
 -- A → C
---
+
 -- In this system, branch information could create a transitive
 -- dependency if it were stored inside the employees table.
---
+
 -- For example:
---
+
 -- employee_id → branch_id
 -- branch_id → branch_name
---
+
 -- Instead of storing branch_name in employees,
 -- the system stores only:
---
+
 -- branch_id
---
+
 -- Branch information is retrieved through the relationship
 -- with the branches table.
---
+
 -- This reduces data duplication and prevents update anomalies.
 
 
@@ -3178,9 +3177,8 @@ WHERE s.weight > v.max_weight;
 -- ============================================================================
 
 -- The current database design is already largely normalized to 3NF.
---
+
 -- The main normalization decisions are:
---
 -- • Store customers separately from shipments.
 -- • Store branches separately from employees, drivers, and vehicles.
 -- • Store shipments separately from deliveries.
@@ -3188,28 +3186,29 @@ WHERE s.weight > v.max_weight;
 -- • Store shipment movement history separately in shipment_tracking.
 -- • Use foreign keys instead of duplicating complete entity information.
 -- • Avoid storing calculated or repeated entity information unnecessarily.
---
+
 -- No major structural changes are required to achieve 3NF.
 
 
 
 -- 7. WHEN DENORMALIZATION CAN BE ACCEPTABLE
---============================================================================
+-- ============================================================================
 
 -- Denormalization may be acceptable when performance becomes
 -- more important than minimizing data duplication.
---
+
 -- For example:
 -- A frequently used reporting system might store a pre-calculated
 -- summary such as customer_total_spending instead of calculating
 -- it from all payment records every time.
---
+
 -- However, denormalization should only be introduced when there is
 -- a clear performance or reporting requirement.
---
+
 -- The current system prioritizes data consistency and normalization,
 -- while indexes, views, and optimized queries are used to improve
 -- performance without unnecessary duplication.
+
 
 
 -- ==============================================================================================
