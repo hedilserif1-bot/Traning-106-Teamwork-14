@@ -3456,6 +3456,244 @@ HAVING total_spending > (
         GROUP BY c2.id
     ) AS spending_table
 );
+-------=================================================================================
+         ---------------------FINAL END-TO-END TEST-----------------------------
+--=====================================================================================
+
+
+The final end-to-end test validates the complete logistics workflow from customer creation to successful shipment delivery.
+
+-- Test Flow
+
+Customer
+   ↓
+Shipment
+   ↓
+Payment
+   ↓
+Initial Tracking
+   ↓
+Driver + Vehicle Assignment
+   ↓
+Delivery Started
+   ↓
+In-Transit Tracking
+   ↓
+Delivery Completed
+   ↓
+Final Delivered Tracking
+```
+
+---
+
+ 1. Create Customer
+
+A new customer was created specifically for the final system test.
+
+The customer was successfully inserted into the `customers` table with an active status.
+
+---
+
+ 2. Create Shipment
+
+A new shipment was created using the `create_shipment` stored procedure.
+
+The procedure successfully:
+
+- Created the shipment.
+- Generated the shipment ID.
+- Created the first tracking record.
+- Set the initial shipment status to `created`.
+
+Test tracking number:
+
+FINALTEST001
+
+
+---
+ 3. Create Payment
+
+A successful payment was created for the test shipment.
+
+The payment was correctly linked to the shipment through `shipment_id`.
+
+The payment status was:
+
+
+successful
+
+The payment amount matched the shipment shipping cost.
+
+---
+
+ 4. Initial Shipment Tracking
+
+The first tracking record was created with status:
+
+
+created
+
+
+This confirmed that every newly created shipment can have an initial movement record.
+
+
+
+ 5. Assign Driver and Vehicle
+
+The shipment was assigned to:
+
+- An active driver.
+- An available vehicle.
+- A vehicle with sufficient weight capacity.
+
+The `assign_delivery` stored procedure successfully created the delivery with status:
+
+
+assigned
+
+
+The vehicle remained:
+
+
+available
+
+
+until the delivery actually started.
+
+---
+
+ 6. Start Delivery
+
+The delivery status was changed from:
+
+
+assigned
+
+
+to:
+in_progress
+
+
+The corresponding trigger automatically changed the vehicle status from:
+
+
+available
+
+to:
+
+
+in_delivery
+
+
+This confirmed that the vehicle-status trigger works correctly.
+
+---
+
+ 7. Add In-Transit Tracking
+
+A new tracking record was inserted with status:
+
+
+in_transit
+
+
+The tracking trigger automatically updated the shipment status to:
+
+
+in_transit
+
+
+This confirmed that shipment status remains synchronized with shipment movement history.
+
+---
+ 8. Complete Delivery
+
+The `complete_delivery` stored procedure was executed successfully.
+
+The procedure completed the delivery transaction and:
+
+- Set the delivery status to `completed`.
+- Updated the shipment status to `delivered`.
+- Set `delivered_at`.
+- Added a final `delivered` tracking record.
+- Returned the vehicle to `available`.
+- Used transaction handling to protect the operation from partial updates.
+
+---
+
+9. Final Tracking History
+
+The final tracking history contained the expected movement sequence:
+
+
+created
+in_transit
+delivered
+
+
+This confirms that the system preserves the complete shipment movement history.
+
+---
+
+ 10. Final Verification
+
+The final state was verified across the related tables.
+
+ Shipment
+
+
+shipment_status = delivered
+delivered_at IS NOT NULL
+payment_status = paid
+
+    
+ Payment
+
+status = successful
+
+
+ Delivery
+
+
+delivery_status = completed
+completed_at IS NOT NULL
+
+
+ Vehicle
+
+
+status = available
+
+ Tracking
+
+
+created → in_transit → delivered
+
+
+The relationships between customer, shipment, payment, delivery, driver, vehicle, and tracking records were verified successfully.
+
+No orphan records were introduced during the final test.
+
+---
+
+**Final Result
+
+The Logistics & Delivery Management System successfully completed the complete end-to-end workflow:
+
+
+Customer
+→ Shipment
+→ Payment
+→ Tracking
+→ Driver Assignment
+→ Vehicle Assignment
+→ Delivery Start
+→ In Transit
+→ Delivery Completion
+→ Final Tracking
+```
+
+The final shipment state, payment, delivery, vehicle status, and tracking history were all verified successfully.
 
 
 
