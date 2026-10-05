@@ -7,6 +7,7 @@ USE marketplace_system;
 
 
 
+
 CREATE TABLE customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(150) NOT NULL,
