@@ -1428,9 +1428,6 @@ ROLLBACK;
 --=====================================================
 --- 1. create_shipment=================================
 
---This procedure creates a new shipment and automatically creates the first tracking record for that shipment.
-
---sql--
 DELIMITER //
 
 CREATE PROCEDURE create_shipment(
@@ -1520,87 +1517,69 @@ CALL create_shipment(
     '2026-10-07'
 );
 
------ Result-----
 
-
-
---Shipment ID: 63
---Tracking Number: TRK100063
-
-
---A first tracking record with status `created` was also inserted automatically.
-
----
 --===========================================
 ---- 2. assign_delivery =====================
 
-
-
 DELIMITER //
 
-CREATE PROCEDURE assign_delivery(
-    IN p_shipment_id INT,
-    IN p_driver_id INT,
-    IN p_vehicle_id INT
-)
+CREATE TRIGGER update_vehicle_status_on_delivery_start
+AFTER UPDATE
+ON deliveries
+FOR EACH ROW
 BEGIN
+    IF NEW.delivery_status = 'in_progress'
+       AND OLD.delivery_status <> 'in_progress' THEN
 
-    INSERT INTO deliveries (
-        shipment_id,
-        driver_id,
-        vehicle_id,
-        assigned_at,
-        delivery_status
-    )
-    VALUES (
-        p_shipment_id,
-        p_driver_id,
-        p_vehicle_id,
-        NOW(),
-        'assigned'
-    );
+        UPDATE vehicles
+        SET status = 'in_delivery'
+        WHERE id = NEW.vehicle_id;
 
+    END IF;
 END //
 
 DELIMITER ;
 
 
----Test----
-
-
-CALL assign_delivery(63, 4, 7);
-
----- Result----
-
----A new delivery record was created:
-
-
---Delivery ID: 41
---Shipment ID: 63
---Driver ID: 4
---Vehicle ID: 7
---Delivery Status: assigned
-
 ---=====================================
 ---3. complete_delivery=================
-
---This procedure completes an existing delivery.
-
---It updates:
-
--- `started_at`
--- `completed_at`
--- `delivery_status`
-
----`IFNULL()` is used so that if `started_at` is still `NULL`, the current time is recorded as the start time.
-
-
+--========================================
 DELIMITER //
 
 CREATE PROCEDURE complete_delivery(
     IN p_delivery_id INT
 )
 BEGIN
+    DECLARE v_shipment_id INT;
+    DECLARE v_vehicle_id INT;
+    DECLARE v_destination_branch_id INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT
+        d.shipment_id,
+        d.vehicle_id,
+        s.destination_branch_id
+    INTO
+        v_shipment_id,
+        v_vehicle_id,
+        v_destination_branch_id
+    FROM deliveries d
+    JOIN shipments s
+        ON d.shipment_id = s.id
+    WHERE d.id = p_delivery_id
+      AND d.delivery_status IN ('assigned', 'in_progress');
+
+    IF v_shipment_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Delivery is not available for completion';
+    END IF;
 
     UPDATE deliveries
     SET
@@ -1609,41 +1588,35 @@ BEGIN
         delivery_status = 'completed'
     WHERE id = p_delivery_id;
 
+    UPDATE shipments
+    SET
+        shipment_status = 'delivered',
+        delivered_at = NOW()
+    WHERE id = v_shipment_id;
+
+    INSERT INTO shipment_tracking (
+        shipment_id,
+        branch_id,
+        status,
+        description,
+        recorded_at
+    )
+    VALUES (
+        v_shipment_id,
+        v_destination_branch_id,
+        'delivered',
+        'Shipment delivered successfully',
+        NOW()
+    );
+
+    UPDATE vehicles
+    SET status = 'available'
+    WHERE id = v_vehicle_id;
+
+    COMMIT;
 END //
 
 DELIMITER ;
-
-
---- Test
-
-
-CALL complete_delivery(41);
-
-SELECT
-    id,
-    shipment_id,
-    driver_id,
-    vehicle_id,
-    assigned_at,
-    started_at,
-    completed_at,
-    delivery_status
-FROM deliveries
-WHERE id = 41;
-```
-
----- Result----
-
-
---Delivery ID: 41
---Shipment ID: 63
---Driver ID: 4
---Vehicle ID: 7
---Delivery Status: completed
---started_at: recorded
---completed_at: recorded
-
----------------------------------------------
 
 --================================================
              ---=====Triggers======
@@ -1689,21 +1662,9 @@ VALUES (
     NOW()
 );
 
-
----Result---
-
---Shipment `63` was automatically updated to:
-
-
---shipment_status = in_transit
-
-
----------------------------
-
 --===== 2. Update Vehicle Status on Delivery Start=======
 
 ---This trigger changes the vehicle status to `in_delivery` when a delivery starts.
-
 
 DELIMITER //
 
@@ -1712,8 +1673,8 @@ AFTER UPDATE
 ON deliveries
 FOR EACH ROW
 BEGIN
-    IF NEW.delivery_status = 'started'
-       AND OLD.delivery_status <> 'started' THEN
+    IF NEW.delivery_status = 'in_progress'
+       AND OLD.delivery_status <> 'in_progress' THEN
 
         UPDATE vehicles
         SET status = 'in_delivery'
@@ -1724,29 +1685,6 @@ END //
 
 DELIMITER ;
 
-
---- Test---
-
-UPDATE deliveries
-SET delivery_status = 'assigned'
-WHERE id = 41;
-
-UPDATE deliveries
-SET delivery_status = 'started'
-WHERE id = 41;
-
-
---- Result---
-
---Vehicle `7` changed automatically from:
-
-
---available
-
-
---to:
-
---in_delivery
 
 ----------------------------------------------------------
 --=====3. Update Vehicle Status on Delivery Complete======
@@ -1882,204 +1820,342 @@ WHERE id = 1;
 --======================================================
 
 
--- 1. Subquery with AVG----------
-
+--Subquery 1 — العملاء الذين إنفاقهم أعلى من متوسط إنفاق العملاء
 SELECT
     c.id,
     c.full_name,
-    COUNT(s.id) AS shipment_count
+    COALESCE(SUM(p.amount), 0) AS total_spending
 FROM customers c
-JOIN shipments s
+LEFT JOIN shipments s
     ON c.id = s.customer_id
-GROUP BY c.id, c.full_name
-HAVING COUNT(s.id) > (
-    SELECT AVG(shipment_count)
+LEFT JOIN payments p
+    ON s.id = p.shipment_id
+   AND p.status = 'successful'
+GROUP BY
+    c.id,
+    c.full_name
+HAVING total_spending > (
+    SELECT AVG(customer_spending)
     FROM (
-        SELECT customer_id, COUNT(*) AS shipment_count
-        FROM shipments
-        GROUP BY customer_id
-    ) AS customer_shipments
+        SELECT
+            c2.id,
+            COALESCE(SUM(p2.amount), 0) AS customer_spending
+        FROM customers c2
+        LEFT JOIN shipments s2
+            ON c2.id = s2.customer_id
+        LEFT JOIN payments p2
+            ON s2.id = p2.shipment_id
+           AND p2.status = 'successful'
+        GROUP BY c2.id
+    ) AS spending_table
 );
 
 
---- 2. EXISTS--------------------
+--- 2. Subquery 2 — الموظفون الذين راتبهم أعلى من متوسط راتب فرعهم
 
 SELECT
-    c.id,
-    c.full_name
-FROM customers c
-WHERE EXISTS (
-    SELECT 1
-    FROM shipments s
-    WHERE s.customer_id = c.id
+    e.id,
+    e.full_name,
+    e.branch_id,
+    e.salary
+FROM employees e
+WHERE e.salary > (
+    SELECT AVG(e2.salary)
+    FROM employees e2
+    WHERE e2.branch_id = e.branch_id
 );
 
-
-
--- 3. NOT EXISTS-------------
-
-SELECT
-    c.id,
-    c.full_name
-FROM customers c
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM shipments s
-    WHERE s.customer_id = c.id
-);
-
-
---- 4. Subquery with MAX-------------
-
+-- 3. Subquery 3 — الشحنات التي تكلفتها أعلى من متوسط تكلفة الشحن
 SELECT
     id,
     tracking_number,
-    customer_id,
     shipping_cost
 FROM shipments
 WHERE shipping_cost > (
-    SELECT MAX(shipping_cost)
+    SELECT AVG(shipping_cost)
     FROM shipments
-    WHERE customer_id = 1
 );
 
--- 5. Subquery with IN --------------
-
-Find shipments belonging to business customers.
+--- 4. Subquery 4 — السائقون الذين عدد توصيلاتهم أكبر من متوسط عدد التوصيلات للسائقين
+SELECT
+    d.id,
+    d.full_name,
+    COUNT(del.id) AS delivery_count
+FROM drivers d
+LEFT JOIN deliveries del
+    ON d.id = del.driver_id
+GROUP BY
+    d.id,
+    d.full_name
+HAVING COUNT(del.id) > (
+    SELECT AVG(driver_delivery_count)
+    FROM (
+        SELECT
+            d2.id,
+            COUNT(del2.id) AS driver_delivery_count
+        FROM drivers d2
+        LEFT JOIN deliveries del2
+            ON d2.id = del2.driver_id
+        GROUP BY d2.id
+    ) AS driver_counts
+);
+-- 5. Subquery 5 — الفروع التي إيراداتها أعلى من متوسط إيرادات الفروع
 
 SELECT
-    id,
-    tracking_number,
-    customer_id,
-    shipping_cost
-FROM shipments
-WHERE customer_id IN (
-    SELECT id
-    FROM customers
-    WHERE customer_type = 'business'
+    b.id,
+    b.branch_name,
+    COALESCE(SUM(p.amount), 0) AS branch_revenue
+FROM branches b
+LEFT JOIN shipments s
+    ON b.id = s.origin_branch_id
+LEFT JOIN payments p
+    ON s.id = p.shipment_id
+   AND p.status = 'successful'
+GROUP BY
+    b.id,
+    b.branch_name
+HAVING branch_revenue > (
+    SELECT AVG(branch_revenue)
+    FROM (
+        SELECT
+            b2.id,
+            COALESCE(SUM(p2.amount), 0) AS branch_revenue
+        FROM branches b2
+        LEFT JOIN shipments s2
+            ON b2.id = s2.origin_branch_id
+        LEFT JOIN payments p2
+            ON s2.id = p2.shipment_id
+           AND p2.status = 'successful'
+        GROUP BY b2.id
+    ) AS branch_revenues
 );
 
--- 6. Subquery with ALL---------------
 
-Find shipments whose shipping cost is greater than the shipping cost of all shipments belonging to customer `1`.
-
+-- 6. Subquery 6 — السيارات المستخدمة أكثر من متوسط استخدام السيارات--------------
 SELECT
-    id,
-    tracking_number,
-    customer_id,
-    shipping_cost
-FROM shipments
-WHERE shipping_cost > ALL (
-    SELECT shipping_cost
-    FROM shipments
-    WHERE customer_id = 1
+    v.id,
+    v.plate_number,
+    COUNT(d.id) AS usage_count
+FROM vehicles v
+LEFT JOIN deliveries d
+    ON v.id = d.vehicle_id
+GROUP BY
+    v.id,
+    v.plate_number
+HAVING COUNT(d.id) > (
+    SELECT AVG(vehicle_usage)
+    FROM (
+        SELECT
+            v2.id,
+            COUNT(d2.id) AS vehicle_usage
+        FROM vehicles v2
+        LEFT JOIN deliveries d2
+            ON v2.id = d2.vehicle_id
+        GROUP BY v2.id
+    ) AS vehicle_usage_table
 );
 
 --====================================================
 --=================WINDOW FUNCTIONS===================
 -------------------------------------------------------
 
------1. ROW_NUMBER()----------------
-
+---1️. ترتيب العملاء حسب إجمالي الإنفاق — RANK()
 SELECT
-    id,
-    tracking_number,
-    customer_id,
-    shipping_cost,
-    ROW_NUMBER() OVER (
-        ORDER BY shipping_cost DESC
-    ) AS row_num
-FROM shipments;
-
-
------ 2. RANK()-------------------
-SELECT
-    id,
-    tracking_number,
-    customer_id,
-    shipping_cost,
+    c.id,
+    c.full_name,
+    COALESCE(SUM(p.amount), 0) AS total_spending,
     RANK() OVER (
-        ORDER BY shipping_cost DESC
-    ) AS cost_rank
-FROM shipments;
-
-
---- 3. DENSE_RANK()--------------
+        ORDER BY COALESCE(SUM(p.amount), 0) DESC
+    ) AS spending_rank
+FROM customers c
+LEFT JOIN shipments s
+    ON c.id = s.customer_id
+LEFT JOIN payments p
+    ON s.id = p.shipment_id
+   AND p.status = 'successful'
+GROUP BY
+    c.id,
+    c.full_name
+ORDER BY spending_rank;
+--2️.ترتيب السائقين حسب عدد التوصيلات — DENSE_RANK()---------
 SELECT
-    id,
-    tracking_number,
-    customer_id,
-    shipping_cost,
+    d.id,
+    d.full_name,
+    COUNT(del.id) AS delivery_count,
     DENSE_RANK() OVER (
-        ORDER BY shipping_cost DESC
-    ) AS cost_rank
-FROM shipments;
+        ORDER BY COUNT(del.id) DESC
+    ) AS delivery_rank
+FROM drivers d
+LEFT JOIN deliveries del
+    ON d.id = del.driver_id
+GROUP BY
+    d.id,
+    d.full_name
+ORDER BY delivery_rank;
 
-
-----4. PARTITION BY-----------
+-----3. ترتيب الموظفين حسب الراتب داخل كل فرع — ROW_NUMBER()-
+SELECT
+    e.id,
+    e.full_name,
+    e.branch_id,
+    e.salary,
+    ROW_NUMBER() OVER (
+        PARTITION BY e.branch_id
+        ORDER BY e.salary DESC
+    ) AS salary_rank
+FROM employees e
+ORDER BY
+    e.branch_id,
+    salary_rank;
+---4.أعلى 3 موظفين راتبًا في كل فرع
 
 SELECT
     id,
-    tracking_number,
-    customer_id,
-    shipping_cost,
-    ROW_NUMBER() OVER (
-        PARTITION BY customer_id
-        ORDER BY shipping_cost DESC
-    ) AS shipment_rank
-FROM shipments;
-
-
----- 5. Finding the Most Expensive Shipment for Each Customer
-
-SELECT *
+    full_name,
+    branch_id,
+    salary,
+    salary_rank
 FROM (
     SELECT
-        id,
-        tracking_number,
-        customer_id,
-        shipping_cost,
+        e.id,
+        e.full_name,
+        e.branch_id,
+        e.salary,
         ROW_NUMBER() OVER (
-            PARTITION BY customer_id
-            ORDER BY shipping_cost DESC
-        ) AS shipment_rank
-    FROM shipments
-) AS ranked_shipments
-WHERE shipment_rank = 1;
+            PARTITION BY e.branch_id
+            ORDER BY e.salary DESC
+        ) AS salary_rank
+    FROM employees e
+) AS ranked_employees
+WHERE salary_rank <= 3
+ORDER BY
+    branch_id,
+    salary_rank;
 
---- 6. Running Total with SUM()-------
-
+--5.الإيراد الشهري التراكمي------------
 SELECT
-    id,
-    tracking_number,
-    shipping_cost,
-    SUM(shipping_cost) OVER (
-        ORDER BY id
-    ) AS running_total
-FROM shipments;
+    YEAR(payment_date) AS payment_year,
+    MONTH(payment_date) AS month_number,
+    MONTHNAME(payment_date) AS month_name,
+    SUM(amount) AS monthly_revenue,
+    SUM(SUM(amount)) OVER (
+        ORDER BY YEAR(payment_date), MONTH(payment_date)
+    ) AS cumulative_revenue
+FROM payments
+WHERE status = 'successful'
+GROUP BY
+    YEAR(payment_date),
+    MONTH(payment_date),
+    MONTHNAME(payment_date)
+ORDER BY
+    payment_year,
+    month_number;
 
+---6.مقارنة إيراد كل شهر مع الشهر السابق — LAG()
 
----- 7. LAG()-----------------------
-
+WITH monthly_revenue AS (
+    SELECT
+        YEAR(payment_date) AS payment_year,
+        MONTH(payment_date) AS month_number,
+        MONTHNAME(payment_date) AS month_name,
+        SUM(amount) AS monthly_revenue
+    FROM payments
+    WHERE status = 'successful'
+    GROUP BY
+        YEAR(payment_date),
+        MONTH(payment_date),
+        MONTHNAME(payment_date)
+)
 SELECT
-    id,
-    tracking_number,
-    shipping_cost,
-    LAG(shipping_cost) OVER (
-        ORDER BY id
-    ) AS previous_cost
-FROM shipments;
+    payment_year,
+    month_number,
+    month_name,
+    monthly_revenue,
+    LAG(monthly_revenue) OVER (
+        ORDER BY payment_year, month_number
+    ) AS previous_month_revenue,
+    monthly_revenue -
+    LAG(monthly_revenue) OVER (
+        ORDER BY payment_year, month_number
+    ) AS revenue_difference
+FROM monthly_revenue
+ORDER BY
+    payment_year,
+    month_number;
 
-
------ 8. LEAD()-----------------------
+----7.الفرق بين كل دفعة والدفعة السابقة
 SELECT
-    id,
-    tracking_number,
-    shipping_cost,
-    LEAD(shipping_cost) OVER (
-        ORDER BY id
-    ) AS next_cost
-FROM shipments;
+    id AS payment_id,
+    shipment_id,
+    payment_date,
+    amount,
+    LAG(amount) OVER (
+        ORDER BY payment_date, id
+    ) AS previous_payment_amount,
+    amount -
+    LAG(amount) OVER (
+        ORDER BY payment_date, id
+    ) AS payment_difference
+FROM payments
+ORDER BY
+    payment_date,
+    id;
+----8.أول وآخر Tracking لكل شحنة
+SELECT
+    shipment_id,
+    status,
+    recorded_at,
+
+    FIRST_VALUE(status) OVER (
+        PARTITION BY shipment_id
+        ORDER BY recorded_at
+    ) AS first_tracking_status,
+
+    LAST_VALUE(status) OVER (
+        PARTITION BY shipment_id
+        ORDER BY recorded_at
+        ROWS BETWEEN UNBOUNDED PRECEDING
+        AND UNBOUNDED FOLLOWING
+    ) AS last_tracking_status
+
+FROM shipment_tracking
+ORDER BY
+    shipment_id,
+    recorded_at;
+
+---9. رقم تسلسلي لحركة الشحنة
+SELECT
+    shipment_id,
+    status,
+    branch_id,
+    recorded_at,
+    ROW_NUMBER() OVER (
+        PARTITION BY shipment_id
+        ORDER BY recorded_at
+    ) AS movement_number
+FROM shipment_tracking
+ORDER BY
+    shipment_id,
+    movement_number;
+---10. مساهمة كل عميل كنسبة من إجمالي إيرادات الشركة
+ SELECT
+    c.id,
+    c.full_name,
+    COALESCE(SUM(p.amount), 0) AS customer_revenue,
+    COALESCE(SUM(p.amount), 0) * 100.0 /
+    SUM(SUM(p.amount)) OVER () AS contribution_percentage
+FROM customers c
+LEFT JOIN shipments s
+    ON c.id = s.customer_id
+LEFT JOIN payments p
+    ON s.id = p.shipment_id
+   AND p.status = 'successful'
+GROUP BY
+    c.id,
+    c.full_name
+ORDER BY contribution_percentage DESC;
+
+
 
 --====================================================
         --============CTE===========
@@ -2493,20 +2569,20 @@ GROUP BY
 -- Query 6
 -- عرض إجمالي المبالغ التي دفعها كل عميل
 -- =====================================================
-
 SELECT
     c.id,
     c.full_name,
-    SUM(p.amount) AS total_paid
+    COALESCE(SUM(p.amount), 0) AS total_paid
 FROM customers c
-JOIN shipments s
+LEFT JOIN shipments s
     ON c.id = s.customer_id
-JOIN payments p
+LEFT JOIN payments p
     ON s.id = p.shipment_id
-WHERE p.status = 'successful'
+   AND p.status = 'successful'
 GROUP BY
     c.id,
     c.full_name;
+
 
 
 -- =====================================================
@@ -2565,13 +2641,12 @@ GROUP BY
 -- Query 10
 -- عرض الفرع صاحب أكبر عدد من الشحنات المرسلة
 -- =====================================================
-
 SELECT
     b.id,
     b.branch_name,
     COUNT(s.id) AS outgoing_shipments
 FROM branches b
-JOIN shipments s
+LEFT JOIN shipments s
     ON b.id = s.origin_branch_id
 GROUP BY
     b.id,
@@ -2590,7 +2665,7 @@ SELECT
     b.branch_name,
     AVG(s.shipping_cost) AS average_shipping_cost
 FROM branches b
-JOIN shipments s
+LEFT JOIN shipments s
     ON b.id = s.origin_branch_id
 GROUP BY
     b.id,
@@ -2601,17 +2676,20 @@ GROUP BY
 -- Query 12
 -- عرض أغلى شحنة في كل فرع
 -- =====================================================
-
 SELECT
-    b.id,
+    s.id,
+    s.tracking_number,
+    s.origin_branch_id,
     b.branch_name,
-    MAX(s.shipping_cost) AS highest_shipping_cost
-FROM branches b
-JOIN shipments s
-    ON b.id = s.origin_branch_id
-GROUP BY
-    b.id,
-    b.branch_name;
+    s.shipping_cost
+FROM shipments s
+JOIN branches b
+    ON s.origin_branch_id = b.id
+WHERE s.shipping_cost = (
+    SELECT MAX(s2.shipping_cost)
+    FROM shipments s2
+    WHERE s2.origin_branch_id = s.origin_branch_id
+);
 
 
 -- =====================================================
@@ -2655,18 +2733,17 @@ GROUP BY
 -- Query 15
 -- عرض السائق صاحب أكبر عدد من عمليات التوصيل المكتملة
 -- =====================================================
-
 SELECT
-    dr.id,
-    dr.full_name,
-    COUNT(d.id) AS completed_deliveries
-FROM drivers dr
-JOIN deliveries d
-    ON dr.id = d.driver_id
-WHERE d.delivery_status = 'completed'
+    d.id,
+    d.full_name,
+    COUNT(del.id) AS completed_deliveries
+FROM drivers d
+JOIN deliveries del
+    ON d.id = del.driver_id
+WHERE del.delivery_status = 'completed'
 GROUP BY
-    dr.id,
-    dr.full_name
+    d.id,
+    d.full_name
 ORDER BY completed_deliveries DESC
 LIMIT 1;
 
@@ -2739,16 +2816,17 @@ GROUP BY
     v.id,
     v.plate_number
 HAVING COUNT(d.id) > (
-    SELECT AVG(usage_count)
+    SELECT AVG(vehicle_usage)
     FROM (
         SELECT
-            vehicle_id,
-            COUNT(*) AS usage_count
-        FROM deliveries
-        GROUP BY vehicle_id
-    ) AS vehicle_usage
+            v2.id,
+            COUNT(d2.id) AS vehicle_usage
+        FROM vehicles v2
+        LEFT JOIN deliveries d2
+            ON v2.id = d2.vehicle_id
+        GROUP BY v2.id
+    ) AS usage_table
 );
-
 
 -- =====================================================
 -- Query 20
@@ -2912,10 +2990,15 @@ WHERE st.id IS NULL;
 -- =====================================================
 
 SELECT
+    st.id,
     st.shipment_id,
+    s.tracking_number,
     st.status,
+    st.description,
     st.recorded_at
 FROM shipment_tracking st
+JOIN shipments s
+    ON st.shipment_id = s.id
 WHERE st.recorded_at = (
     SELECT MAX(st2.recorded_at)
     FROM shipment_tracking st2
@@ -3049,18 +3132,17 @@ ORDER BY
 -- =====================================================
 
 SELECT
-    YEAR(payment_date) AS year,
-    MONTH(payment_date) AS month,
+    MONTH(payment_date) AS month_number,
+    MONTHNAME(payment_date) AS month_name,
     SUM(amount) AS monthly_revenue
 FROM payments
-WHERE YEAR(payment_date) = YEAR(CURDATE())
-  AND status = 'successful'
+WHERE status = 'successful'
+  AND YEAR(payment_date) = YEAR(CURDATE())
 GROUP BY
-    YEAR(payment_date),
-    MONTH(payment_date)
+    MONTH(payment_date),
+    MONTHNAME(payment_date)
 ORDER BY monthly_revenue DESC
 LIMIT 1;
-
 
 -- =====================================================
 -- Query 37
@@ -3081,15 +3163,19 @@ ORDER BY total_revenue DESC;
 -- عرض عمليات الدفع التي قيمتها مختلفة عن تكلفة الشحنة المرتبطة بها
 -- =====================================================
 
+
 SELECT
     p.id AS payment_id,
     p.shipment_id,
     p.amount AS payment_amount,
-    s.shipping_cost
+    s.shipping_cost,
+    p.status
 FROM payments p
 JOIN shipments s
     ON p.shipment_id = s.id
-WHERE p.amount <> s.shipping_cost;
+WHERE p.status = 'successful'
+  AND p.amount <> s.shipping_cost;
+    
 
 
 -- =====================================================
@@ -3115,28 +3201,42 @@ WHERE s.payment_status = 'paid'
 -- Query 40
 -- عرض العملاء الذين مجموع إنفاقهم أعلى من متوسط إنفاق جميع العملاء
 -- =====================================================
-
 SELECT
     c.id,
     c.full_name,
-    SUM(s.shipping_cost) AS total_spending
+    COALESCE(SUM(
+        CASE
+            WHEN p.status = 'successful' THEN p.amount
+            ELSE 0
+        END
+    ), 0) AS total_spending
 FROM customers c
-JOIN shipments s
+LEFT JOIN shipments s
     ON c.id = s.customer_id
+LEFT JOIN payments p
+    ON s.id = p.shipment_id
 GROUP BY
     c.id,
     c.full_name
-HAVING SUM(s.shipping_cost) > (
+HAVING total_spending > (
     SELECT AVG(customer_spending)
     FROM (
         SELECT
-            customer_id,
-            SUM(shipping_cost) AS customer_spending
-        FROM shipments
-        GROUP BY customer_id
-    ) AS spending
+            c2.id,
+            COALESCE(SUM(
+                CASE
+                    WHEN p2.status = 'successful' THEN p2.amount
+                    ELSE 0
+                END
+            ), 0) AS customer_spending
+        FROM customers c2
+        LEFT JOIN shipments s2
+            ON c2.id = s2.customer_id
+        LEFT JOIN payments p2
+            ON s2.id = p2.shipment_id
+        GROUP BY c2.id
+    ) AS spending_table
 );
-
 
 
 
