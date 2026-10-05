@@ -3978,15 +3978,16 @@ HAVING total_spending > (
 
 
 
+
 -- =================================================================================
 --                         FINAL END-TO-END TEST
 -- =================================================================================
---
+
 -- The final end-to-end test validates the complete logistics workflow
 -- from customer creation to successful shipment delivery.
---
+
 -- Test Flow:
---
+
 -- Customer
 --     ↓
 -- Shipment
@@ -4004,113 +4005,112 @@ HAVING total_spending > (
 -- Delivery Completed
 --     ↓
 -- Final Delivered Tracking
---
+
 -- =================================================================================
 
 
 -- 1. CREATE CUSTOMER
 -- ---------------------------------------------------------------------------------
---
+
 -- A new customer was created specifically for the final system test.
---
+
 -- The customer was successfully inserted into the customers table
 -- with an active status.
---
+
 -- =================================================================================
 
 
 -- 2. CREATE SHIPMENT
 -- ---------------------------------------------------------------------------------
---
+
 -- A new shipment was created using the create_shipment stored procedure.
---
+
 -- The procedure successfully:
 -- - Created the shipment.
 -- - Generated the shipment ID.
 -- - Created the first tracking record.
 -- - Set the initial shipment status to 'created'.
---
+
 -- Test tracking number:
 -- FINALTEST001
---
+
 -- =================================================================================
 
 
 -- 3. CREATE PAYMENT
 -- ---------------------------------------------------------------------------------
---
+
 -- A successful payment was created for the test shipment.
---
+
 -- The payment was correctly linked to the shipment through shipment_id.
---
+
 -- Payment status:
 -- successful
---
+
 -- The payment amount matched the shipment shipping cost.
---
+
 -- =================================================================================
 
 
 -- 4. INITIAL SHIPMENT TRACKING
 -- ---------------------------------------------------------------------------------
---
+
 -- The first tracking record was automatically created by the
 -- create_shipment stored procedure with status 'created'.
---
+
 -- This confirmed that every newly created shipment receives
 -- an initial tracking record.
---
+
 -- =================================================================================
 
 
 -- 5. ASSIGN DRIVER AND VEHICLE
 -- ---------------------------------------------------------------------------------
---
+
 -- The shipment was assigned to:
 -- - An active driver.
 -- - An available vehicle.
 -- - A vehicle with sufficient weight capacity.
---
+
 -- The assign_delivery stored procedure successfully created
 -- the delivery with status 'assigned'.
---
+
 -- The vehicle status was changed to 'assigned'.
---
+
 -- =================================================================================
 
 
 -- 6. START DELIVERY
 -- ---------------------------------------------------------------------------------
---
+
 -- The delivery status was changed from 'assigned' to 'in_progress'.
---
+
 -- The corresponding trigger automatically changed the vehicle status
 -- from 'assigned' to 'in_delivery'.
---
--- This confirmed that the vehicle-status trigger works correctly.
---
+
+
 -- =================================================================================
 
 
 -- 7. ADD IN-TRANSIT TRACKING
 -- ---------------------------------------------------------------------------------
---
+
 -- A new tracking record was inserted with status 'in_transit'.
---
+
 -- The tracking trigger automatically updated the shipment status
 -- to 'in_transit'.
---
+
 -- This confirmed that the shipment status remains synchronized
 -- with shipment movement history.
---
+
 -- =================================================================================
 
 
 -- 8. COMPLETE DELIVERY
 -- ---------------------------------------------------------------------------------
---
+
 -- The complete_delivery stored procedure was executed successfully.
---
+
 -- The procedure completed the delivery transaction and:
 -- - Set the delivery status to 'completed'.
 -- - Updated the shipment status to 'delivered'.
@@ -4118,62 +4118,62 @@ HAVING total_spending > (
 -- - Added a final 'delivered' tracking record.
 -- - Returned the vehicle to 'available'.
 -- - Used transaction handling to protect the operation from partial updates.
---
+
 -- =================================================================================
 
 
 -- 9. FINAL TRACKING HISTORY
 -- ---------------------------------------------------------------------------------
---
+
 -- The final tracking history contained the expected movement sequence:
---
+
 -- created
 -- in_transit
 -- delivered
---
+
 -- This confirms that the system preserves the complete shipment
 -- movement history.
---
+
 -- =================================================================================
 
 
 -- 10. FINAL VERIFICATION
 -- ---------------------------------------------------------------------------------
---
+
 -- The final state was verified across the related tables.
---
+
 -- Shipment:
 -- shipment_status = delivered
 -- delivered_at IS NOT NULL
 -- payment_status = paid
---
+
 -- Payment:
 -- status = successful
---
+
 -- Delivery:
 -- delivery_status = completed
 -- completed_at IS NOT NULL
---
+
 -- Vehicle:
 -- status = available
---
+
 -- Tracking:
 -- created → in_transit → delivered
---
+
 -- The relationships between customer, shipment, payment, delivery,
 -- driver, vehicle, and tracking records were verified successfully.
---
+
 -- No orphan records were introduced during the final test.
---
+
 -- =================================================================================
 
 
 -- FINAL RESULT
 -- =================================================================================
---
+
 -- The Logistics & Delivery Management System successfully completed
 -- the complete end-to-end workflow:
---
+
 -- Customer
 -- → Shipment
 -- → Payment
@@ -4184,11 +4184,14 @@ HAVING total_spending > (
 -- → In Transit
 -- → Delivery Completion
 -- → Final Tracking
---
+
 -- The final shipment state, payment, delivery, vehicle status,
 -- and tracking history were all verified successfully.
---
+
 -- =================================================================================
+
+
+
 
 
 
