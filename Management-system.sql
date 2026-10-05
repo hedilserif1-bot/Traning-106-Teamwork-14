@@ -2027,8 +2027,9 @@ DELIMITER ;
 
 
 
-
-------- 4. Prevent Invalid Payments
+-- ================================================
+-- 4. Prevent Invalid Payments
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_invalid_payment;
 
@@ -2039,20 +2040,23 @@ BEFORE INSERT
 ON payments
 FOR EACH ROW
 BEGIN
+
     IF NEW.amount <= 0 THEN
 
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Payment amount must be greater than 0';
+        SET MESSAGE_TEXT =
+        'Payment amount must be greater than 0';
 
     END IF;
+
 END //
 
 DELIMITER ;
 
 
----
-
-------- 5. Prevent Deleting Customers with Shipments
+-- ================================================
+-- 5. Prevent Deleting Customers with Shipments
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_customer_delete_with_shipments;
 
@@ -2063,6 +2067,7 @@ BEFORE DELETE
 ON customers
 FOR EACH ROW
 BEGIN
+
     IF EXISTS (
         SELECT 1
         FROM shipments
@@ -2070,17 +2075,19 @@ BEGIN
     ) THEN
 
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Cannot delete customer with shipments';
+        SET MESSAGE_TEXT =
+        'Cannot delete customer with shipments';
 
     END IF;
+
 END //
 
 DELIMITER ;
-```
 
----
 
---------- 6. Prevent Invalid Delivery Completion
+-- ================================================
+-- 6. Prevent Invalid Delivery Completion
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_invalid_delivery_completion;
 
@@ -2091,6 +2098,7 @@ BEFORE UPDATE
 ON deliveries
 FOR EACH ROW
 BEGIN
+
     DECLARE v_shipment_status VARCHAR(30);
 
     IF NEW.delivery_status = 'completed'
@@ -2101,23 +2109,34 @@ BEGIN
         FROM shipments
         WHERE id = NEW.shipment_id;
 
-        IF v_shipment_status = 'created' THEN
+        IF v_shipment_status IS NULL THEN
 
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT =
-            'Cannot complete delivery while shipment is still created';
+            'Shipment does not exist';
+
+        END IF;
+
+        IF v_shipment_status IN
+           ('created', 'cancelled', 'returned') THEN
+
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+            'Cannot complete delivery for this shipment status';
 
         END IF;
 
     END IF;
+
 END //
 
 DELIMITER ;
 
 
----
-
---------- 7. Prevent Multiple Active Deliveries for the Same Vehicle
+-- ================================================
+-- 7. Prevent Multiple Active Deliveries
+--    for the Same Vehicle
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_vehicle_multiple_active_deliveries;
 
@@ -2128,12 +2147,13 @@ BEFORE INSERT
 ON deliveries
 FOR EACH ROW
 BEGIN
+
     IF NEW.delivery_status IN ('assigned', 'in_progress')
        AND EXISTS (
-           SELECT 1
-           FROM deliveries
-           WHERE vehicle_id = NEW.vehicle_id
-             AND delivery_status IN ('assigned', 'in_progress')
+            SELECT 1
+            FROM deliveries
+            WHERE vehicle_id = NEW.vehicle_id
+              AND delivery_status IN ('assigned', 'in_progress')
        ) THEN
 
         SIGNAL SQLSTATE '45000'
@@ -2141,14 +2161,53 @@ BEGIN
         'Vehicle already has an active delivery';
 
     END IF;
+
 END //
 
 DELIMITER ;
 
 
----
+-- ================================================
+-- 7-B. Prevent Vehicle Conflict on UPDATE
+-- ================================================
 
------ 8. Prevent Multiple Active Deliveries for the Same Driver
+DROP TRIGGER IF EXISTS prevent_vehicle_multiple_active_deliveries_update;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_vehicle_multiple_active_deliveries_update
+BEFORE UPDATE
+ON deliveries
+FOR EACH ROW
+BEGIN
+
+    IF NEW.delivery_status IN ('assigned', 'in_progress') THEN
+
+        IF EXISTS (
+            SELECT 1
+            FROM deliveries
+            WHERE vehicle_id = NEW.vehicle_id
+              AND delivery_status IN ('assigned', 'in_progress')
+              AND id <> NEW.id
+        ) THEN
+
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+            'Vehicle already has an active delivery';
+
+        END IF;
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+
+-- ================================================
+-- 8. Prevent Multiple Active Deliveries
+--    for the Same Driver
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_driver_multiple_active_deliveries;
 
@@ -2159,12 +2218,13 @@ BEFORE INSERT
 ON deliveries
 FOR EACH ROW
 BEGIN
+
     IF NEW.delivery_status IN ('assigned', 'in_progress')
        AND EXISTS (
-           SELECT 1
-           FROM deliveries
-           WHERE driver_id = NEW.driver_id
-             AND delivery_status IN ('assigned', 'in_progress')
+            SELECT 1
+            FROM deliveries
+            WHERE driver_id = NEW.driver_id
+              AND delivery_status IN ('assigned', 'in_progress')
        ) THEN
 
         SIGNAL SQLSTATE '45000'
@@ -2172,12 +2232,52 @@ BEGIN
         'Driver already has an active delivery';
 
     END IF;
+
 END //
 
 DELIMITER ;
 
 
------ 9. Prevent Tracking Before Shipment Creation
+-- ================================================
+-- 8-B. Prevent Driver Conflict on UPDATE
+-- ================================================
+
+DROP TRIGGER IF EXISTS prevent_driver_multiple_active_deliveries_update;
+
+DELIMITER //
+
+CREATE TRIGGER prevent_driver_multiple_active_deliveries_update
+BEFORE UPDATE
+ON deliveries
+FOR EACH ROW
+BEGIN
+
+    IF NEW.delivery_status IN ('assigned', 'in_progress') THEN
+
+        IF EXISTS (
+            SELECT 1
+            FROM deliveries
+            WHERE driver_id = NEW.driver_id
+              AND delivery_status IN ('assigned', 'in_progress')
+              AND id <> NEW.id
+        ) THEN
+
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT =
+            'Driver already has an active delivery';
+
+        END IF;
+
+    END IF;
+
+END //
+
+DELIMITER ;
+
+
+-- ================================================
+-- 9. Prevent Tracking Before Shipment Creation
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_tracking_before_shipment;
 
@@ -2188,12 +2288,21 @@ BEFORE INSERT
 ON shipment_tracking
 FOR EACH ROW
 BEGIN
+
     DECLARE v_created_at DATETIME;
 
     SELECT created_at
     INTO v_created_at
     FROM shipments
     WHERE id = NEW.shipment_id;
+
+    IF v_created_at IS NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Shipment does not exist';
+
+    END IF;
 
     IF NEW.recorded_at < v_created_at THEN
 
@@ -2202,15 +2311,15 @@ BEGIN
         'Tracking date cannot be earlier than shipment creation';
 
     END IF;
+
 END //
 
 DELIMITER ;
 
 
----
-
----- 10. Prevent Overweight Shipment Delivery
-
+-- ================================================
+-- 10. Prevent Overweight Shipment Delivery
+-- ================================================
 
 DROP TRIGGER IF EXISTS prevent_overweight_shipment_delivery;
 
@@ -2221,6 +2330,7 @@ BEFORE INSERT
 ON deliveries
 FOR EACH ROW
 BEGIN
+
     DECLARE v_shipment_weight DECIMAL(10,2);
     DECLARE v_vehicle_capacity DECIMAL(10,2);
 
@@ -2234,6 +2344,25 @@ BEGIN
     FROM vehicles
     WHERE id = NEW.vehicle_id;
 
+
+    IF v_shipment_weight IS NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Shipment does not exist';
+
+    END IF;
+
+
+    IF v_vehicle_capacity IS NULL THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Vehicle does not exist';
+
+    END IF;
+
+
     IF v_shipment_weight > v_vehicle_capacity THEN
 
         SIGNAL SQLSTATE '45000'
@@ -2241,9 +2370,15 @@ BEGIN
         'Shipment weight exceeds vehicle capacity';
 
     END IF;
+
 END //
 
 DELIMITER ;
+
+
+
+
+
 
 
 
