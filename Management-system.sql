@@ -367,7 +367,7 @@ CHECK (
 );
 
 -- ============================================
------ادخال بيانات 5 فروع لجدول ال branches
+-- ادخال بيانات 5 فروع لجدول ال branches
 -- ============================================
 
 INSERT INTO branches
@@ -507,7 +507,7 @@ VALUES
 
 
 -- ============================================
---- ادخال 10 بيانات لجدول الشحنات shipments---
+-- ادخال 10 بيانات لجدول الشحنات shipments
 -- ============================================
 INSERT INTO shipments
 (
@@ -553,7 +553,7 @@ VALUES
 
 
 -- ============================================
---- ادخال 50 بيانات لجدول الشحنات shipments---
+-- ادخال 50 بيانات لجدول الشحنات shipments
 -- ============================================
 
 INSERT INTO shipments
@@ -678,7 +678,7 @@ VALUES
 ('TRK100060', 10, 5, 4, 'Emma Davis', '0501000010', 'Green Market', '0506000060', 'Konak', 'Izmir', 20.0, 920, '2026-03-07 13:00:00', '2026-03-12', NULL, 'paid', 'delivered');
 
 -- ============================================
--- ادخال بيانات 40 عملية توصيل لجدول ال deliveries----
+-- ادخال بيانات 40 عملية توصيل لجدول ال deliveries
 -- ============================================
 INSERT INTO deliveries
 (
@@ -739,7 +739,7 @@ VALUES
 
 
 -- ============================================
---shipment_tracking ادخال بيانات 20 سجل تتبع الشحنات لجدول 
+-- shipment_tracking ادخال بيانات 20 سجل تتبع الشحنات لجدول 
 -- ============================================
 INSERT INTO shipment_tracking
 (shipment_id, branch_id, status, description, recorded_at)
@@ -775,7 +775,7 @@ VALUES
 (10, 5, 'cancelled', 'Shipment cancelled by customer', '2026-01-15 10:00:00');
 
 -- ============================================
---shipment_tracking ادخال بيانات 100 سجل تتبع الشحنات لجدول 
+-- shipment_tracking ادخال بيانات 100 سجل تتبع الشحنات لجدول 
 -- ============================================
 
 INSERT INTO shipment_tracking
@@ -802,7 +802,7 @@ VALUES
 (17,2,'created','Shipment created','2026-01-21 14:05:00'),
 (17,4,'in_transit','Shipment in transit','2026-01-22 10:00:00'),
 
-(18,3,'created','Shipment created','Shipment created and waiting','2026-01-22 09:05:00'),
+(18,3,'created','Shipment created','2026-01-22 09:05:00'),
 (18,3,'created','Shipment waiting for processing','2026-01-23 11:00:00'),
 
 (19,4,'created','Shipment created','2026-01-23 10:35:00'),
@@ -931,7 +931,7 @@ VALUES
 (60,5,'created','Shipment created','2026-03-07 13:05:00'),
 (60,4,'delivered','Shipment delivered successfully','2026-03-08 16:00:00');
 -- ============================================
---   40 دفعة لجدول ال payments ادخال---
+--   40 دفعة لجدول ال payments ادخال
 -- ============================================
 
 INSERT INTO payments
