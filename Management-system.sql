@@ -2763,13 +2763,12 @@ ORDER BY
     contribution_percentage DESC;
 
 
+-- ====================================================
+-- ====================== CTE =========================
+-- ====================================================
 
---====================================================
-        --============CTE===========
---===================================================
 
--- 1. CTE 1 — العملاء الذين إنفاقهم أعلى من المتوسط-----------
-
+-- 1. CTE 1 — العملاء الذين إنفاقهم أعلى من المتوسط
 WITH customer_spending AS (
     SELECT
         c.id,
@@ -2794,21 +2793,25 @@ WHERE total_spending > (
     SELECT AVG(total_spending)
     FROM customer_spending
 )
-ORDER BY total_spending DESC;
+ORDER BY
+    total_spending DESC;
 
---- 2.CTE 2 — أداء الفروع: عدد الشحنات + الإيرادات ----------------
 
+-- 2. CTE 2 — أداء الفروع: عدد الشحنات + الإيرادات
 WITH branch_performance AS (
     SELECT
         b.id,
         b.branch_name,
         COUNT(DISTINCT s.id) AS shipment_count,
-        COALESCE(SUM(
-            CASE
-                WHEN p.status = 'successful' THEN p.amount
-                ELSE 0
-            END
-        ), 0) AS revenue
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN p.status = 'successful' THEN p.amount
+                    ELSE 0
+                END
+            ),
+            0
+        ) AS revenue
     FROM branches b
     LEFT JOIN shipments s
         ON b.id = s.origin_branch_id
@@ -2824,9 +2827,11 @@ SELECT
     shipment_count,
     revenue
 FROM branch_performance
-ORDER BY revenue DESC;
+ORDER BY
+    revenue DESC;
 
------ 3. CTE 3 — الـ Overdue Shipments مع اسم العميل والسائق الحالي-----------------------
+
+-- 3. CTE 3 — الـ Overdue Shipments مع اسم العميل والسائق الحالي
 WITH overdue_shipments AS (
     SELECT
         s.id,
@@ -2852,11 +2857,11 @@ SELECT
     expected_delivery_date,
     driver_name
 FROM overdue_shipments
-ORDER BY expected_delivery_date;
+ORDER BY
+    expected_delivery_date;
 
 
-
----- 4. CTE 4 — أداء السائقين فوق المتوسط-----------------
+-- 4. CTE 4 — أداء السائقين فوق المتوسط
 WITH driver_performance AS (
     SELECT
         d.id,
@@ -2898,16 +2903,17 @@ WHERE successful_deliveries > (
     SELECT AVG(successful_deliveries)
     FROM driver_performance
 )
-ORDER BY successful_deliveries DESC;
+ORDER BY
+    successful_deliveries DESC;
 
 
---==========================================================
-    --=========INTEGRITY & SAFETY CHECKS============
---==========================================================
+
+-- ==========================================================
+-- ============== INTEGRITY & SAFETY CHECKS ================
+-- ==========================================================
 
 
----- 1. Delivered Shipment Must Have Delivered Date
-
+-- 1. Delivered Shipment Must Have Delivered Date
 SELECT
     id,
     tracking_number,
@@ -2919,15 +2925,11 @@ WHERE
     OR
     (shipment_status <> 'delivered' AND delivered_at IS NOT NULL);
 
-
----Expected result:
-
-
---0 rows
+-- Expected result:
+-- 0 rows
 
 
---- 2. Shipment Cannot Have Delivered Date Before Delivery
-
+-- 2. Shipment Cannot Have Delivered Date Before Delivery
 SELECT
     id,
     tracking_number,
@@ -2937,13 +2939,11 @@ FROM shipments
 WHERE shipment_status <> 'delivered'
   AND delivered_at IS NOT NULL;
 
+-- Expected result:
+-- 0 rows
 
---Expected result:
 
---0 rows
-
-----3. Completed Delivery Cannot Belong to a Created Shipment
-
+-- 3. Completed Delivery Cannot Belong to a Created Shipment
 SELECT
     d.id AS delivery_id,
     d.shipment_id,
@@ -2955,14 +2955,11 @@ JOIN shipments s
 WHERE d.delivery_status = 'completed'
   AND s.shipment_status = 'created';
 
+-- Expected result:
+-- 0 rows
 
---Expected result:
 
-
---0 rows
-
---- 4. A Vehicle Cannot Have Multiple Active Deliveries
-
+-- 4. A Vehicle Cannot Have Multiple Active Deliveries
 SELECT
     vehicle_id,
     COUNT(*) AS active_deliveries
@@ -2971,15 +2968,11 @@ WHERE delivery_status IN ('assigned', 'in_progress')
 GROUP BY vehicle_id
 HAVING COUNT(*) > 1;
 
-
---Expected result:
-
---0 rows
-
+-- Expected result:
+-- 0 rows
 
 
 -- 5. A Driver Cannot Have Multiple Active Deliveries
-
 SELECT
     driver_id,
     COUNT(*) AS active_deliveries
@@ -2988,14 +2981,11 @@ WHERE delivery_status IN ('assigned', 'in_progress')
 GROUP BY driver_id
 HAVING COUNT(*) > 1;
 
+-- Expected result:
+-- 0 rows
 
----Expected result:
 
-
---0 rows
-
----- 6. Successful Payments Must Reference Existing Shipments
-
+-- 6. Successful Payments Must Reference Existing Shipments
 SELECT
     p.id AS payment_id,
     p.shipment_id,
@@ -3006,16 +2996,11 @@ LEFT JOIN shipments s
 WHERE p.status = 'successful'
   AND s.id IS NULL;
 
---Expected result:
+-- Expected result:
+-- 0 rows
 
 
---0 rows
-
-
-
-----7. Tracking Date Cannot Be Before Shipment Creation
-
-
+-- 7. Tracking Date Cannot Be Before Shipment Creation
 SELECT
     st.id AS tracking_id,
     st.shipment_id,
@@ -3027,14 +3012,11 @@ JOIN shipments s
     ON st.shipment_id = s.id
 WHERE st.recorded_at < s.created_at;
 
-
----Expected result:
-
---0 rows
+-- Expected result:
+-- 0 rows
 
 
----- 8. Shipment Weight Cannot Exceed Vehicle Capacity
-
+-- 8. Shipment Weight Cannot Exceed Vehicle Capacity
 SELECT
     d.id AS delivery_id,
     d.shipment_id,
@@ -3048,11 +3030,9 @@ JOIN vehicles v
     ON d.vehicle_id = v.id
 WHERE s.weight > v.max_weight;
 
+-- Expected result:
+-- 0 rows
 
---Expected result:
-
-
---0 rows
 
 --============================================================================
               --================ Normalization==================
