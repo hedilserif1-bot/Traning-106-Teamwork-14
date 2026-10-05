@@ -1,4 +1,4 @@
---Banking-and-financial-transactions-system.sql
+
 /*banking system DB */
 
 CREATE DATABASE banking_system;
@@ -2127,9 +2127,6 @@ GROUP BY
     a.balance;
 
 
-/*loan_status_view*/
-
-USE banking_system;
 
 DROP VIEW IF EXISTS loan_status_view;
 
@@ -2170,9 +2167,11 @@ GROUP BY
     l.principal_amount,
     l.total_amount;
 
--- ========================================
+
+
+
 /*deposit_money procedure*/
-USE banking_system;
+
 
 DROP PROCEDURE IF EXISTS deposit_money;
 
@@ -2256,10 +2255,9 @@ END //
 
 DELIMITER ;
 
-/*run deposit_money procedure*/
-CALL deposit_money(1, 500);
 
--- ====================================
+
+
 /*withdraw_money procedure*/
 DROP PROCEDURE IF EXISTS withdraw_money;
 
@@ -2347,10 +2345,9 @@ BEGIN
 END //
 
 DELIMITER ;
-/*run withdraw_money procedure*/
-CALL withdraw_money(1, 200);
 
--- ======================================
+
+
 /*pay_loan_installment procedure*/
 DROP PROCEDURE IF EXISTS pay_loan_installment;
 
@@ -2428,10 +2425,14 @@ BEGIN
 END //
 
 DELIMITER ;
-/*run pay_loan_installment procedure*/
-CALL pay_loan_installment(1, 500);
 
--- =============================
+
+
+
+
+
+
+
 /*block_account procedure*/
 
 DELIMITER //
@@ -2449,10 +2450,8 @@ END //
 
 DELIMITER ;
 
-/*run block_account procedure*/
-CALL block_account(1);
 
--- ====================================
+
 /*transfer transaction*/
 
 ALTER TABLE transfers
@@ -2463,7 +2462,8 @@ ALTER TABLE transfers
 ADD CONSTRAINT uq_transfers_idempotency_key
 UNIQUE (idempotency_key);
 
--- ====================================
+
+
 /*Transfer Money Core*/
 
 DROP PROCEDURE IF EXISTS transfer_money_core;
@@ -2827,7 +2827,6 @@ DELIMITER ;
 -- ====================================
 /*Transfer Money*/
 
-USE banking_system;
 
 DROP PROCEDURE IF EXISTS transfer_money;
 
@@ -2851,7 +2850,6 @@ BEGIN
 
 END //
 
-CALL transfer_money(1, 3,  500.00, 'Family support');
 
 DELIMITER ;
 
@@ -4190,23 +4188,21 @@ HAVING COUNT(c2.id) >= 4;
 -- ====================================
 /*Kısa sürede farklı merchant'lar*/
 
-  c1.card_id,
+ SELECT
+    c1.card_id,
     c1.transaction_date,
     COUNT(DISTINCT c2.merchant_name) AS merchant_count
-
 FROM card_transactions c1
-
 JOIN card_transactions c2
     ON c2.card_id = c1.card_id
     AND c2.transaction_date BETWEEN
         c1.transaction_date
         AND DATE_ADD(c1.transaction_date, INTERVAL 30 MINUTE)
-
 GROUP BY
     c1.card_id,
     c1.transaction_date
-
 HAVING COUNT(DISTINCT c2.merchant_name) >= 3;
+
 
 -- ====================================
 /*refund orjinal işlemden büyüktür*/
@@ -4285,12 +4281,14 @@ FROM transactions
 WHERE account_id = 1
 ORDER BY created_at DESC;
 
-/*! index oluşturulduktan sonra sorguları tekrarla !*/
+
 
 -- ====================================
 /*Isolation Levels*/
 
-/*A;*/
+/*
+SESSION A
+*/
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
@@ -4299,10 +4297,14 @@ UPDATE accounts
 SET balance = balance - 500
 WHERE id = 1;
 
+-- لا تعمل COMMIT هنا
+-- انتقل إلى SESSION B
+
 -- ====================================
 
-/*B;*/
-
+/*
+SESSION B
+*/
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 START TRANSACTION;
@@ -4313,11 +4315,22 @@ WHERE id = 1;
 
 COMMIT;
 
-/*A da commit yok ama B de var*/
+-- SESSION B يستطيع قراءة القيمة غير الملتزم بها
+-- ارجع إلى SESSION A
+
+-- ====================================
+
+/*
+SESSION A
+*/
+COMMIT;
 
 -- ====================================
 /*read commited ile dirty Read*/
 
+/*
+SESSION A
+*/
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
@@ -4327,9 +4340,11 @@ FROM accounts
 WHERE id = 1;
 
 -- ====================================
-non-repeatable read
+-- non-repeatable read
 
-/*A;*/
+/*
+SESSION A
+*/
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
@@ -4340,7 +4355,11 @@ WHERE id = 1;
 
 -- ====================================
 
-/*B;*/
+/*
+SESSION B
+*/
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
 START TRANSACTION;
 
 UPDATE accounts
@@ -4350,9 +4369,24 @@ WHERE id = 1;
 COMMIT;
 
 -- ====================================
+
+/*
+SESSION A
+
+SELECT مرة ثانية بعد COMMIT الخاص بـ SESSION B
+*/
+SELECT balance
+FROM accounts
+WHERE id = 1;
+
+COMMIT;
+
+-- ====================================
 /*REPEATABLE READ*/
 
-/*A;*/
+/*
+SESSION A
+*/
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
 START TRANSACTION;
@@ -4363,7 +4397,11 @@ WHERE id = 1;
 
 -- ====================================
 
-/*B;*/
+/*
+SESSION B
+*/
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
 START TRANSACTION;
 
 UPDATE accounts
@@ -4373,8 +4411,24 @@ WHERE id = 1;
 COMMIT;
 
 -- ====================================
+
+/*
+SESSION A
+
+SELECT مرة ثانية
+*/
+SELECT balance
+FROM accounts
+WHERE id = 1;
+
+COMMIT;
+
+-- ====================================
 /*phantom read*/
 
+/*
+SESSION A
+*/
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 START TRANSACTION;
@@ -4385,6 +4439,11 @@ WHERE amount > 5000;
 
 -- ====================================
 
+/*
+SESSION B
+*/
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
 START TRANSACTION;
 
 INSERT INTO transactions
@@ -4411,7 +4470,39 @@ VALUES
 COMMIT;
 
 -- ====================================
-/*serıalızable */
+
+/*
+SESSION A
+
+SELECT مرة ثانية لإظهار Phantom Read
+*/
+SELECT *
+FROM transactions
+WHERE amount > 5000;
+
+COMMIT;
+
+-- ====================================
+/*serializable*/
+
+/*
+SESSION A
+*/
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+START TRANSACTION;
+
+SELECT *
+FROM transactions
+WHERE amount > 5000;
+
+-- ====================================
+
+/*
+SESSION B
+*/
+
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 START TRANSACTION;
 
@@ -4436,6 +4527,13 @@ VALUES
     'completed'
 );
 
+COMMIT;
+
+-- ====================================
+
+/*
+SESSION A
+*/
 COMMIT;
 
 -- ====================================
