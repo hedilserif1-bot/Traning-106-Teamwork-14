@@ -2550,12 +2550,12 @@ HAVING COUNT(d.id) > (
 );
 
 
+-- ====================================================
+-- ================= WINDOW FUNCTIONS =================
+-- ====================================================
 
---====================================================
---=================WINDOW FUNCTIONS===================
--------------------------------------------------------
 
----1️. ترتيب العملاء حسب إجمالي الإنفاق — RANK()
+-- 1. ترتيب العملاء حسب إجمالي الإنفاق — RANK()
 SELECT
     c.id,
     c.full_name,
@@ -2572,8 +2572,11 @@ LEFT JOIN payments p
 GROUP BY
     c.id,
     c.full_name
-ORDER BY spending_rank;
---2️.ترتيب السائقين حسب عدد التوصيلات — DENSE_RANK()---------
+ORDER BY
+    spending_rank;
+
+
+-- 2. ترتيب السائقين حسب عدد التوصيلات — DENSE_RANK()
 SELECT
     d.id,
     d.full_name,
@@ -2587,9 +2590,11 @@ LEFT JOIN deliveries del
 GROUP BY
     d.id,
     d.full_name
-ORDER BY delivery_rank;
+ORDER BY
+    delivery_rank;
 
------3. ترتيب الموظفين حسب الراتب داخل كل فرع — ROW_NUMBER()-
+
+-- 3. ترتيب الموظفين حسب الراتب داخل كل فرع — ROW_NUMBER()
 SELECT
     e.id,
     e.full_name,
@@ -2603,8 +2608,9 @@ FROM employees e
 ORDER BY
     e.branch_id,
     salary_rank;
----4.أعلى 3 موظفين راتبًا في كل فرع
 
+
+-- 4. أعلى 3 موظفين راتبًا في كل فرع
 SELECT
     id,
     full_name,
@@ -2628,7 +2634,8 @@ ORDER BY
     branch_id,
     salary_rank;
 
---5.الإيراد الشهري التراكمي------------
+
+-- 5. الإيراد الشهري التراكمي
 SELECT
     YEAR(payment_date) AS payment_year,
     MONTH(payment_date) AS month_number,
@@ -2647,8 +2654,8 @@ ORDER BY
     payment_year,
     month_number;
 
----6.مقارنة إيراد كل شهر مع الشهر السابق — LAG()
 
+-- 6. مقارنة إيراد كل شهر مع الشهر السابق — LAG()
 WITH monthly_revenue AS (
     SELECT
         YEAR(payment_date) AS payment_year,
@@ -2679,7 +2686,8 @@ ORDER BY
     payment_year,
     month_number;
 
-----7.الفرق بين كل دفعة والدفعة السابقة
+
+-- 7. الفرق بين كل دفعة والدفعة السابقة
 SELECT
     id AS payment_id,
     shipment_id,
@@ -2696,30 +2704,30 @@ FROM payments
 ORDER BY
     payment_date,
     id;
-----8.أول وآخر Tracking لكل شحنة
+
+
+-- 8. أول وآخر Tracking لكل شحنة
 SELECT
     shipment_id,
     status,
     recorded_at,
-
     FIRST_VALUE(status) OVER (
         PARTITION BY shipment_id
         ORDER BY recorded_at
     ) AS first_tracking_status,
-
     LAST_VALUE(status) OVER (
         PARTITION BY shipment_id
         ORDER BY recorded_at
         ROWS BETWEEN UNBOUNDED PRECEDING
         AND UNBOUNDED FOLLOWING
     ) AS last_tracking_status
-
 FROM shipment_tracking
 ORDER BY
     shipment_id,
     recorded_at;
 
----9. رقم تسلسلي لحركة الشحنة
+
+-- 9. رقم تسلسلي لحركة الشحنة
 SELECT
     shipment_id,
     status,
@@ -2733,13 +2741,15 @@ FROM shipment_tracking
 ORDER BY
     shipment_id,
     movement_number;
----10. مساهمة كل عميل كنسبة من إجمالي إيرادات الشركة
- SELECT
+
+
+-- 10. مساهمة كل عميل كنسبة من إجمالي إيرادات الشركة
+SELECT
     c.id,
     c.full_name,
     COALESCE(SUM(p.amount), 0) AS customer_revenue,
     COALESCE(SUM(p.amount), 0) * 100.0 /
-    SUM(SUM(p.amount)) OVER () AS contribution_percentage
+    NULLIF(SUM(SUM(p.amount)) OVER (), 0) AS contribution_percentage
 FROM customers c
 LEFT JOIN shipments s
     ON c.id = s.customer_id
@@ -2749,7 +2759,8 @@ LEFT JOIN payments p
 GROUP BY
     c.id,
     c.full_name
-ORDER BY contribution_percentage DESC;
+ORDER BY
+    contribution_percentage DESC;
 
 
 
