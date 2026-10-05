@@ -1444,8 +1444,13 @@ COMMIT;
 -- ROLLBACK;
 
 
---After the transaction, the inserted data was verified in all three tables:
 
+-- ============================================
+-- TRANSACTION VERIFICATION
+-- ============================================
+
+-- After the transaction, the inserted data can be verified
+-- in all three related tables.
 
 SELECT *
 FROM shipments
@@ -1460,51 +1465,49 @@ FROM payments
 WHERE shipment_id = 61;
 
 
----Result----
+-- Expected result from the previous transaction:
+--
+-- Shipment 61 was created.
+-- Tracking record 121 was created.
+-- Payment record 41 was created.
+-- COMMIT permanently saved all changes.
 
-----The transaction was completed successfully.
-
--- Shipment `61` was created.
--- Tracking record `121` was created.
--- Payment record `41` was created.
---- `COMMIT` permanently saved all changes.
-
----- ROLLBACK---
-
-----`ROLLBACK` is used when an error occurs or when we want to cancel the changes made inside the current transaction.
-
---Example:
-
-
-START TRANSACTION;
-
--- SQL operations
-
-ROLLBACK;
-----------------------------------------------------------------
-
---In this case, all changes made after `START TRANSACTION` are undone, as long as they have not been committed.
-
------ Important Note----
-
----`COMMIT` makes the changes permanent, while `ROLLBACK` cancels the uncommitted changes.
-
---The transaction ensures that related operations can be treated as one unit, which helps maintain data consistency.
-
---------------------------------------------------------------------------------------------------------
 
 -- ============================================
---========= STORED PROCEDURES======
+-- ROLLBACK
 -- ============================================
 
---In this project, three Stored Procedures were created:
+-- ROLLBACK is used when an error occurs
+-- or when we want to cancel changes made
+-- inside the current transaction.
+--
+-- All changes made after START TRANSACTION
+-- are undone as long as they have not been committed.
+--
+-- COMMIT makes the changes permanent.
+-- ROLLBACK cancels the uncommitted changes.
+--
+-- Transactions ensure that related operations
+-- can be treated as one logical unit,
+-- which helps maintain data consistency.
 
---1.`create_shipment`
---2.`assign_delivery`
---3.`complete_delivery`
 
---=====================================================
---- 1. create_shipment=================================
+-- ============================================
+-- STORED PROCEDURES
+-- ============================================
+
+-- In this project, three Stored Procedures are created:
+--
+-- 1. create_shipment
+-- 2. assign_delivery
+-- 3. complete_delivery
+
+
+-- ============================================
+-- 1. create_shipment
+-- ============================================
+
+DROP PROCEDURE IF EXISTS create_shipment;
 
 DELIMITER //
 
@@ -1524,6 +1527,8 @@ CREATE PROCEDURE create_shipment(
     IN p_expected_delivery_date DATE
 )
 BEGIN
+
+    DECLARE v_shipment_id INT;
 
     INSERT INTO shipments (
         tracking_number,
@@ -1556,6 +1561,8 @@ BEGIN
         p_expected_delivery_date
     );
 
+    SET v_shipment_id = LAST_INSERT_ID();
+
     INSERT INTO shipment_tracking (
         shipment_id,
         branch_id,
@@ -1564,7 +1571,7 @@ BEGIN
         recorded_at
     )
     VALUES (
-        LAST_INSERT_ID(),
+        v_shipment_id,
         p_origin_branch_id,
         'created',
         'Shipment created',
@@ -1574,10 +1581,11 @@ BEGIN
 END //
 
 DELIMITER ;
-```
 
----- Test-----
 
+-- ============================================
+-- TEST create_shipment
+-- ============================================
 
 CALL create_shipment(
     'TRK100063',
@@ -1596,41 +1604,40 @@ CALL create_shipment(
 );
 
 
---===========================================
----- 2. assign_delivery =====================
+-- Verify the newly created shipment
+
+SELECT *
+FROM shipments
+WHERE tracking_number = 'TRK100063';
+
+SELECT *
+FROM shipment_tracking
+WHERE shipment_id = (
+    SELECT id
+    FROM shipments
+    WHERE tracking_number = 'TRK100063'
+);
+
+
+-- ============================================
+-- 2. assign_delivery
+-- ============================================
+
+DROP PROCEDURE IF EXISTS assign_delivery;
 
 DELIMITER //
 
-CREATE TRIGGER update_vehicle_status_on_delivery_start
-AFTER UPDATE
-ON deliveries
-FOR EACH ROW
-BEGIN
-    IF NEW.delivery_status = 'in_progress'
-       AND OLD.delivery_status <> 'in_progress' THEN
-
-        UPDATE vehicles
-        SET status = 'in_delivery'
-        WHERE id = NEW.vehicle_id;
-
-    END IF;
-END //
-
-DELIMITER ;
-
-
----=====================================
----3. complete_delivery=================
---========================================
-DELIMITER //
-
-CREATE PROCEDURE complete_delivery(
-    IN p_delivery_id INT
+CREATE PROCEDURE assign_delivery(
+    IN p_shipment_id INT,
+    IN p_driver_id INT,
+    IN p_vehicle_id INT
 )
 BEGIN
-    DECLARE v_shipment_id INT;
-    DECLARE v_vehicle_id INT;
-    DECLARE v_destination_branch_id INT;
+
+    DECLARE v_delivery_exists INT DEFAULT 0;
+    DECLARE v_driver_status VARCHAR(30);
+    DECLARE v_vehicle_status VARCHAR(30);
+    DECLARE v_shipment_status VARCHAR(30);
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -1639,6 +1646,196 @@ BEGIN
     END;
 
     START TRANSACTION;
+
+    -- Check shipment status
+
+    SELECT shipment_status
+    INTO v_shipment_status
+    FROM shipments
+    WHERE id = p_shipment_id;
+
+    IF v_shipment_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Shipment not found';
+    END IF;
+
+    IF v_shipment_status <> 'created' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Shipment is not available for delivery assignment';
+    END IF;
+
+
+    -- Check driver status
+
+    SELECT status
+    INTO v_driver_status
+    FROM drivers
+    WHERE id = p_driver_id;
+
+    IF v_driver_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Driver not found';
+    END IF;
+
+    IF v_driver_status <> 'active' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Driver is not active';
+    END IF;
+
+
+    -- Check vehicle status
+
+    SELECT status
+    INTO v_vehicle_status
+    FROM vehicles
+    WHERE id = p_vehicle_id;
+
+    IF v_vehicle_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Vehicle not found';
+    END IF;
+
+    IF v_vehicle_status <> 'available' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Vehicle is not available';
+    END IF;
+
+
+    -- Check whether this shipment already has a delivery
+
+    SELECT COUNT(*)
+    INTO v_delivery_exists
+    FROM deliveries
+    WHERE shipment_id = p_shipment_id;
+
+    IF v_delivery_exists > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Shipment already has a delivery';
+    END IF;
+
+
+    -- Create delivery
+
+    INSERT INTO deliveries (
+        shipment_id,
+        driver_id,
+        vehicle_id,
+        delivery_status,
+        started_at,
+        completed_at
+    )
+    VALUES (
+        p_shipment_id,
+        p_driver_id,
+        p_vehicle_id,
+        'assigned',
+        NULL,
+        NULL
+    );
+
+
+    -- Update shipment status
+
+    UPDATE shipments
+    SET shipment_status = 'assigned'
+    WHERE id = p_shipment_id;
+
+
+    -- Update vehicle status
+
+    UPDATE vehicles
+    SET status = 'assigned'
+    WHERE id = p_vehicle_id;
+
+
+    -- Add tracking record
+
+    INSERT INTO shipment_tracking (
+        shipment_id,
+        branch_id,
+        status,
+        description,
+        recorded_at
+    )
+    SELECT
+        s.id,
+        s.origin_branch_id,
+        'assigned',
+        'Shipment assigned for delivery',
+        NOW()
+    FROM shipments s
+    WHERE s.id = p_shipment_id;
+
+
+    COMMIT;
+
+END //
+
+DELIMITER ;
+
+
+-- ============================================
+-- TEST assign_delivery
+-- ============================================
+
+-- Example:
+--
+-- CALL assign_delivery(
+--     61,
+--     1,
+--     1
+-- );
+
+
+-- ============================================
+-- 3. complete_delivery
+-- ============================================
+
+DROP PROCEDURE IF EXISTS complete_delivery;
+
+DELIMITER //
+
+CREATE PROCEDURE complete_delivery(
+    IN p_delivery_id INT
+)
+BEGIN
+
+    DECLARE v_shipment_id INT DEFAULT NULL;
+    DECLARE v_vehicle_id INT DEFAULT NULL;
+    DECLARE v_destination_branch_id INT DEFAULT NULL;
+    DECLARE v_delivery_count INT DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+
+    START TRANSACTION;
+
+
+    -- Find the delivery and its shipment
+
+    SELECT COUNT(*)
+    INTO v_delivery_count
+    FROM deliveries d
+    JOIN shipments s
+        ON d.shipment_id = s.id
+    WHERE d.id = p_delivery_id
+      AND d.delivery_status IN ('assigned', 'in_progress');
+
+
+    IF v_delivery_count = 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT =
+        'Delivery is not available for completion';
+
+    END IF;
+
+
+    -- Get the required IDs
 
     SELECT
         d.shipment_id,
@@ -1652,12 +1849,11 @@ BEGIN
     JOIN shipments s
         ON d.shipment_id = s.id
     WHERE d.id = p_delivery_id
-      AND d.delivery_status IN ('assigned', 'in_progress');
+      AND d.delivery_status IN ('assigned', 'in_progress')
+    LIMIT 1;
 
-    IF v_shipment_id IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Delivery is not available for completion';
-    END IF;
+
+    -- Complete delivery
 
     UPDATE deliveries
     SET
@@ -1666,11 +1862,17 @@ BEGIN
         delivery_status = 'completed'
     WHERE id = p_delivery_id;
 
+
+    -- Update shipment
+
     UPDATE shipments
     SET
         shipment_status = 'delivered',
         delivered_at = NOW()
     WHERE id = v_shipment_id;
+
+
+    -- Add tracking record
 
     INSERT INTO shipment_tracking (
         shipment_id,
@@ -1687,14 +1889,59 @@ BEGIN
         NOW()
     );
 
+
+    -- Make vehicle available again
+
     UPDATE vehicles
     SET status = 'available'
     WHERE id = v_vehicle_id;
 
+
     COMMIT;
+
 END //
 
 DELIMITER ;
+
+
+-- ============================================
+-- TEST complete_delivery
+-- ============================================
+
+-- Example:
+--
+-- CALL complete_delivery(1);
+
+
+-- Verify delivery
+
+-- SELECT *
+-- FROM deliveries
+-- WHERE id = 1;
+
+-- Verify shipment
+
+-- SELECT *
+-- FROM shipments
+-- WHERE id = (
+--     SELECT shipment_id
+--     FROM deliveries
+--     WHERE id = 1
+-- );
+
+-- Verify tracking
+
+-- SELECT *
+-- FROM shipment_tracking
+-- WHERE shipment_id = (
+--     SELECT shipment_id
+--     FROM deliveries
+--     WHERE id = 1
+-- );
+
+
+
+
 
 --================================================
              ---=====Triggers======
