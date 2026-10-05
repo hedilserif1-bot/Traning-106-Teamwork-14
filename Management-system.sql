@@ -988,13 +988,14 @@ VALUES
 
 
 -- ============================================
----- views----
+-- VIEWS
 -- ============================================
 
 -- ============================================
--- 1 . active_shipments_view---
+-- 1. active_shipments_view
 -- ============================================
-CREATE VIEW active_shipments_view AS
+
+CREATE OR REPLACE VIEW active_shipments_view AS
 SELECT
     s.id,
     s.tracking_number,
@@ -1017,12 +1018,15 @@ JOIN branches ob
     ON s.origin_branch_id = ob.id
 JOIN branches db
     ON s.destination_branch_id = db.id
-WHERE s.shipment_status NOT IN ('delivered', 'cancelled', 'returned');
+WHERE s.shipment_status NOT IN
+    ('delivered', 'cancelled', 'returned');
+
 
 -- ============================================
----2 . driver_performance_view---
+-- 2. driver_performance_view
 -- ============================================
-CREATE VIEW driver_performance_view AS
+
+CREATE OR REPLACE VIEW driver_performance_view AS
 SELECT
     d.id AS driver_id,
     d.full_name AS driver_name,
@@ -1033,14 +1037,14 @@ SELECT
         SELECT COUNT(*)
         FROM deliveries d2
         WHERE d2.driver_id = d.id
-        AND d2.delivery_status = 'completed'
+          AND d2.delivery_status = 'completed'
     ) AS successful_deliveries,
 
     (
         SELECT COUNT(*)
         FROM deliveries d3
         WHERE d3.driver_id = d.id
-        AND d3.delivery_status <> 'completed'
+          AND d3.delivery_status <> 'completed'
     ) AS unsuccessful_deliveries,
 
     (
@@ -1058,17 +1062,19 @@ SELECT
     ) AS last_delivery
 
 FROM drivers d
-
 LEFT JOIN deliveries del
     ON d.id = del.driver_id
 
 GROUP BY
     d.id,
     d.full_name;
+
+
 -- ============================================
---3 . customer_statistics_view---
+-- 3. customer_statistics_view
 -- ============================================
-CREATE VIEW customer_statistics_view AS
+
+CREATE OR REPLACE VIEW customer_statistics_view AS
 SELECT
     c.id AS customer_id,
     c.full_name AS customer_name,
@@ -1085,14 +1091,14 @@ SELECT
         SELECT COUNT(*)
         FROM shipments s2
         WHERE s2.customer_id = c.id
-        AND s2.shipment_status = 'delivered'
+          AND s2.shipment_status = 'delivered'
     ) AS completed_shipments,
 
     (
         SELECT COUNT(*)
         FROM shipments s3
         WHERE s3.customer_id = c.id
-        AND s3.shipment_status = 'cancelled'
+          AND s3.shipment_status = 'cancelled'
     ) AS cancelled_shipments,
 
     (
@@ -1102,7 +1108,6 @@ SELECT
     ) AS last_shipment
 
 FROM customers c
-
 LEFT JOIN shipments s
     ON c.id = s.customer_id
 
@@ -1115,185 +1120,232 @@ GROUP BY
     c.city;
 
 
-  ---------- Indexes------------
-           --EXPLAIN--
+-- ============================================
+-- INDEXES
+-- ============================================
+
+
 -- ============================================
 -- 1. tracking_number
 -- ============================================
-CREATE INDEX idx_shipments_tracking_number
-ON shipments(tracking_number);
 
---------------------------------ا   اشرح متى يمكن أن يصبح وجود Index إضافي غير مفيد أو مكلف.
---tracking_number لديه Unique Index أصلًا → إنشاء Index عادي إضافي عليه غير ضروري.-------
+-- tracking_number is already UNIQUE.
+-- Therefore MySQL already has a UNIQUE INDEX on this column.
+-- Creating another normal index would be redundant and unnecessary.
 
+EXPLAIN
+SELECT *
+FROM shipments
+WHERE tracking_number = 'TRK-100001';
 
---The index already exists because tracking_number is UNIQUE.
+-- Expected:
+-- type = const
+-- key = tracking_number
+-- rows = 1
 
---EXPLAIN:
---type = const
---key = tracking_number
---rows = 1
-
---Conclusion:
---The existing UNIQUE index is already used by MySQL,
---so no additional index was created.
-
+-- Conclusion:
+-- The existing UNIQUE index is sufficient.
+-- No additional index is required.
 
 
 -- ============================================
 -- 2. customer_id
 -- ============================================
-CREATE INDEX idx_shipments_customer_id
-ON shipments(customer_id);
 
-------------------------
+-- customer_id is a FOREIGN KEY.
+-- In InnoDB, MySQL automatically creates an index
+-- if a suitable index does not already exist.
+-- Therefore, an additional index is unnecessary.
 
+EXPLAIN
+SELECT *
+FROM shipments
+WHERE customer_id = 1;
 
---The index already exists on customer_id.
+-- Expected:
+-- type = ref
+-- key = customer_id
+-- rows = approximately the number of matching shipments
 
---EXPLAIN:
---type = ref
---key = customer_id
---rows = 3
-
---Conclusion:
---The existing index is already used by MySQL,
---so no additional index was created.
+-- Conclusion:
+-- The existing index is sufficient.
+-- No additional index is required.
 
 
 -- ============================================
---3. shipment_status
+-- 3. shipment_status
 -- ============================================
 
 CREATE INDEX idx_shipments_status
 ON shipments(shipment_status);
-----------------------
 
+EXPLAIN
+SELECT *
+FROM shipments
+WHERE shipment_status = 'delivered';
 
---Before Index:
---type = ALL, key = NULL, rows = 60
+-- Before Index:
+-- type = ALL
+-- key = NULL
+-- rows = 60
 
---After Index:
---type = ref, key = idx_shipments_status, rows = 30
+-- After Index:
+-- type = ref
+-- key = idx_shipments_status
+-- rows = approximately the number of matching rows
 
---Conclusion:
---The index on shipment_status improved the search by allowing MySQL
---to use the index instead of scanning the entire table.
+-- Conclusion:
+-- The index can help MySQL locate shipments
+-- with a specific status without scanning the entire table.
 
 
 -- ============================================
 -- 4. created_at
 -- ============================================
+
 CREATE INDEX idx_shipments_created_at
 ON shipments(created_at);
 
--------
----Before Index:
----type = ALL
---key = NULL
---rows = 60
+EXPLAIN
+SELECT *
+FROM shipments
+WHERE created_at >= '2026-02-01';
 
---After Index:
---type = ALL
---key = NULL
---rows = 60
+-- On a small table, MySQL may still choose:
+-- type = ALL
+-- key = NULL
 
---Conclusion:
---The index on created_at exists, but MySQL did not use it for this query.
---Because the table is small and the condition may match many rows,
----a full table scan can be considered more efficient.
+-- This does NOT mean the index is broken.
+-- MySQL may consider a full table scan cheaper
+-- when the table is small or the condition matches many rows.
 
+-- Conclusion:
+-- The index can become useful as the table grows
+-- or when the query filters a smaller range of dates.
 
 
 -- ============================================
 -- 5. expected_delivery_date
 -- ============================================
+
 CREATE INDEX idx_shipments_expected_delivery
 ON shipments(expected_delivery_date);
 
------------------
----Before Index:
----type = ALL
----possible_keys = NULL
----key = NULL
----rows = 60
+EXPLAIN
+SELECT *
+FROM shipments
+WHERE expected_delivery_date <= '2026-03-01';
 
----After Index:
----type = ALL
----possible_keys = idx_shipments_expected_delivery
----key = NULL
----rows = 60
+-- MySQL may choose:
+-- type = ALL
+-- key = NULL
+-- even though the index exists.
 
----Conclusion:
----The index exists and is considered as a possible key,
----but MySQL chose not to use it for this query.
+-- possible_keys may show:
+-- idx_shipments_expected_delivery
+
+-- Conclusion:
+-- The index exists and is available,
+-- but MySQL may choose a full table scan
+-- if it estimates that it is more efficient.
 
 
 -- ============================================
 -- 6. driver_id
 -- ============================================
-CREATE INDEX idx_deliveries_driver_id
-ON deliveries(driver_id);
---------
----Before creating new Index:
----Index already exists on driver_id.
 
----EXPLAIN:
----type = ref
---key = driver_id
---rows = 2
+-- driver_id is a FOREIGN KEY.
+-- MySQL already has a suitable index for the FK
+-- if one was not previously created.
+-- Therefore, an additional index is unnecessary.
 
----Conclusion:
----The existing index on driver_id is already being used,
----so creating another index would be redundant.
+EXPLAIN
+SELECT *
+FROM deliveries
+WHERE driver_id = 1;
+
+-- Expected:
+-- type = ref
+-- key = driver_id
+
+-- Conclusion:
+-- The existing index is sufficient.
+-- No additional index is required.
 
 
 -- ============================================
 -- 7. payment_date
 -- ============================================
+
 CREATE INDEX idx_payments_payment_date
 ON payments(payment_date);
-----------
---Before Index:
---type = ALL
---possible_keys = NULL
---key = NULL
----rows = 40
 
---After Index:
---type = ALL
---possible_keys = idx_payments_payment_date
---key = NULL
---rows = 40
+EXPLAIN
+SELECT *
+FROM payments
+WHERE payment_date >= '2026-02-01';
 
---Conclusion:
---The index on payment_date exists, but MySQL chose not to use it
---for this query because a full table scan was considered more suitable.
+-- On the current small table MySQL may choose:
+-- type = ALL
+-- key = NULL
 
+-- Conclusion:
+-- The index exists, but MySQL may prefer
+-- a full table scan because the payments table is small.
+-- The index can become more useful as the table grows
+-- or when the query selects a smaller date range.
 
 
--- ===========================================
-----------***TRANSACTION***----------
+-- ============================================
+-- WHEN CAN AN EXTRA INDEX BECOME USELESS OR COSTLY?
 -- ============================================
 
+-- An additional index may be unnecessary when:
+-- 1. The column already has a UNIQUE index.
+-- 2. The column is already indexed because of a FOREIGN KEY.
+-- 3. Another existing index already supports the same query.
+--
+-- An index also has a cost:
+-- 1. It consumes additional disk/storage space.
+-- 2. INSERT operations become slightly more expensive.
+-- 3. UPDATE operations become more expensive when indexed
+--    columns are modified.
+-- 4. DELETE operations also require index maintenance.
+-- 5. Too many indexes can make the optimizer's choices
+--    more complicated.
+--
+-- Therefore, indexes should be added based on real queries
+-- and performance requirements, not simply added to every column.
 
 
---Transactions are used to group multiple SQL operations into one logical unit.
+-- ============================================
+-- TRANSACTION
+-- ============================================
 
---The main commands are:
+-- A transaction groups multiple SQL operations
+-- into one logical unit.
 
---- `START TRANSACTION` → starts the transaction.
-----`COMMIT` → permanently saves all changes made during the transaction.
---- `ROLLBACK` → cancels the changes made during the transaction.
+-- START TRANSACTION:
+-- Starts the transaction.
 
--- Example: Create Shipment with Tracking and Payment
+-- COMMIT:
+-- Permanently saves all changes.
 
----The following transaction creates a new shipment, adds its first tracking record, and records its payment as one logical operation.
+-- ROLLBACK:
+-- Cancels all changes made during the transaction.
 
+
+-- ============================================
+-- Example: Create Shipment + Tracking + Payment
+-- ============================================
 
 START TRANSACTION;
 
-INSERT INTO shipments (
+
+-- 1. Create a new shipment
+
+INSERT INTO shipments
+(
     tracking_number,
     customer_id,
     origin_branch_id,
@@ -1306,46 +1358,59 @@ INSERT INTO shipments (
     receiver_city,
     weight,
     shipping_cost,
-    created_at,
     expected_delivery_date,
     payment_status,
     shipment_status
 )
-VALUES (
-    'TRK100061',
+VALUES
+(
+    CONCAT('TRX-', UUID_SHORT()),
     1,
     1,
     2,
     'Ahmad Hassan',
     '0501000001',
-    'Sara Hassan',
-    '0505000001',
-    'Besiktas',
+    'Sara Omar',
+    '0501000002',
+    'Kadikoy, Istanbul',
     'Istanbul',
-    2.50,
-    180.00,
-    NOW(),
-    '2026-10-05',
-    'paid',
+    5.00,
+    200.00,
+    '2026-10-15',
+    'pending',
     'created'
 );
 
-INSERT INTO shipment_tracking (
+
+-- Save the new shipment ID
+
+SET @new_shipment_id = LAST_INSERT_ID();
+
+
+-- 2. Add the first tracking record
+
+INSERT INTO shipment_tracking
+(
     shipment_id,
     branch_id,
     status,
     description,
     recorded_at
 )
-VALUES (
-    61,
+VALUES
+(
+    @new_shipment_id,
     1,
     'created',
-    'Shipment created',
+    'Shipment created successfully',
     NOW()
 );
 
-INSERT INTO payments (
+
+-- 3. Record the payment
+
+INSERT INTO payments
+(
     shipment_id,
     amount,
     payment_method,
@@ -1353,18 +1418,31 @@ INSERT INTO payments (
     transaction_reference,
     status
 )
-VALUES (
-    61,
-    180.00,
-    'cash',
+VALUES
+(
+    @new_shipment_id,
+    200.00,
+    'card',
     NOW(),
-    'TXN100061',
+    CONCAT('PAY-', UUID_SHORT()),
     'successful'
 );
 
+
+-- 4. Save all operations
+
 COMMIT;
 
--------------------------------------------------
+
+-- ============================================
+-- ROLLBACK EXAMPLE
+-- ============================================
+
+-- If a problem occurs before COMMIT,
+-- use:
+
+-- ROLLBACK;
+
 
 --After the transaction, the inserted data was verified in all three tables:
 
@@ -1380,7 +1458,7 @@ WHERE shipment_id = 61;
 SELECT *
 FROM payments
 WHERE shipment_id = 61;
-```
+
 
 ---Result----
 
