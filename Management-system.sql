@@ -3034,156 +3034,189 @@ WHERE s.weight > v.max_weight;
 -- 0 rows
 
 
+
+-- ============================================================================
+-- ========================= NORMALIZATION ================================
+-- ============================================================================
+
+
+-- 1. FUNCTIONAL DEPENDENCIES
+-- ============================================================================
+
+-- Functional dependencies describe how one attribute determines
+-- other attributes in the database.
+--
+-- Examples from the Logistics & Delivery Management System:
+--
+-- customer_id → full_name, email, phone, customer_type, city,
+--                address, registered_at, status
+--
+-- branch_id → branch_name, city, address, phone, manager_name,
+--              opened_at, status
+--
+-- employee_id → branch_id, full_name, email, phone, job_title,
+--               salary, hire_date, status
+--
+-- driver_id → branch_id, full_name, phone, license_number,
+--              license_expiry_date, hire_date, salary, status
+--
+-- vehicle_id → branch_id, plate_number, vehicle_type, model,
+--              manufacture_year, max_weight, status
+--
+-- shipment_id → tracking_number, customer_id, origin_branch_id,
+--                destination_branch_id, sender_name, sender_phone,
+--                receiver_name, receiver_phone, receiver_address,
+--                receiver_city, weight, shipping_cost, created_at,
+--                expected_delivery_date, delivered_at, payment_status,
+--                shipment_status
+--
+-- delivery_id → shipment_id, driver_id, vehicle_id, assigned_at,
+--               started_at, completed_at, delivery_status, notes
+--
+-- payment_id → shipment_id, amount, payment_method, payment_date,
+--              transaction_reference, status
+--
+-- These dependencies show that each entity's primary key
+-- determines the attributes belonging to that entity.
+
+
+
+-- 2. FIRST NORMAL FORM (1NF)
+-- ============================================================================
+
+-- The database satisfies First Normal Form because:
+--
+-- • Each table has a primary key.
+-- • Each column contains atomic values.
+-- • There are no repeating groups.
+-- • Multiple values are not stored in a single column.
+-- • Each row represents one specific entity or transaction.
+--
+-- For example:
+-- Customer phone numbers are stored as individual values
+-- rather than as a comma-separated list.
+--
+-- Therefore, the database satisfies 1NF.
+
+
+
+-- 3. SECOND NORMAL FORM (2NF)
+-- ============================================================================
+
+-- The database satisfies Second Normal Form because:
+--
+-- • It already satisfies 1NF.
+-- • The main tables use single-column primary keys such as
+--   customer_id, shipment_id, employee_id, and vehicle_id.
+-- • There are no partial dependencies where a non-key attribute
+--   depends only on part of a composite primary key.
+--
+-- Therefore, non-key attributes depend on the complete primary key
+-- of their table.
+--
+-- The database satisfies 2NF.
+
+
+
+-- 4. THIRD NORMAL FORM (3NF)
+-- ============================================================================
+
+-- The database satisfies Third Normal Form because:
+--
+-- • It satisfies 2NF.
+-- • Non-key attributes depend on the primary key of their own table.
+-- • Attributes belonging to another entity are stored in that entity's
+--   table instead of being duplicated.
+--
+-- For example:
+-- The employees table does not store branch_name or branch_city.
+--
+-- This prevents the following transitive dependency:
+--
+-- employee_id → branch_id → branch_name
+--
+-- Instead, branch_name is determined by branch_id
+-- in the branches table.
+--
+-- Therefore, the database satisfies 3NF.
+
+
+
+-- 5. TRANSITIVE DEPENDENCIES
+-- ============================================================================
+
+-- A transitive dependency occurs when:
+--
+-- A → B
+-- B → C
+--
+-- which means:
+--
+-- A → C
+--
+-- In this system, branch information could create a transitive
+-- dependency if it were stored inside the employees table.
+--
+-- For example:
+--
+-- employee_id → branch_id
+-- branch_id → branch_name
+--
+-- Instead of storing branch_name in employees,
+-- the system stores only:
+--
+-- branch_id
+--
+-- Branch information is retrieved through the relationship
+-- with the branches table.
+--
+-- This reduces data duplication and prevents update anomalies.
+
+
+
+-- 6. PROPOSED CHANGES
+-- ============================================================================
+
+-- The current database design is already largely normalized to 3NF.
+--
+-- The main normalization decisions are:
+--
+-- • Store customers separately from shipments.
+-- • Store branches separately from employees, drivers, and vehicles.
+-- • Store shipments separately from deliveries.
+-- • Store payments separately from shipments.
+-- • Store shipment movement history separately in shipment_tracking.
+-- • Use foreign keys instead of duplicating complete entity information.
+-- • Avoid storing calculated or repeated entity information unnecessarily.
+--
+-- No major structural changes are required to achieve 3NF.
+
+
+
+-- 7. WHEN DENORMALIZATION CAN BE ACCEPTABLE
 --============================================================================
-              --================ Normalization==================
---=============================================================================
+
+-- Denormalization may be acceptable when performance becomes
+-- more important than minimizing data duplication.
+--
+-- For example:
+-- A frequently used reporting system might store a pre-calculated
+-- summary such as customer_total_spending instead of calculating
+-- it from all payment records every time.
+--
+-- However, denormalization should only be introduced when there is
+-- a clear performance or reporting requirement.
+--
+-- The current system prioritizes data consistency and normalization,
+-- while indexes, views, and optimized queries are used to improve
+-- performance without unnecessary duplication.
 
 
---- 1. Functional Dependencies====
-
-Functional dependencies describe how one attribute determines other attributes in the database.
-
-Examples from the Logistics & Delivery Management System:
-
-- `customer_id → full_name, email, phone, customer_type, city, address, registered_at, status`
-- `branch_id → branch_name, city, address, phone, manager_name, opened_at, status`
-- `employee_id → branch_id, full_name, email, phone, job_title, salary, hire_date, status`
-- `driver_id → branch_id, full_name, phone, license_number, license_expiry_date, hire_date, salary, status`
-- `vehicle_id → branch_id, plate_number, vehicle_type, model, manufacture_year, max_weight, status`
-- `shipment_id → tracking_number, customer_id, origin_branch_id, destination_branch_id, sender_name, sender_phone, receiver_name, receiver_phone, receiver_address, receiver_city, weight, shipping_cost, created_at, expected_delivery_date, delivered_at, payment_status, shipment_status`
-- `delivery_id → shipment_id, driver_id, vehicle_id, assigned_at, started_at, completed_at, delivery_status, notes`
-- `payment_id → shipment_id, amount, payment_method, payment_date, transaction_reference, status`
-
-These dependencies show that each entity's primary key determines the attributes belonging to that entity.
-
-
-
----2. First Normal Form (1NF)
-
-The database satisfies First Normal Form because:
-
-- Each table has a primary key.
-- Each column contains atomic values.
-- There are no repeating groups.
-- Multiple values are not stored in a single column.
-- Each row represents one specific entity or transaction.
-
-For example, customer phone numbers are stored as individual values rather than a comma-separated list.
-
-Therefore, the database satisfies **1NF**.
-
-
-
----3. Second Normal Form (2NF)
-
-The database satisfies Second Normal Form because:
-
-- It already satisfies 1NF.
-- The main tables use a single-column primary key such as `customer_id`, `shipment_id`, `employee_id`, and `vehicle_id`.
-- There are no partial dependencies where a non-key attribute depends only on part of a composite primary key.
-
-Therefore, non-key attributes depend on the complete primary key of their table.
-
-The database satisfies **2NF**.
-
----
---- 4. Third Normal Form (3NF)
-
-The database satisfies Third Normal Form because:
-
-- It satisfies 2NF.
-- Non-key attributes depend on the primary key of their own table.
-- Attributes belonging to another entity are stored in that entity's table instead of being duplicated.
-
-
-The `employees` table does not store `branch_name` or `branch_city`.
-
-This prevents the following transitive dependency:
-
-```text
-employee_id → branch_id → branch_name
-```
-
-Instead, `branch_name` is determined by `branch_id` in the `branches` table.
-
-Therefore, the database satisfies **3NF**.
-
----
-
---- 5. Transitive Dependencies
-
-A transitive dependency occurs when:
-
-```text
-A → B
-B → C
-```
-
-which means:
-
-```text
-A → C
-```
-
-In this system, branch information could create a transitive dependency if it were stored inside the `employees` table.
-
-For example:
-
-```text
-employee_id → branch_id
-branch_id → branch_name
-```
-
-Instead of storing `branch_name` in `employees`, the system stores only:
-
-```text
-branch_id
-```
-
-and retrieves branch information through the relationship with the `branches` table.
-
-This reduces data duplication and prevents update anomalies.
-
----
-
------ 6. Proposed Changes
-
-The current database design is already largely normalized to 3NF.
-
-The main normalization decisions are:
-
-- Store customers separately from shipments.
-- Store branches separately from employees, drivers, and vehicles.
-- Store shipments separately from deliveries.
-- Store payments separately from shipments.
-- Store shipment movement history separately in `shipment_tracking`.
-- Use foreign keys instead of duplicating complete entity information.
-- Avoid storing calculated or repeated entity information unnecessarily.
-
-No major structural changes are required to achieve 3NF.
-
----
-
----- 7. When Denormalization Can Be Acceptable
-
-Denormalization may be acceptable when performance becomes more important than minimizing data duplication.
-
-For example, a frequently used reporting system might store a pre-calculated summary such as:
-
-```text
-customer_total_spending
-```
-
-instead of calculating it from all payment records every time.
-
-However, denormalization should only be introduced when there is a clear performance or reporting requirement.
-
-The current system prioritizes data consistency and normalization, while indexes, views, and optimized queries are used to improve performance without unnecessary duplication.
-
-
---==============================================================================================
-                    --=================== Queries — 1 to 40================
+-- ==============================================================================================
+                    -- =================== Queries — 1 to 40 ================
 -- =============================================================================================
+
+    
 -- Query 1
 -- عرض جميع الشحنات مع اسم العميل وفرع الإرسال وفرع الاستلام
 -- =====================================================
@@ -3941,246 +3974,222 @@ HAVING total_spending > (
         GROUP BY c2.id
     ) AS spending_table
 );
--------=================================================================================
-         ---------------------FINAL END-TO-END TEST-----------------------------
---=====================================================================================
 
 
-The final end-to-end test validates the complete logistics workflow from customer creation to successful shipment delivery.
 
--- Test Flow
 
-Customer
-   ↓
-Shipment
-   ↓
-Payment
-   ↓
-Initial Tracking
-   ↓
-Driver + Vehicle Assignment
-   ↓
-Delivery Started
-   ↓
-In-Transit Tracking
-   ↓
-Delivery Completed
-   ↓
-Final Delivered Tracking
-```
 
----
-
- 1. Create Customer
-
-A new customer was created specifically for the final system test.
-
-The customer was successfully inserted into the `customers` table with an active status.
-
----
-
- 2. Create Shipment
-
-A new shipment was created using the `create_shipment` stored procedure.
-
-The procedure successfully:
-
-- Created the shipment.
-- Generated the shipment ID.
-- Created the first tracking record.
-- Set the initial shipment status to `created`.
-
-Test tracking number:
-
-FINALTEST001
-
-
----
- 3. Create Payment
-
-A successful payment was created for the test shipment.
-
-The payment was correctly linked to the shipment through `shipment_id`.
-
-The payment status was:
-
-
-successful
-
-The payment amount matched the shipment shipping cost.
-
----
-
- 4. Initial Shipment Tracking
-
-The first tracking record was created with status:
-
-
-created
-
-
-This confirmed that every newly created shipment can have an initial movement record.
-
-
-
- 5. Assign Driver and Vehicle
-
-The shipment was assigned to:
-
-- An active driver.
-- An available vehicle.
-- A vehicle with sufficient weight capacity.
-
-The `assign_delivery` stored procedure successfully created the delivery with status:
-
-
-assigned
-
-
-The vehicle remained:
-
-
-available
-
-
-until the delivery actually started.
-
----
-
- 6. Start Delivery
-
-The delivery status was changed from:
-
-
-assigned
-
-
-to:
-in_progress
-
-
-The corresponding trigger automatically changed the vehicle status from:
-
-
-available
-
-to:
-
-
-in_delivery
-
-
-This confirmed that the vehicle-status trigger works correctly.
-
----
-
- 7. Add In-Transit Tracking
-
-A new tracking record was inserted with status:
-
-
-in_transit
-
-
-The tracking trigger automatically updated the shipment status to:
-
-
-in_transit
-
-
-This confirmed that shipment status remains synchronized with shipment movement history.
-
----
- 8. Complete Delivery
-
-The `complete_delivery` stored procedure was executed successfully.
-
-The procedure completed the delivery transaction and:
-
-- Set the delivery status to `completed`.
-- Updated the shipment status to `delivered`.
-- Set `delivered_at`.
-- Added a final `delivered` tracking record.
-- Returned the vehicle to `available`.
-- Used transaction handling to protect the operation from partial updates.
-
----
-
-9. Final Tracking History
-
-The final tracking history contained the expected movement sequence:
-
-
-created
-in_transit
-delivered
-
-
-This confirms that the system preserves the complete shipment movement history.
-
----
-
- 10. Final Verification
-
-The final state was verified across the related tables.
-
- Shipment
-
-
-shipment_status = delivered
-delivered_at IS NOT NULL
-payment_status = paid
-
-    
- Payment
-
-status = successful
-
-
- Delivery
-
-
-delivery_status = completed
-completed_at IS NOT NULL
-
-
- Vehicle
-
-
-status = available
-
- Tracking
-
-
-created → in_transit → delivered
-
-
-The relationships between customer, shipment, payment, delivery, driver, vehicle, and tracking records were verified successfully.
-
-No orphan records were introduced during the final test.
-
----
-
-**Final Result
-
-The Logistics & Delivery Management System successfully completed the complete end-to-end workflow:
-
-
-Customer
-→ Shipment
-→ Payment
-→ Tracking
-→ Driver Assignment
-→ Vehicle Assignment
-→ Delivery Start
-→ In Transit
-→ Delivery Completion
-→ Final Tracking
-```
-
-The final shipment state, payment, delivery, vehicle status, and tracking history were all verified successfully.
-
-
+-- =================================================================================
+--                         FINAL END-TO-END TEST
+-- =================================================================================
+--
+-- The final end-to-end test validates the complete logistics workflow
+-- from customer creation to successful shipment delivery.
+--
+-- Test Flow:
+--
+-- Customer
+--     ↓
+-- Shipment
+--     ↓
+-- Payment
+--     ↓
+-- Initial Tracking
+--     ↓
+-- Driver + Vehicle Assignment
+--     ↓
+-- Delivery Started
+--     ↓
+-- In-Transit Tracking
+--     ↓
+-- Delivery Completed
+--     ↓
+-- Final Delivered Tracking
+--
+-- =================================================================================
+
+
+-- 1. CREATE CUSTOMER
+-- ---------------------------------------------------------------------------------
+--
+-- A new customer was created specifically for the final system test.
+--
+-- The customer was successfully inserted into the customers table
+-- with an active status.
+--
+-- =================================================================================
+
+
+-- 2. CREATE SHIPMENT
+-- ---------------------------------------------------------------------------------
+--
+-- A new shipment was created using the create_shipment stored procedure.
+--
+-- The procedure successfully:
+-- - Created the shipment.
+-- - Generated the shipment ID.
+-- - Created the first tracking record.
+-- - Set the initial shipment status to 'created'.
+--
+-- Test tracking number:
+-- FINALTEST001
+--
+-- =================================================================================
+
+
+-- 3. CREATE PAYMENT
+-- ---------------------------------------------------------------------------------
+--
+-- A successful payment was created for the test shipment.
+--
+-- The payment was correctly linked to the shipment through shipment_id.
+--
+-- Payment status:
+-- successful
+--
+-- The payment amount matched the shipment shipping cost.
+--
+-- =================================================================================
+
+
+-- 4. INITIAL SHIPMENT TRACKING
+-- ---------------------------------------------------------------------------------
+--
+-- The first tracking record was automatically created by the
+-- create_shipment stored procedure with status 'created'.
+--
+-- This confirmed that every newly created shipment receives
+-- an initial tracking record.
+--
+-- =================================================================================
+
+
+-- 5. ASSIGN DRIVER AND VEHICLE
+-- ---------------------------------------------------------------------------------
+--
+-- The shipment was assigned to:
+-- - An active driver.
+-- - An available vehicle.
+-- - A vehicle with sufficient weight capacity.
+--
+-- The assign_delivery stored procedure successfully created
+-- the delivery with status 'assigned'.
+--
+-- The vehicle status was changed to 'assigned'.
+--
+-- =================================================================================
+
+
+-- 6. START DELIVERY
+-- ---------------------------------------------------------------------------------
+--
+-- The delivery status was changed from 'assigned' to 'in_progress'.
+--
+-- The corresponding trigger automatically changed the vehicle status
+-- from 'assigned' to 'in_delivery'.
+--
+-- This confirmed that the vehicle-status trigger works correctly.
+--
+-- =================================================================================
+
+
+-- 7. ADD IN-TRANSIT TRACKING
+-- ---------------------------------------------------------------------------------
+--
+-- A new tracking record was inserted with status 'in_transit'.
+--
+-- The tracking trigger automatically updated the shipment status
+-- to 'in_transit'.
+--
+-- This confirmed that the shipment status remains synchronized
+-- with shipment movement history.
+--
+-- =================================================================================
+
+
+-- 8. COMPLETE DELIVERY
+-- ---------------------------------------------------------------------------------
+--
+-- The complete_delivery stored procedure was executed successfully.
+--
+-- The procedure completed the delivery transaction and:
+-- - Set the delivery status to 'completed'.
+-- - Updated the shipment status to 'delivered'.
+-- - Set delivered_at.
+-- - Added a final 'delivered' tracking record.
+-- - Returned the vehicle to 'available'.
+-- - Used transaction handling to protect the operation from partial updates.
+--
+-- =================================================================================
+
+
+-- 9. FINAL TRACKING HISTORY
+-- ---------------------------------------------------------------------------------
+--
+-- The final tracking history contained the expected movement sequence:
+--
+-- created
+-- in_transit
+-- delivered
+--
+-- This confirms that the system preserves the complete shipment
+-- movement history.
+--
+-- =================================================================================
+
+
+-- 10. FINAL VERIFICATION
+-- ---------------------------------------------------------------------------------
+--
+-- The final state was verified across the related tables.
+--
+-- Shipment:
+-- shipment_status = delivered
+-- delivered_at IS NOT NULL
+-- payment_status = paid
+--
+-- Payment:
+-- status = successful
+--
+-- Delivery:
+-- delivery_status = completed
+-- completed_at IS NOT NULL
+--
+-- Vehicle:
+-- status = available
+--
+-- Tracking:
+-- created → in_transit → delivered
+--
+-- The relationships between customer, shipment, payment, delivery,
+-- driver, vehicle, and tracking records were verified successfully.
+--
+-- No orphan records were introduced during the final test.
+--
+-- =================================================================================
+
+
+-- FINAL RESULT
+-- =================================================================================
+--
+-- The Logistics & Delivery Management System successfully completed
+-- the complete end-to-end workflow:
+--
+-- Customer
+-- → Shipment
+-- → Payment
+-- → Tracking
+-- → Driver Assignment
+-- → Vehicle Assignment
+-- → Delivery Start
+-- → In Transit
+-- → Delivery Completion
+-- → Final Tracking
+--
+-- The final shipment state, payment, delivery, vehicle status,
+-- and tracking history were all verified successfully.
+--
+-- =================================================================================
 
 
 
