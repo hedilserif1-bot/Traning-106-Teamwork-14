@@ -2313,7 +2313,7 @@ FROM payments
 WHERE amount <= 0;
 
 
-------Result:** Empty result.
+------Result: Empty result.
 
 ------- 9. Invalid Shipping Costs--------------
 
@@ -2325,7 +2325,7 @@ FROM shipments
 WHERE shipping_cost <= 0;
 
 
-----Result:** Empty result.
+----Result: Empty result.
 
 ------ 10. Shipments With Multiple Deliveries--------
 
@@ -2338,17 +2338,804 @@ GROUP BY shipment_id
 HAVING COUNT(*) > 1;
 
 
-----Result:** The query was used to identify shipments with more than one delivery record.
+----Result: The query was used to identify shipments with more than one delivery record.
+
+--============================================================================
+              --================ Normalization==================
+--=============================================================================
+
+Normalization is the process of organizing database tables to reduce data duplication and prevent data anomalies.
+
+## 1NF — First Normal Form
+
+A table is in 1NF when each column contains atomic values, meaning each cell contains a single value.
+
+For example, storing multiple phone numbers in one column would violate 1NF.
+
+In the Logistics & Delivery Management System, values such as customer phone, receiver phone, shipment weight, and shipping cost are stored separately in their own columns.
+
+## 2NF — Second Normal Form
+
+A table is in 2NF when:
+
+- It is already in 1NF.
+- Every non-key column depends on the entire primary key.
+
+Partial dependency mainly occurs when a table has a composite primary key.
+
+In this project, most tables use a single-column primary key such as `id`, so partial dependency is not an issue.
+
+For example:
+
+- `customers.id` identifies the customer.
+- `branches.id` identifies the branch.
+- `shipments.id` identifies the shipment.
+- `deliveries.id` identifies the delivery.
+
+## 3NF — Third Normal Form
+
+A table is in 3NF when:
+
+- It is already in 2NF.
+- Non-key columns do not depend on other non-key columns.
+
+For example, employee information is stored in the `employees` table, while branch information is stored in the `branches` table.
+
+The employee table contains `branch_id` as a foreign key instead of repeating the branch city, address, and phone for every employee.
+
+Similarly, shipments store `customer_id` instead of repeating the customer's full information for every shipment.
+
+## Benefits of Normalization
+
+Normalization helps the database to:
+
+- Reduce duplicate data.
+- Prevent update anomalies.
+- Prevent insert anomalies.
+- Prevent delete anomalies.
+- Improve data consistency.
+- Make the database easier to maintain.
+
+The Logistics & Delivery Management System follows the main principles of 1NF, 2NF, and 3NF by separating customers, branches, employees, drivers, vehicles, shipments, deliveries, payments, and tracking into related tables using primary and foreign keys.
+
+--==============================================================================================
+                    --=================== Queries — 1 to 40================
+
+--===================================================================================================
+
+-- =====================================================
+-- Query 1
+-- عرض جميع الشحنات مع اسم العميل وفرع الإرسال وفرع الاستلام
+-- =====================================================
+
+SELECT
+    s.id,
+    s.tracking_number,
+    c.full_name AS customer_name,
+    ob.branch_name AS origin_branch,
+    db.branch_name AS destination_branch,
+    s.shipping_cost,
+    s.shipment_status
+FROM shipments s
+JOIN customers c
+    ON s.customer_id = c.id
+JOIN branches ob
+    ON s.origin_branch_id = ob.id
+JOIN branches db
+    ON s.destination_branch_id = db.id;
 
 
+-- =====================================================
+-- Query 2
+-- عرض الشحنات التي لم يتم تسليمها حتى الآن
+-- =====================================================
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipment_status,
+    expected_delivery_date
+FROM shipments
+WHERE shipment_status <> 'delivered';
 
 
+-- =====================================================
+-- Query 3
+-- عرض الشحنات التي تجاوزت expected_delivery_date ولم يتم تسليمها
+-- =====================================================
+
+SELECT
+    id,
+    tracking_number,
+    expected_delivery_date,
+    shipment_status
+FROM shipments
+WHERE expected_delivery_date < CURDATE()
+  AND shipment_status <> 'delivered';
 
 
+-- =====================================================
+-- Query 4
+-- عرض جميع الشحنات الخاصة بعميل محدد مرتبة من الأحدث إلى الأقدم
+-- =====================================================
+
+SELECT
+    id,
+    tracking_number,
+    customer_id,
+    shipping_cost,
+    shipment_status,
+    created_at
+FROM shipments
+WHERE customer_id = 1
+ORDER BY created_at DESC;
 
 
+-- =====================================================
+-- Query 5
+-- عرض عدد الشحنات لكل عميل، بما في ذلك العملاء الذين لم ينشئوا أي شحنة
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name,
+    COUNT(s.id) AS shipment_count
+FROM customers c
+LEFT JOIN shipments s
+    ON c.id = s.customer_id
+GROUP BY
+    c.id,
+    c.full_name;
 
 
+-- =====================================================
+-- Query 6
+-- عرض إجمالي المبالغ التي دفعها كل عميل
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name,
+    SUM(p.amount) AS total_paid
+FROM customers c
+JOIN shipments s
+    ON c.id = s.customer_id
+JOIN payments p
+    ON s.id = p.shipment_id
+WHERE p.status = 'successful'
+GROUP BY
+    c.id,
+    c.full_name;
+
+
+-- =====================================================
+-- Query 7
+-- عرض العملاء الذين تجاوز مجموع قيمة شحناتهم 5000
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name,
+    SUM(s.shipping_cost) AS total_shipping_cost
+FROM customers c
+JOIN shipments s
+    ON c.id = s.customer_id
+GROUP BY
+    c.id,
+    c.full_name
+HAVING SUM(s.shipping_cost) > 5000;
+
+
+-- =====================================================
+-- Query 8
+-- عرض عدد الشحنات التي خرجت من كل فرع
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    COUNT(s.id) AS outgoing_shipments
+FROM branches b
+LEFT JOIN shipments s
+    ON b.id = s.origin_branch_id
+GROUP BY
+    b.id,
+    b.branch_name;
+
+
+-- =====================================================
+-- Query 9
+-- عرض عدد الشحنات المستلمة في كل فرع
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    COUNT(s.id) AS incoming_shipments
+FROM branches b
+LEFT JOIN shipments s
+    ON b.id = s.destination_branch_id
+GROUP BY
+    b.id,
+    b.branch_name;
+
+
+-- =====================================================
+-- Query 10
+-- عرض الفرع صاحب أكبر عدد من الشحنات المرسلة
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    COUNT(s.id) AS outgoing_shipments
+FROM branches b
+JOIN shipments s
+    ON b.id = s.origin_branch_id
+GROUP BY
+    b.id,
+    b.branch_name
+ORDER BY outgoing_shipments DESC
+LIMIT 1;
+
+
+-- =====================================================
+-- Query 11
+-- عرض متوسط تكلفة الشحن لكل فرع
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    AVG(s.shipping_cost) AS average_shipping_cost
+FROM branches b
+JOIN shipments s
+    ON b.id = s.origin_branch_id
+GROUP BY
+    b.id,
+    b.branch_name;
+
+
+-- =====================================================
+-- Query 12
+-- عرض أغلى شحنة في كل فرع
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    MAX(s.shipping_cost) AS highest_shipping_cost
+FROM branches b
+JOIN shipments s
+    ON b.id = s.origin_branch_id
+GROUP BY
+    b.id,
+    b.branch_name;
+
+
+-- =====================================================
+-- Query 13
+-- عرض السائقين الذين قاموا بأكثر من 5 عمليات توصيل ناجحة
+-- =====================================================
+
+SELECT
+    dr.id,
+    dr.full_name,
+    COUNT(d.id) AS successful_deliveries
+FROM drivers dr
+JOIN deliveries d
+    ON dr.id = d.driver_id
+WHERE d.delivery_status = 'completed'
+GROUP BY
+    dr.id,
+    dr.full_name
+HAVING COUNT(d.id) > 5;
+
+
+-- =====================================================
+-- Query 14
+-- عرض عدد عمليات التوصيل لكل سائق، بما في ذلك السائقين
+-- الذين لم ينفذوا أي عملية توصيل
+-- =====================================================
+
+SELECT
+    dr.id,
+    dr.full_name,
+    COUNT(d.id) AS delivery_count
+FROM drivers dr
+LEFT JOIN deliveries d
+    ON dr.id = d.driver_id
+GROUP BY
+    dr.id,
+    dr.full_name;
+
+
+-- =====================================================
+-- Query 15
+-- عرض السائق صاحب أكبر عدد من عمليات التوصيل المكتملة
+-- =====================================================
+
+SELECT
+    dr.id,
+    dr.full_name,
+    COUNT(d.id) AS completed_deliveries
+FROM drivers dr
+JOIN deliveries d
+    ON dr.id = d.driver_id
+WHERE d.delivery_status = 'completed'
+GROUP BY
+    dr.id,
+    dr.full_name
+ORDER BY completed_deliveries DESC
+LIMIT 1;
+
+
+-- =====================================================
+-- Query 16
+-- عرض إجمالي قيمة الشحنات التي قام كل سائق بتوصيلها
+-- =====================================================
+
+SELECT
+    dr.id,
+    dr.full_name,
+    SUM(s.shipping_cost) AS total_shipment_value
+FROM drivers dr
+JOIN deliveries d
+    ON dr.id = d.driver_id
+JOIN shipments s
+    ON d.shipment_id = s.id
+GROUP BY
+    dr.id,
+    dr.full_name;
+
+
+-- =====================================================
+-- Query 17
+-- عرض المركبات التي لم تستخدم في أي عملية توصيل
+-- =====================================================
+
+SELECT
+    v.id,
+    v.plate_number,
+    v.vehicle_type,
+    v.status
+FROM vehicles v
+LEFT JOIN deliveries d
+    ON v.id = d.vehicle_id
+WHERE d.id IS NULL;
+
+
+-- =====================================================
+-- Query 18
+-- عرض عدد مرات استخدام كل مركبة
+-- =====================================================
+
+SELECT
+    v.id,
+    v.plate_number,
+    COUNT(d.id) AS usage_count
+FROM vehicles v
+LEFT JOIN deliveries d
+    ON v.id = d.vehicle_id
+GROUP BY
+    v.id,
+    v.plate_number;
+
+
+-- =====================================================
+-- Query 19
+-- عرض المركبات التي استخدمت أكثر من متوسط استخدام جميع المركبات
+-- =====================================================
+
+SELECT
+    v.id,
+    v.plate_number,
+    COUNT(d.id) AS usage_count
+FROM vehicles v
+LEFT JOIN deliveries d
+    ON v.id = d.vehicle_id
+GROUP BY
+    v.id,
+    v.plate_number
+HAVING COUNT(d.id) > (
+    SELECT AVG(usage_count)
+    FROM (
+        SELECT
+            vehicle_id,
+            COUNT(*) AS usage_count
+        FROM deliveries
+        GROUP BY vehicle_id
+    ) AS vehicle_usage
+);
+
+
+-- =====================================================
+-- Query 20
+-- عرض الموظفين الذين رواتبهم أعلى من متوسط رواتب الموظفين
+-- داخل نفس الفرع
+-- =====================================================
+
+SELECT
+    e.id,
+    e.full_name,
+    e.branch_id,
+    e.salary
+FROM employees e
+WHERE e.salary > (
+    SELECT AVG(e2.salary)
+    FROM employees e2
+    WHERE e2.branch_id = e.branch_id
+);
+
+
+-- =====================================================
+-- Query 21
+-- عرض أعلى موظف راتبًا داخل كل فرع
+-- =====================================================
+
+SELECT
+    e.id,
+    e.full_name,
+    e.branch_id,
+    e.salary
+FROM employees e
+WHERE e.salary = (
+    SELECT MAX(e2.salary)
+    FROM employees e2
+    WHERE e2.branch_id = e.branch_id
+);
+
+
+-- =====================================================
+-- Query 22
+-- عرض ثاني أعلى راتب داخل كل فرع
+-- =====================================================
+
+SELECT
+    id,
+    full_name,
+    branch_id,
+    salary
+FROM (
+    SELECT
+        e.id,
+        e.full_name,
+        e.branch_id,
+        e.salary,
+        DENSE_RANK() OVER (
+            PARTITION BY e.branch_id
+            ORDER BY e.salary DESC
+        ) AS salary_rank
+    FROM employees e
+) AS ranked_employees
+WHERE salary_rank = 2;
+
+
+-- =====================================================
+-- Query 23
+-- عرض الفروع التي متوسط رواتب موظفيها أعلى من متوسط رواتب
+-- جميع الموظفين في الشركة
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    AVG(e.salary) AS branch_average_salary
+FROM branches b
+JOIN employees e
+    ON b.id = e.branch_id
+GROUP BY
+    b.id,
+    b.branch_name
+HAVING AVG(e.salary) > (
+    SELECT AVG(salary)
+    FROM employees
+);
+
+
+-- =====================================================
+-- Query 24
+-- عرض العملاء الذين لديهم شحنة واحدة على الأقل ولكن لا توجد
+-- لديهم أي شحنة تم تسليمها بنجاح
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name
+FROM customers c
+WHERE EXISTS (
+    SELECT 1
+    FROM shipments s
+    WHERE s.customer_id = c.id
+)
+AND NOT EXISTS (
+    SELECT 1
+    FROM shipments s2
+    WHERE s2.customer_id = c.id
+      AND s2.shipment_status = 'delivered'
+);
+
+
+-- =====================================================
+-- Query 25
+-- عرض العملاء الذين لديهم شحنات في أكثر من فرع إرسال مختلف
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name,
+    COUNT(DISTINCT s.origin_branch_id) AS origin_branch_count
+FROM customers c
+JOIN shipments s
+    ON c.id = s.customer_id
+GROUP BY
+    c.id,
+    c.full_name
+HAVING COUNT(DISTINCT s.origin_branch_id) > 1;
+
+
+-- =====================================================
+-- Query 26
+-- عرض العملاء الذين لم ينشئوا أي شحنة خلال آخر 90 يومًا
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name
+FROM customers c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM shipments s
+    WHERE s.customer_id = c.id
+      AND s.created_at >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+);
+
+
+-- =====================================================
+-- Query 27
+-- عرض الشحنات التي لا يوجد لها أي سجل داخل shipment_tracking
+-- =====================================================
+
+SELECT
+    s.id,
+    s.tracking_number
+FROM shipments s
+LEFT JOIN shipment_tracking st
+    ON s.id = st.shipment_id
+WHERE st.id IS NULL;
+
+
+-- =====================================================
+-- Query 28
+-- عرض آخر حالة Tracking مسجلة لكل شحنة
+-- =====================================================
+
+SELECT
+    st.shipment_id,
+    st.status,
+    st.recorded_at
+FROM shipment_tracking st
+WHERE st.recorded_at = (
+    SELECT MAX(st2.recorded_at)
+    FROM shipment_tracking st2
+    WHERE st2.shipment_id = st.shipment_id
+);
+
+
+-- =====================================================
+-- Query 29
+-- عرض التاريخ الكامل لحركة شحنة باستخدام tracking_number
+-- =====================================================
+
+SELECT
+    s.tracking_number,
+    st.status,
+    st.description,
+    st.recorded_at,
+    b.branch_name
+FROM shipments s
+JOIN shipment_tracking st
+    ON s.id = st.shipment_id
+JOIN branches b
+    ON st.branch_id = b.id
+WHERE s.tracking_number = 'TRK100001'
+ORDER BY st.recorded_at ASC;
+
+
+-- =====================================================
+-- Query 30
+-- حساب المدة بين إنشاء الشحنة وتسليمها لكل شحنة مكتملة
+-- =====================================================
+
+SELECT
+    id,
+    tracking_number,
+    created_at,
+    delivered_at,
+    DATEDIFF(delivered_at, created_at) AS delivery_days
+FROM shipments
+WHERE shipment_status = 'delivered'
+  AND delivered_at IS NOT NULL;
+
+
+-- =====================================================
+-- Query 31
+-- حساب متوسط مدة التوصيل بالأيام
+-- =====================================================
+
+SELECT
+    AVG(DATEDIFF(delivered_at, created_at)) AS average_delivery_days
+FROM shipments
+WHERE shipment_status = 'delivered'
+  AND delivered_at IS NOT NULL;
+
+
+-- =====================================================
+-- Query 32
+-- عرض الشحنات التي مدة توصيلها أعلى من متوسط مدة التوصيل
+-- =====================================================
+
+SELECT
+    id,
+    tracking_number,
+    DATEDIFF(delivered_at, created_at) AS delivery_days
+FROM shipments
+WHERE shipment_status = 'delivered'
+  AND delivered_at IS NOT NULL
+  AND DATEDIFF(delivered_at, created_at) > (
+      SELECT AVG(DATEDIFF(delivered_at, created_at))
+      FROM shipments
+      WHERE shipment_status = 'delivered'
+        AND delivered_at IS NOT NULL
+  );
+
+
+-- =====================================================
+-- Query 33
+-- عرض نسبة الشحنات التي تم تسليمها بنجاح من إجمالي الشحنات
+-- =====================================================
+
+SELECT
+    (
+        SELECT COUNT(*)
+        FROM shipments
+        WHERE shipment_status = 'delivered'
+    ) * 100.0 / COUNT(*) AS delivered_percentage
+FROM shipments;
+
+
+-- =====================================================
+-- Query 34
+-- عرض نسبة الشحنات الملغاة لكل فرع
+-- =====================================================
+
+SELECT
+    b.id,
+    b.branch_name,
+    COUNT(CASE
+        WHEN s.shipment_status = 'cancelled' THEN 1
+    END) * 100.0 / COUNT(s.id) AS cancelled_percentage
+FROM branches b
+LEFT JOIN shipments s
+    ON b.id = s.origin_branch_id
+GROUP BY
+    b.id,
+    b.branch_name;
+
+
+-- =====================================================
+-- Query 35
+-- عرض الإيرادات الشهرية للسنة الحالية
+-- =====================================================
+
+SELECT
+    YEAR(payment_date) AS year,
+    MONTH(payment_date) AS month,
+    SUM(amount) AS monthly_revenue
+FROM payments
+WHERE YEAR(payment_date) = YEAR(CURDATE())
+  AND status = 'successful'
+GROUP BY
+    YEAR(payment_date),
+    MONTH(payment_date)
+ORDER BY
+    month;
+
+
+-- =====================================================
+-- Query 36
+-- عرض الشهر صاحب أعلى إيرادات
+-- =====================================================
+
+SELECT
+    YEAR(payment_date) AS year,
+    MONTH(payment_date) AS month,
+    SUM(amount) AS monthly_revenue
+FROM payments
+WHERE YEAR(payment_date) = YEAR(CURDATE())
+  AND status = 'successful'
+GROUP BY
+    YEAR(payment_date),
+    MONTH(payment_date)
+ORDER BY monthly_revenue DESC
+LIMIT 1;
+
+
+-- =====================================================
+-- Query 37
+-- عرض الإيرادات حسب طريقة الدفع
+-- =====================================================
+
+SELECT
+    payment_method,
+    SUM(amount) AS total_revenue
+FROM payments
+WHERE status = 'successful'
+GROUP BY payment_method
+ORDER BY total_revenue DESC;
+
+
+-- =====================================================
+-- Query 38
+-- عرض عمليات الدفع التي قيمتها مختلفة عن تكلفة الشحنة المرتبطة بها
+-- =====================================================
+
+SELECT
+    p.id AS payment_id,
+    p.shipment_id,
+    p.amount AS payment_amount,
+    s.shipping_cost
+FROM payments p
+JOIN shipments s
+    ON p.shipment_id = s.id
+WHERE p.amount <> s.shipping_cost;
+
+
+-- =====================================================
+-- Query 39
+-- عرض الشحنات التي حالتها paid ولكن لا يوجد لها سجل دفع ناجح
+-- =====================================================
+
+SELECT
+    s.id,
+    s.tracking_number,
+    s.payment_status
+FROM shipments s
+WHERE s.payment_status = 'paid'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM payments p
+      WHERE p.shipment_id = s.id
+        AND p.status = 'successful'
+  );
+
+
+-- =====================================================
+-- Query 40
+-- عرض العملاء الذين مجموع إنفاقهم أعلى من متوسط إنفاق جميع العملاء
+-- =====================================================
+
+SELECT
+    c.id,
+    c.full_name,
+    SUM(s.shipping_cost) AS total_spending
+FROM customers c
+JOIN shipments s
+    ON c.id = s.customer_id
+GROUP BY
+    c.id,
+    c.full_name
+HAVING SUM(s.shipping_cost) > (
+    SELECT AVG(customer_spending)
+    FROM (
+        SELECT
+            customer_id,
+            SUM(shipping_cost) AS customer_spending
+        FROM shipments
+        GROUP BY customer_id
+    ) AS spending
+);
 
 
 
